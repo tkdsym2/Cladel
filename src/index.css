@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+
+  color: #0f0f0f;
+  background-color: #f6f6f6;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Prevent text selection when dragging edges/nodes on the canvas */
+.react-flow {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Re-enable selection inside the detail panel's editable fields */
+.react-flow input,
+.react-flow textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Agent panel spinner */
+@keyframes agent-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Handle direction styling: Left = Input (凹 recessed), Right = Output (凸 protruding) */
+
+/* Left handle: input socket — narrow slot, recessed/concave appearance */
+.react-flow__handle-left {
+  width: 4px !important;
+  height: 14px !important;
+  border-radius: 0 2px 2px 0 !important;
+  box-shadow: inset 2px 0 3px rgba(0,0,0,0.4) !important;
+}
+
+/* Right handle: output plug — wider bump, protruding/convex appearance */
+.react-flow__handle-right {
+  width: 8px !important;
+  height: 14px !important;
+  border-radius: 0 4px 4px 0 !important;
+  box-shadow: 1px 0 4px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.15) !important;
+}
+
+/* Junction/Deleted nodes: keep original small circular handles */
+.react-flow__node-junction .react-flow__handle-left,
+.react-flow__node-junction .react-flow__handle-right,
+.react-flow__node-deleted .react-flow__handle-left,
+.react-flow__node-deleted .react-flow__handle-right {
+  width: 5px !important;
+  height: 5px !important;
+  border-radius: 50% !important;
+  box-shadow: none !important;
+}
+
+/* Agent panel suggestion fade-in */
+@keyframes agent-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* PDF import dialog spinner */
+@keyframes pdf-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* PDF export overlay spinner */
+@keyframes export-spin {
+  to { transform: rotate(360deg); }
+}

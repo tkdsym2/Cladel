@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "node-detail",
+  "description": "Capability for detached node detail windows",
+  "windows": [
+    "node-detail-*"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-title",
+    "core:window:allow-set-focus",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "dialog:default",
+    "store:default"
+  ]
+}

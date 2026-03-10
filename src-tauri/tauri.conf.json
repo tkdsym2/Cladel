@@ -1,0 +1,57 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri-conf-schema.json",
+  "productName": "Cladel",
+  "version": "0.1.0",
+  "identifier": "com.cladel.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Cladel",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**/*"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "resources": ["../sample/sample.cld"],
+    "fileAssociations": [
+      {
+        "ext": ["cld"],
+        "mimeType": "application/x-cladel"
+      },
+      {
+        "ext": ["klv"],
+        "mimeType": "application/x-klovel"
+      },
+      {
+        "ext": ["tmgx"],
+        "mimeType": "application/x-tsumugix"
+      }
+    ]
+  }
+}
