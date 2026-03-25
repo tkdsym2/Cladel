@@ -39,6 +39,10 @@
       "icons/icon.png"
     ],
     "resources": ["../sample/sample.cld"],
+    "category": "DeveloperTool",
+    "shortDescription": "Research thought-mapping application",
+    "longDescription": "Cladel is a desktop application for researchers to organize thinking as a knowledge graph. Combines literature management, personal thought mapping, and AI agents as collaborative research partners.",
+    "copyright": "Copyright (c) 2026 Cladel",
     "fileAssociations": [
       {
         "ext": ["cld"],
@@ -52,6 +56,23 @@
         "ext": ["tmgx"],
         "mimeType": "application/x-tsumugix"
       }
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "both"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/tkdsym2/Cladel/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU3RTNDRjg1MzI2N0IxN0UKUldSK3NXY3loYy9qNTFsQmhSYVgrSVpSdlkvRHdLbDNET3lrbWFweVhYWGVodElIQkpGdjFNblAK"
+    }
   }
 }

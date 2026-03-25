@@ -33,6 +33,7 @@ import {
   EdgeDeleteConfirmDialog,
   UnsavedChangesDialog,
 } from "./components/dialogs/ConfirmDialogs";
+import { UpdateDialog } from "./components/dialogs/UpdateDialog";
 
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
@@ -67,6 +68,7 @@ function App() {
     "new" | "open" | "close-tab" | "close-app" | null
   >(null);
   const [layerBarOpen, setLayerBarOpen] = useState(true);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const selfExporting = useExportStore((s) => s.selfExporting);
   const remoteExporting = useExportStore((s) => s.remoteExporting);
   const currentProject = useProjectStore((s) => s.currentProject);
@@ -428,6 +430,18 @@ function App() {
     init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Check for updates after init completes (production only)
+  const updateGuard = useRef(false);
+  useEffect(() => {
+    if (loading || updateGuard.current) return;
+    updateGuard.current = true;
+
+    // Skip update check in dev mode (Vite serves on localhost)
+    if (window.location.protocol === "http:") return;
+
+    setUpdateDialogOpen(true);
+  }, [loading]);
+
   const handleLayerSwitch = useCallback(
     async (layerId: string) => {
       const layer = layers.find((l) => l.id === layerId);
@@ -775,6 +789,12 @@ function App() {
         onNewFile={handleWelcomeNewFile}
         onFileOpened={handleWelcomeFileOpened}
         onQuit={() => { getCurrentWindow().close(); }}
+      />
+
+      {/* Update Dialog (auto-check on startup, production only) */}
+      <UpdateDialog
+        open={updateDialogOpen}
+        onClose={() => setUpdateDialogOpen(false)}
       />
 
 
