@@ -771,8 +771,12 @@ function App() {
           // After sync (especially download), reload the current tab's data
           const filePath = useFileStore.getState().currentFilePath;
           if (filePath) {
-            // Re-open the file to reload all data from the potentially updated .cld
-            useFileStore.getState().openFilePath(filePath).catch(console.error);
+            useTabStore.getState().reloadActiveTabFromDisk()
+              .then(() => {
+                useFileStore.getState().refreshFilePath();
+                useFileStore.getState().markClean();
+              })
+              .catch(console.error);
           }
         }}
       />

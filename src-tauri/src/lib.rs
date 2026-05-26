@@ -148,6 +148,7 @@ pub fn run() {
             commands::tab_commands::open_file_in_tab,
             commands::tab_commands::switch_tab,
             commands::tab_commands::close_tab,
+            commands::tab_commands::reload_active_tab_from_disk,
             commands::tab_commands::update_tab_after_save,
             // Node commands
             commands::nodes::create_node,

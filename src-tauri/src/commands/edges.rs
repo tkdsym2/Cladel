@@ -42,6 +42,20 @@ pub struct UpdateEdgeInput {
 #[tauri::command]
 pub fn create_edge(db: State<Database>, input: CreateEdgeInput) -> Result<EdgeData, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    if input.source_node_id == input.target_node_id {
+        return Err("Self-loop edges are not allowed".to_string());
+    }
+    let duplicate: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM edges WHERE layer_id = ?1 AND source_node_id = ?2 AND target_node_id = ?3",
+            rusqlite::params![input.layer_id, input.source_node_id, input.target_node_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to check duplicate edge: {e}"))?;
+    if duplicate {
+        return Err("Duplicate edges are not allowed".to_string());
+    }
+
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
     let weight = input.weight.unwrap_or(3);

@@ -77,6 +77,10 @@ export function closeTab(tabId: string): Promise<string> {
   return invoke("close_tab", { tabId });
 }
 
+export function reloadActiveTabFromDisk(): Promise<void> {
+  return invoke("reload_active_tab_from_disk");
+}
+
 export function updateTabAfterSave(
   filePath: string,
   displayName: string,
