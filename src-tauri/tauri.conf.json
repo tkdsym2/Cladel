@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri-conf-schema.json",
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "Cladel",
   "version": "0.1.0",
   "identifier": "com.cladel.desktop",

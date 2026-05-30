@@ -799,6 +799,7 @@ function App() {
       <UpdateDialog
         open={updateDialogOpen}
         onClose={() => setUpdateDialogOpen(false)}
+        silentErrors
       />
 
 
