@@ -1452,17 +1452,25 @@ export function GraphCanvas({
         const handlePos = getHandlePos(dbNode, tabPopover.sourceHandleId ?? null);
         const screenStart = flowToScreenPosition({ x: handlePos.x, y: handlePos.y });
         const screenEnd = tabPopover.position;
+        // Curve the preview branch like a real edge (bezier), not a straight line.
+        const [previewPath] = getBezierPath({
+          sourceX: screenStart.x,
+          sourceY: screenStart.y,
+          sourcePosition: handlePos.position,
+          targetX: screenEnd.x,
+          targetY: screenEnd.y,
+          targetPosition:
+            handlePos.position === Position.Left ? Position.Right : Position.Left,
+        });
         return (
           <svg
             style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1100 }}
             width="100%"
             height="100%"
           >
-            <line
-              x1={screenStart.x}
-              y1={screenStart.y}
-              x2={screenEnd.x}
-              y2={screenEnd.y}
+            <path
+              d={previewPath}
+              fill="none"
               stroke="#6b7280"
               strokeWidth={2}
               strokeDasharray="6 3"
