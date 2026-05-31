@@ -39,6 +39,7 @@ import type {
   RemoteFileStats,
   SyncStatusResult,
   UserIdentity,
+  TableImportResult,
 } from "../types";
 
 // ─── Tab Info ───
@@ -111,12 +112,9 @@ export function fileGetCurrentPath(): Promise<string | null> {
   return invoke("file_get_current_path");
 }
 
-export function ensureSampleFile(): Promise<string> {
-  return invoke("ensure_sample_file");
-}
-
-export function restoreSampleFile(): Promise<string> {
-  return invoke("restore_sample_file");
+/** Open the built-in sample as a new untitled tab (read-only template). */
+export function openSampleAsNew(): Promise<TabInfo> {
+  return invoke("open_sample_as_new");
 }
 
 // ─── Projects ───
@@ -462,6 +460,12 @@ export function importPdf(filePath: string): Promise<PdfMetadata> {
 
 export function extractPdfWithClaude(filePath: string): Promise<PdfMetadata> {
   return invoke("extract_pdf_with_claude", { filePath });
+}
+
+// ─── Table Import ───
+
+export function importTableFile(path: string): Promise<TableImportResult> {
+  return invoke("import_table_file", { path });
 }
 
 // ─── Export ───

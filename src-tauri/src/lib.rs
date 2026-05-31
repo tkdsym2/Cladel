@@ -39,6 +39,12 @@ pub fn run() {
             let settings_item = MenuItemBuilder::with_id("settings", "Settings...")
                 .accelerator("CmdOrCtrl+,")
                 .build(app)?;
+            // Custom Quit item: routes Cmd+Q through the frontend so unsaved
+            // changes can be guarded (the predefined quit() bypasses the
+            // window's close-requested handler).
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit Cladel")
+                .accelerator("CmdOrCtrl+Q")
+                .build(app)?;
 
             // App submenu (macOS: appears under the app name)
             let app_submenu = SubmenuBuilder::new(app, "Cladel")
@@ -54,7 +60,7 @@ pub fn run() {
                 .hide_others()
                 .show_all()
                 .separator()
-                .quit()
+                .item(&quit_item)
                 .build()?;
 
             let file_close_tab = MenuItemBuilder::with_id("file-close-tab", "Close Tab")
@@ -127,6 +133,13 @@ pub fn run() {
                 "settings" => {
                     let _ = app_handle.emit("menu-settings", ());
                 }
+                "quit" => {
+                    // Let the frontend check for unsaved changes before quitting.
+                    // It will destroy the main window (→ app exit) when clear.
+                    if let Some(main) = app_handle.get_webview_window("main") {
+                        let _ = main.emit("menu-quit", ());
+                    }
+                }
                 _ => {}
             });
 
@@ -139,9 +152,8 @@ pub fn run() {
             commands::file_commands::file_save,
             commands::file_commands::file_save_as,
             commands::file_commands::file_get_current_path,
-            commands::file_commands::ensure_sample_file,
-            commands::file_commands::restore_sample_file,
             // Tab commands
+            commands::tab_commands::open_sample_as_new,
             commands::tab_commands::get_tabs,
             commands::tab_commands::get_active_tab_id,
             commands::tab_commands::create_tab,
@@ -234,6 +246,8 @@ pub fn run() {
             // PDF import commands
             commands::pdf_import::import_pdf,
             commands::pdf_import::extract_pdf_with_claude,
+            // Table import commands
+            commands::table_import::import_table_file,
             // Image import commands
             commands::image_import::validate_image_file,
             commands::image_import::create_image_node,

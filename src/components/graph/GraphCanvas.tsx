@@ -31,6 +31,7 @@ import { AgentNode } from "./AgentNode";
 import { ExportNode } from "./ExportNode";
 import { CompareNode } from "./CompareNode";
 import { TitleNode } from "./TitleNode";
+import { TableNode } from "./TableNode";
 import { PaperGroupNode } from "./PaperGroupNode";
 import { ImportNode } from "./ImportNode";
 import { AnnotatedEdge, bezierPoint, parseBezierPath } from "./AnnotatedEdge";
@@ -59,6 +60,7 @@ const nodeTypes = {
   export: ExportNode,
   compare: CompareNode,
   title: TitleNode,
+  table: TableNode,
   import: ImportNode,
 };
 
@@ -98,7 +100,7 @@ interface ClipboardData {
 
 let _clipboard: ClipboardData | null = null;
 
-const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare"]);
+const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "table"]);
 
 // ─── Edge proximity detection for drop-on-edge ───
 
@@ -408,7 +410,7 @@ export function GraphCanvas({
 
   // Tab-to-Create selection handler
   // Resolve default dimensions and title for a new node type
-  const getNodeDefaults = useCallback((nodeType: TabNodeType) => {
+  const getNodeDefaults = useCallback((nodeType: TabNodeType): { width: number; height: number; title: string; metadata?: string } => {
     const prefs = useSettingsStore.getState().uiPreferences;
     switch (nodeType) {
       case "user_doc":
@@ -427,6 +429,14 @@ export function GraphCanvas({
         return { width: 280, height: 210, title: "Compare" };
       case "title":
         return { width: 280, height: 210, title: "Title" };
+      case "table":
+        return {
+          width: 280,
+          height: 210,
+          title: "Table",
+          // Created unconfigured — the user picks new vs. import in the detail panel.
+          metadata: JSON.stringify({ kind: "table", mode: "unconfigured", rows: [], source: null }),
+        };
     }
   }, []);
 
@@ -500,6 +510,7 @@ export function GraphCanvas({
             node_type: nodeType,
             title: defaults.title,
             content: "",
+            metadata: defaults.metadata,
             position_x: flowPos.x,
             position_y: flowPos.y,
             width: defaults.width,
@@ -559,6 +570,7 @@ export function GraphCanvas({
           node_type: nodeType,
           title: defaults.title,
           content: "",
+          metadata: defaults.metadata,
           position_x: newX,
           position_y: newY,
           width: defaults.width,
@@ -956,7 +968,7 @@ export function GraphCanvas({
 
       // Collect deletable selected nodes (React Flow multi-select + store single-select)
       const selectedNodes = state.nodes.filter((n) => n.selected);
-      const deletableTypes = new Set(["paper", "user_doc", "image", "agent", "junction", "paper_group", "export"]);
+      const deletableTypes = new Set(["paper", "user_doc", "image", "agent", "junction", "paper_group", "export", "table"]);
       const toDelete = selectedNodes.filter((n) => n.type && deletableTypes.has(n.type));
 
       // Fall back to single-selection if no multi-selected nodes

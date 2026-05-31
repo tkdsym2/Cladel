@@ -57,6 +57,7 @@ const KEY_CANVAS_BACKGROUND: &str = "canvas_background";
 const KEY_CANVAS_GRID_ENABLED: &str = "canvas_grid_enabled";
 const KEY_CANVAS_GRID_SIZE: &str = "canvas_grid_size";
 const KEY_EDITOR_FONT_SIZE: &str = "editor_font_size";
+const KEY_UI_LANGUAGE: &str = "ui_language";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentCapabilities {
@@ -100,6 +101,8 @@ pub struct UIPreferences {
     pub canvas_grid_enabled: bool,
     pub canvas_grid_size: f64,
     pub editor_font_size: f64,
+    /// UI language: "en" (default) or "ja".
+    pub language: String,
 }
 
 impl Default for UIPreferences {
@@ -120,6 +123,7 @@ impl Default for UIPreferences {
             canvas_grid_enabled: true,
             canvas_grid_size: 20.0,
             editor_font_size: 13.0,
+            language: "en".to_string(),
         }
     }
 }
@@ -403,6 +407,9 @@ pub fn get_ui_preferences(app: AppHandle) -> Result<UIPreferences, String> {
         editor_font_size: store.get(KEY_EDITOR_FONT_SIZE)
             .and_then(|v| v.as_f64())
             .unwrap_or(defaults.editor_font_size),
+        language: store.get(KEY_UI_LANGUAGE)
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or(defaults.language),
     })
 }
 
@@ -427,6 +434,7 @@ pub fn save_ui_preferences(app: AppHandle, preferences: UIPreferences) -> Result
     store.set(KEY_CANVAS_GRID_ENABLED, serde_json::json!(preferences.canvas_grid_enabled));
     store.set(KEY_CANVAS_GRID_SIZE, serde_json::json!(preferences.canvas_grid_size));
     store.set(KEY_EDITOR_FONT_SIZE, serde_json::json!(preferences.editor_font_size));
+    store.set(KEY_UI_LANGUAGE, serde_json::json!(preferences.language));
 
     Ok(())
 }

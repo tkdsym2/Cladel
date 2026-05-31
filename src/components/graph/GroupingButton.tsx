@@ -3,8 +3,10 @@ import { useReactFlow } from "@xyflow/react";
 import LayersIcon from "@mui/icons-material/Layers";
 import { useGraphStore } from "../../store/graphStore";
 import { GroupNamePopover } from "./GroupNamePopover";
+import { useT } from "../../lib/i18n";
 
 export function GroupingButton() {
+  const t = useT();
   const nodes = useGraphStore((s) => s.nodes);
   const { flowToScreenPosition } = useReactFlow();
   const [showPopover, setShowPopover] = useState(false);
@@ -58,7 +60,7 @@ export function GroupingButton() {
         }}
       >
         <LayersIcon sx={{ fontSize: 14 }} />
-        Group ({selectedPaperNodes.length})
+        {t({ en: "Group ({count})", ja: "グループ化 ({count})" }, { count: selectedPaperNodes.length })}
       </button>
 
       {showPopover && (

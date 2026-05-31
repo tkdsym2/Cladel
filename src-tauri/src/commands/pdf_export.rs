@@ -822,10 +822,13 @@ pub fn generate_export_pdf(
             title_node_title.unwrap_or(export_node.title)
         };
 
-        (effective_title, sections, citation_style, language, all_cited, all_images, style_config, title_page)
+        // Pre-extract table grids so {@table_x[r,c]} cell refs can be inlined during render.
+        let tables = build_table_map(&all_nodes);
+
+        (effective_title, sections, citation_style, language, all_cited, all_images, style_config, title_page, tables)
     };
 
-    let (doc_title, sections, citation_style, language, all_cited, all_images, style_config, title_page) = preview;
+    let (doc_title, sections, citation_style, language, all_cited, all_images, style_config, title_page, tables) = preview;
 
     // ─── Build PDF with genpdf ───
 
@@ -973,6 +976,13 @@ pub fn generate_export_pdf(
             let mut other_parts: Vec<String> = Vec::new();
 
             for did in &ids {
+                // Table cell reference like {@table_1[0,1]} → inline the raw cell value.
+                if let Some((base, row, col)) = parse_table_cell_ref(did) {
+                    if let Some(value) = resolve_table_cell(&tables, base, row, col) {
+                        other_parts.push(value);
+                        continue;
+                    }
+                }
                 if let Some(paper) = all_cited.iter().find(|p| p.display_id == *did) {
                     match citation_style.as_str() {
                         "apa" => paper_parts.push(format_apa_inline_bare(paper)),
@@ -1198,14 +1208,108 @@ fn build_cited_paper(ref_node: &NodeData, display_id: &str) -> CitedPaper {
 /// Split a multi-citation capture into individual display_ids.
 /// E.g. "XXX; @YYY; @ZZZ" → ["XXX", "YYY", "ZZZ"]
 fn split_citation_ids(captured: &str) -> Vec<&str> {
+    fn clean(s: &str) -> &str {
+        s.trim().trim_start_matches('@')
+    }
+    // Split on top-level ',' / ';' only — commas inside a table cell index
+    // like `table_1[0,1]` must NOT split the id.
     let mut ids = Vec::new();
-    for part in captured.split([',', ';']) {
-        let trimmed = part.trim().trim_start_matches('@');
-        if !trimmed.is_empty() {
-            ids.push(trimmed);
+    let mut depth: i32 = 0;
+    let mut start = 0usize;
+    for (i, ch) in captured.char_indices() {
+        match ch {
+            '[' => depth += 1,
+            ']' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            ',' | ';' if depth == 0 => {
+                let part = clean(&captured[start..i]);
+                if !part.is_empty() {
+                    ids.push(part);
+                }
+                start = i + 1; // ',' and ';' are single-byte ASCII
+            }
+            _ => {}
         }
     }
+    let part = clean(&captured[start..]);
+    if !part.is_empty() {
+        ids.push(part);
+    }
     ids
+}
+
+/// Parse a table cell reference id like `table_1[0,1]` into
+/// `(base_display_id, row, col)` with 0-based [row, col] indexing.
+/// Returns None when the id is not a table-cell reference.
+fn parse_table_cell_ref(did: &str) -> Option<(&str, usize, usize)> {
+    let open = did.find('[')?;
+    let did = did.strip_suffix(']')?;
+    let base = did[..open].trim();
+    if base.is_empty() {
+        return None;
+    }
+    let inner = &did[open + 1..];
+    let mut parts = inner.split(',');
+    let row: usize = parts.next()?.trim().parse().ok()?;
+    let col: usize = parts.next()?.trim().parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((base, row, col))
+}
+
+/// Look up a table node's cell value from a pre-built display_id → grid map.
+/// Out-of-range indices resolve to an empty string (the cell is "blank").
+fn resolve_table_cell(
+    tables: &std::collections::HashMap<String, Vec<Vec<String>>>,
+    base: &str,
+    row: usize,
+    col: usize,
+) -> Option<String> {
+    let grid = tables.get(base)?;
+    Some(grid.get(row).and_then(|r| r.get(col)).cloned().unwrap_or_default())
+}
+
+/// Extract a display_id → row-major grid map from the layer's table nodes.
+fn build_table_map(all_nodes: &[NodeData]) -> std::collections::HashMap<String, Vec<Vec<String>>> {
+    let mut tables: std::collections::HashMap<String, Vec<Vec<String>>> =
+        std::collections::HashMap::new();
+    for n in all_nodes {
+        if n.node_type != "table" {
+            continue;
+        }
+        let (Some(did), Some(meta)) = (n.display_id.as_deref(), n.metadata.as_deref()) else {
+            continue;
+        };
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(meta) else {
+            continue;
+        };
+        let Some(rows) = value.get("rows").and_then(|r| r.as_array()) else {
+            continue;
+        };
+        let grid: Vec<Vec<String>> = rows
+            .iter()
+            .map(|row| {
+                row.as_array()
+                    .map(|cells| {
+                        cells
+                            .iter()
+                            .map(|c| {
+                                c.as_str()
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_else(|| c.to_string())
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            })
+            .collect();
+        tables.insert(did.to_string(), grid);
+    }
+    tables
 }
 
 fn format_apa_inline_bare(paper: &CitedPaper) -> String {

@@ -18,6 +18,7 @@ interface TabStore {
   switchTab: (tabId: string) => Promise<void>;
   newTab: () => Promise<void>;
   openFileInTab: (path: string) => Promise<void>;
+  openSample: () => Promise<void>;
   reloadActiveTabFromDisk: () => Promise<void>;
   closeTab: (tabId: string) => Promise<void>;
   markActiveTabDirty: () => void;
@@ -139,6 +140,33 @@ export const useTabStore = create<TabStore>((set, get) => ({
       cmd.addRecentFile(path).catch(() => {});
     } catch (err) {
       console.error("Failed to open file in tab:", err);
+      set({ switching: false });
+      throw err;
+    }
+  },
+
+  openSample: async () => {
+    const { switching, tabs, activeTabId } = get();
+    if (switching) return;
+
+    // Replace the current empty/untitled tab if it's blank (fresh launch).
+    const currentTab = tabs.find((t) => t.id === activeTabId);
+    const isEmptyUntitled = currentTab && !currentTab.file_path && !currentTab.is_dirty;
+
+    set({ switching: true });
+    try {
+      await closeAllDetachedWindows();
+      const tab = await cmd.openSampleAsNew();
+      await reinitialize();
+
+      if (isEmptyUntitled && currentTab && currentTab.id !== tab.id) {
+        await cmd.closeTab(currentTab.id);
+      }
+
+      const updatedTabs = await cmd.getTabs();
+      set({ tabs: updatedTabs, activeTabId: tab.id, switching: false });
+    } catch (err) {
+      console.error("Failed to open sample:", err);
       set({ switching: false });
       throw err;
     }

@@ -16,6 +16,7 @@ interface FileStore {
   newFile: () => Promise<void>;
   openFile: () => Promise<void>;
   openFilePath: (path: string) => Promise<void>;
+  openSample: () => Promise<void>;
   saveFile: () => Promise<boolean>;
   saveFileAs: () => Promise<boolean>;
   refreshFilePath: () => Promise<void>;
@@ -82,6 +83,14 @@ export const useFileStore = create<FileStore>((set, get) => ({
       console.error("Failed to open file:", err);
       throw err;
     }
+  },
+
+  openSample: async () => {
+    // Open the built-in sample as a read-only template: loaded into an untitled
+    // document (no path), so the first save becomes "Save As" — the sample
+    // itself is never overwritten.
+    await useTabStore.getState().openSample();
+    set({ currentFilePath: null, fileName: "sample", isDirty: false });
   },
 
   saveFile: async () => {

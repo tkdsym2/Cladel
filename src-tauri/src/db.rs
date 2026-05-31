@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 /// Current schema version. Bump this when adding new migrations.
-const SCHEMA_VERSION: i32 = 19;
+const SCHEMA_VERSION: i32 = 20;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TabInfo {
@@ -52,7 +52,7 @@ pub fn initialize_schema(conn: &Connection) -> Result<()> {
         CREATE TABLE IF NOT EXISTS nodes (
             id TEXT PRIMARY KEY,
             layer_id TEXT NOT NULL REFERENCES layers(id),
-            node_type TEXT NOT NULL CHECK(node_type IN ('core', 'paper', 'user_doc', 'agent_proposal', 'deleted', 'junction', 'image', 'agent', 'paper_group', 'export', 'compare', 'title', 'nano_banana')),
+            node_type TEXT NOT NULL CHECK(node_type IN ('core', 'paper', 'user_doc', 'agent_proposal', 'deleted', 'junction', 'image', 'agent', 'paper_group', 'export', 'compare', 'title', 'nano_banana', 'table')),
             title TEXT NOT NULL,
             content TEXT,
             bibtex TEXT,
@@ -930,6 +930,55 @@ pub fn initialize_schema(conn: &Connection) -> Result<()> {
                     id TEXT PRIMARY KEY,
                     layer_id TEXT NOT NULL REFERENCES layers(id),
                     node_type TEXT NOT NULL CHECK(node_type IN ('core', 'paper', 'user_doc', 'agent_proposal', 'deleted', 'junction', 'image', 'agent', 'paper_group', 'export', 'compare', 'title', 'nano_banana')),
+                    title TEXT NOT NULL,
+                    content TEXT,
+                    bibtex TEXT,
+                    metadata TEXT,
+                    pdf_path TEXT,
+                    display_id TEXT,
+                    position_x REAL NOT NULL DEFAULT 0,
+                    position_y REAL NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'ghost', 'dismissed')),
+                    created_by TEXT NOT NULL DEFAULT 'user' CHECK(created_by IN ('user', 'agent')),
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    width REAL,
+                    height REAL,
+                    creator_user_id TEXT,
+                    creator_user_name TEXT
+                );
+                ",
+            )?;
+
+            conn.execute_batch(
+                "INSERT INTO _nodes_new (id, layer_id, node_type, title, content, bibtex, metadata, pdf_path, display_id, position_x, position_y, status, created_by, created_at, updated_at, width, height, creator_user_id, creator_user_name)
+                 SELECT id, layer_id, node_type, title, content, bibtex, metadata, pdf_path, display_id, position_x, position_y, status, created_by, created_at, updated_at, width, height, creator_user_id, creator_user_name FROM nodes;"
+            )?;
+            conn.execute_batch("DROP TABLE nodes; ALTER TABLE _nodes_new RENAME TO nodes;")?;
+            conn.execute_batch("PRAGMA foreign_keys=ON;")?;
+        }
+    }
+
+    // ─── Migration v20: add 'table' node_type CHECK (column-aware rebuild) ───
+    if current_version < 20 {
+        let needs_migration: bool = conn
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='nodes'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .map(|sql| !sql.contains("'table'"))
+            .unwrap_or(false);
+
+        if needs_migration {
+            conn.execute_batch("PRAGMA foreign_keys=OFF;")?;
+
+            conn.execute_batch(
+                "
+                CREATE TABLE _nodes_new (
+                    id TEXT PRIMARY KEY,
+                    layer_id TEXT NOT NULL REFERENCES layers(id),
+                    node_type TEXT NOT NULL CHECK(node_type IN ('core', 'paper', 'user_doc', 'agent_proposal', 'deleted', 'junction', 'image', 'agent', 'paper_group', 'export', 'compare', 'title', 'nano_banana', 'table')),
                     title TEXT NOT NULL,
                     content TEXT,
                     bibtex TEXT,

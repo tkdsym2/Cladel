@@ -1,4 +1,5 @@
 import { type MouseEvent } from "react";
+import { useT } from "../../lib/i18n";
 
 // ─── Shared styles ───
 
@@ -65,6 +66,7 @@ export function DeleteConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <div style={confirmOverlayStyle} onClick={onCancel}>
       <div style={confirmDialogStyle} onClick={(e: MouseEvent) => e.stopPropagation()}>
@@ -76,7 +78,7 @@ export function DeleteConfirmDialog({
             color: "#111827",
           }}
         >
-          Delete Node
+          {t({ en: "Delete Node", ja: "\u30CE\u30FC\u30C9\u3092\u524A\u9664" })}
         </h3>
         <p
           style={{
@@ -86,14 +88,20 @@ export function DeleteConfirmDialog({
             lineHeight: 1.5,
           }}
         >
-          {`Delete \u201C${nodeTitle}\u201D? You can undo with \u2318Z.`}
+          {t(
+            {
+              en: "Delete \u201C{name}\u201D? You can undo with \u2318Z.",
+              ja: "\u300C{name}\u300D\u3092\u524A\u9664\u3057\u307E\u3059\u304B?\u2318Z\u3067\u53D6\u308A\u6D88\u305B\u307E\u3059\u3002",
+            },
+            { name: nodeTitle },
+          )}
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button onClick={onCancel} style={confirmCancelBtnStyle}>
-            Cancel
+            {t({ en: "Cancel", ja: "\u30AD\u30E3\u30F3\u30BB\u30EB" })}
           </button>
           <button onClick={onConfirm} style={confirmDeleteBtnStyle}>
-            Delete
+            {t({ en: "Delete", ja: "\u524A\u9664" })}
           </button>
         </div>
       </div>
@@ -110,6 +118,7 @@ export function BatchDeleteConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <div style={confirmOverlayStyle} onClick={onCancel}>
       <div style={confirmDialogStyle} onClick={(e: MouseEvent) => e.stopPropagation()}>
@@ -121,7 +130,7 @@ export function BatchDeleteConfirmDialog({
             color: "#111827",
           }}
         >
-          Delete {count} Nodes
+          {t({ en: "Delete {count} Nodes", ja: "{count}\u500b\u306e\u30ce\u30fc\u30c9\u3092\u524a\u9664" }, { count })}
         </h3>
         <p
           style={{
@@ -131,14 +140,20 @@ export function BatchDeleteConfirmDialog({
             lineHeight: 1.5,
           }}
         >
-          Delete {count} selected nodes? You can undo with {"\u2318"}Z.
+          {t(
+            {
+              en: "Delete {count} selected nodes? You can undo with \u2318Z.",
+              ja: "\u9078\u629e\u3057\u305f{count}\u500b\u306e\u30ce\u30fc\u30c9\u3092\u524a\u9664\u3057\u307e\u3059\u304b?\u2318Z\u3067\u53d6\u308a\u6d88\u305b\u307e\u3059\u3002",
+            },
+            { count },
+          )}
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button onClick={onCancel} style={confirmCancelBtnStyle}>
-            Cancel
+            {t({ en: "Cancel", ja: "\u30ad\u30e3\u30f3\u30bb\u30eb" })}
           </button>
           <button onClick={onConfirm} style={confirmDeleteBtnStyle}>
-            Delete All
+            {t({ en: "Delete All", ja: "\u3059\u3079\u3066\u524a\u9664" })}
           </button>
         </div>
       </div>
@@ -153,6 +168,7 @@ export function EdgeDeleteConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <div style={confirmOverlayStyle} onClick={onCancel}>
       <div style={confirmDialogStyle} onClick={(e: MouseEvent) => e.stopPropagation()}>
@@ -164,7 +180,7 @@ export function EdgeDeleteConfirmDialog({
             color: "#111827",
           }}
         >
-          Delete Connection
+          {t({ en: "Delete Connection", ja: "\u63a5\u7d9a\u3092\u524a\u9664" })}
         </h3>
         <p
           style={{
@@ -174,14 +190,17 @@ export function EdgeDeleteConfirmDialog({
             lineHeight: 1.5,
           }}
         >
-          Delete this connection and its annotations? You can undo with {"\u2318"}Z.
+          {t({
+            en: "Delete this connection and its annotations? You can undo with \u2318Z.",
+            ja: "\u3053\u306e\u63a5\u7d9a\u3068\u6ce8\u91c8\u3092\u524a\u9664\u3057\u307e\u3059\u304b?\u2318Z\u3067\u53d6\u308a\u6d88\u305b\u307e\u3059\u3002",
+          })}
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button onClick={onCancel} style={confirmCancelBtnStyle}>
-            Cancel
+            {t({ en: "Cancel", ja: "\u30ad\u30e3\u30f3\u30bb\u30eb" })}
           </button>
           <button onClick={onConfirm} style={confirmDeleteBtnStyle}>
-            Delete
+            {t({ en: "Delete", ja: "\u524a\u9664" })}
           </button>
         </div>
       </div>
@@ -198,6 +217,7 @@ export function UnsavedChangesDialog({
   onDontSave: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <div style={confirmOverlayStyle} onClick={onCancel}>
       <div style={confirmDialogStyle} onClick={(e: MouseEvent) => e.stopPropagation()}>
@@ -209,7 +229,7 @@ export function UnsavedChangesDialog({
             color: "#111827",
           }}
         >
-          Unsaved Changes
+          {t({ en: "Unsaved Changes", ja: "未保存の変更" })}
         </h3>
         <p
           style={{
@@ -219,17 +239,20 @@ export function UnsavedChangesDialog({
             lineHeight: 1.5,
           }}
         >
-          You have unsaved changes. Would you like to save before continuing?
+          {t({
+            en: "You have unsaved changes. Would you like to save before continuing?",
+            ja: "未保存の変更があります。続行する前に保存しますか?",
+          })}
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button onClick={onCancel} style={confirmCancelBtnStyle}>
-            Cancel
+            {t({ en: "Cancel", ja: "キャンセル" })}
           </button>
           <button onClick={onDontSave} style={confirmCancelBtnStyle}>
-            Don't Save
+            {t({ en: "Don't Save", ja: "保存しない" })}
           </button>
           <button onClick={onSave} style={unsavedSaveBtnStyle}>
-            Save
+            {t({ en: "Save", ja: "保存" })}
           </button>
         </div>
       </div>
