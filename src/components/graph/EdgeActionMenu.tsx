@@ -5,8 +5,10 @@ import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useGraphStore } from "../../store/graphStore";
+import { useT } from "../../lib/i18n";
 
 export function EdgeActionMenu({ onRequestDeleteEdge }: { onRequestDeleteEdge?: (edgeId: string) => void }) {
+  const t = useT();
   const edgeActionMenu = useGraphStore((s) => s.edgeActionMenu);
   const closeEdgeActionMenu = useGraphStore((s) => s.closeEdgeActionMenu);
   const splitEdgeWithJunction = useGraphStore((s) => s.splitEdgeWithJunction);
@@ -66,8 +68,9 @@ export function EdgeActionMenu({ onRequestDeleteEdge }: { onRequestDeleteEdge?: 
 
   if (!edgeActionMenu || !edge) return null;
 
-  const sourceName = sourceNode?.title ?? "Unknown";
-  const targetName = targetNode?.title ?? "Unknown";
+  const unknownLabel = t({ en: "Unknown", ja: "不明" });
+  const sourceName = sourceNode?.title ?? unknownLabel;
+  const targetName = targetNode?.title ?? unknownLabel;
   const truncate = (s: string, max: number) =>
     s.length > max ? s.slice(0, max - 1) + "\u2026" : s;
 
@@ -108,7 +111,7 @@ export function EdgeActionMenu({ onRequestDeleteEdge }: { onRequestDeleteEdge?: 
           }
         >
           <DeleteOutlineIcon sx={{ fontSize: 14, mr: 1, flexShrink: 0, color: "inherit" }} />
-          Delete Connection
+          {t({ en: "Delete Connection", ja: "接続を削除" })}
         </button>
 
         {/* Action: Edge Properties (toggleable) */}
@@ -129,7 +132,7 @@ export function EdgeActionMenu({ onRequestDeleteEdge }: { onRequestDeleteEdge?: 
           }
         >
           <InfoOutlinedIcon sx={{ fontSize: 14, mr: 1, flexShrink: 0, color: "#374151" }} />
-          Edge Properties
+          {t({ en: "Edge Properties", ja: "エッジのプロパティ" })}
           <ExpandMoreIcon sx={{
             fontSize: 14,
             ml: "auto",
@@ -144,7 +147,7 @@ export function EdgeActionMenu({ onRequestDeleteEdge }: { onRequestDeleteEdge?: 
           <div style={propertiesStyle}>
             {/* Weight slider */}
             <div style={{ marginBottom: 8 }}>
-              <div style={propLabelStyle}>Weight: {weight}</div>
+              <div style={propLabelStyle}>{t({ en: "Weight: {weight}", ja: "太さ: {weight}" }, { weight })}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: 10, color: "#9ca3af" }}>1</span>
                 <input
@@ -163,7 +166,7 @@ export function EdgeActionMenu({ onRequestDeleteEdge }: { onRequestDeleteEdge?: 
 
             {/* Creation date */}
             <div style={{ fontSize: 11, color: "#6b7280" }}>
-              Created: {formatDate(edge.created_at)}
+              {t({ en: "Created: {date}", ja: "作成日: {date}" }, { date: formatDate(edge.created_at) })}
             </div>
           </div>
         )}
@@ -180,7 +183,7 @@ export function EdgeActionMenu({ onRequestDeleteEdge }: { onRequestDeleteEdge?: 
           }
         >
           <FiberManualRecordIcon sx={{ fontSize: 14, mr: 1, flexShrink: 0, color: "#374151" }} />
-          Add Branch Point
+          {t({ en: "Add Branch Point", ja: "分岐点を追加" })}
         </button>
       </div>
     </div>

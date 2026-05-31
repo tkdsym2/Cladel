@@ -6,6 +6,7 @@ import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import * as cmd from "../../lib/tauri-commands";
+import { useT } from "../../lib/i18n";
 import { useFileStore } from "../../store/fileStore";
 import { useTabStore } from "../../store/tabStore";
 import { useUserStore } from "../../store/userStore";
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }: Props) {
+  const t = useT();
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -39,7 +41,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
   const handleRegister = useCallback(async () => {
     const trimmed = regName.trim();
     if (!trimmed) {
-      setRegError("Please enter your name.");
+      setRegError(t({ en: "Please enter your name.", ja: "名前を入力してください。" }));
       return;
     }
     setRegLoading(true);
@@ -52,7 +54,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
     } finally {
       setRegLoading(false);
     }
-  }, [regName]);
+  }, [regName, t]);
 
   // Set of file paths currently open in tabs
   const openFilePaths = new Set(
@@ -91,14 +93,17 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
         await openFilePath(file.path);
         onFileOpened();
       } catch {
-        setFileErrors((prev) => ({ ...prev, [file.path]: "File not found" }));
+        setFileErrors((prev) => ({
+          ...prev,
+          [file.path]: t({ en: "File not found", ja: "ファイルが見つかりません" }),
+        }));
         cmd.removeRecentFile(file.path).catch(() => {});
         setRecentFiles((prev) => prev.filter((f) => f.path !== file.path));
       } finally {
         setLoading(false);
       }
     },
-    [loading, openFilePath, onFileOpened],
+    [loading, openFilePath, onFileOpened, t],
   );
 
   const handleBrowse = useCallback(async () => {
@@ -136,12 +141,14 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
         {/* Header */}
         <div style={{ ...headerStyle, position: "relative" }}>
           <span style={logoStyle}>Cladel</span>
-          <span style={subtitleStyle}>Research Thought-Mapping</span>
+          <span style={subtitleStyle}>
+            {t({ en: "Research Thought-Mapping", ja: "研究思考マッピング" })}
+          </span>
           {dismissible && (
             <button
               onClick={onClose}
               style={dialogCloseButtonStyle}
-              title="Close"
+              title={t({ en: "Close", ja: "閉じる" })}
             >
               <CloseIcon sx={{ fontSize: 18 }} />
             </button>
@@ -161,7 +168,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
                 e.currentTarget.style.color = "#6b7280";
               }}
             >
-              Quit
+              {t({ en: "Quit", ja: "終了" })}
             </button>
           )}
         </div>
@@ -171,17 +178,17 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
           <div style={registrationStyle}>
             <PersonOutlineIcon sx={{ fontSize: 36, color: "#1e40af", mb: "4px" }} />
             <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 4 }}>
-              Welcome to Cladel!
+              {t({ en: "Welcome to Cladel!", ja: "Cladelへようこそ!" })}
             </div>
             <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>
-              Please enter your name to get started.
+              {t({ en: "Please enter your name to get started.", ja: "名前を入力して始めましょう。" })}
             </div>
             <input
               type="text"
               value={regName}
               onChange={(e) => setRegName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleRegister(); }}
-              placeholder="Your name"
+              placeholder={t({ en: "Your name", ja: "あなたの名前" })}
               disabled={regLoading}
               style={regInputStyle}
               autoFocus
@@ -197,7 +204,9 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
                 opacity: regLoading || !regName.trim() ? 0.6 : 1,
               }}
             >
-              {regLoading ? "Registering..." : "Get Started"}
+              {regLoading
+                ? t({ en: "Registering...", ja: "登録中..." })
+                : t({ en: "Get Started", ja: "始める" })}
             </button>
           </div>
         ) : (
@@ -218,10 +227,10 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
             >
               <ScienceOutlinedIcon sx={{ fontSize: 32, color: "#1e40af", mb: "4px" }} />
               <span style={{ fontSize: 14, fontWeight: 600, color: "#1e40af" }}>
-                Open Sample
+                {t({ en: "Open Sample", ja: "サンプルを開く" })}
               </span>
               <span style={{ fontSize: 11, color: "#6b7280", marginTop: 2, textAlign: "center" }}>
-                Explore the demo project
+                {t({ en: "Explore the demo project", ja: "デモプロジェクトを試す" })}
               </span>
             </button>
 
@@ -238,25 +247,25 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
             >
               <NoteAddOutlinedIcon sx={{ fontSize: 32, color: "#6b7280", mb: "4px" }} />
               <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
-                Create New File
+                {t({ en: "Create New File", ja: "新規ファイルを作成" })}
               </span>
               <span style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, textAlign: "center" }}>
-                Start a fresh project
+                {t({ en: "Start a fresh project", ja: "新しいプロジェクトを始める" })}
               </span>
             </button>
           </div>
 
           {/* Right panel: Recent Files */}
           <div style={recentPanelStyle}>
-            <div style={recentHeaderStyle}>Recent Files</div>
+            <div style={recentHeaderStyle}>{t({ en: "Recent Files", ja: "最近開いたファイル" })}</div>
 
             {recentFiles.length === 0 ? (
               <div style={emptyStateStyle}>
                 <span style={{ color: "#9ca3af", fontSize: 13 }}>
-                  No recent files
+                  {t({ en: "No recent files", ja: "最近開いたファイルはありません" })}
                 </span>
                 <span style={{ color: "#d1d5db", fontSize: 11, marginTop: 4 }}>
-                  Open or create a file to get started
+                  {t({ en: "Open or create a file to get started", ja: "ファイルを開くか作成して始めましょう" })}
                 </span>
               </div>
             ) : (
@@ -292,9 +301,9 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
                         )}
                       </div>
                       {isAlreadyOpen ? (
-                        <div style={alreadyOpenBadgeStyle}>Open</div>
+                        <div style={alreadyOpenBadgeStyle}>{t({ en: "Open", ja: "開く" })}</div>
                       ) : (
-                        <div style={fileDateStyle}>{formatDate(file.last_opened)}</div>
+                        <div style={fileDateStyle}>{formatDate(file.last_opened, t)}</div>
                       )}
                     </button>
                   );
@@ -315,7 +324,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
               }}
             >
               <FolderOpenOutlinedIcon sx={{ fontSize: 16, color: "#6b7280" }} />
-              <span>Browse Other File...</span>
+              <span>{t({ en: "Browse Other File...", ja: "他のファイルを参照..." })}</span>
             </button>
           </div>
         </div>
@@ -336,16 +345,16 @@ function abbreviatePath(path: string): string {
   return normalized;
 }
 
-function formatDate(isoString: string): string {
+function formatDate(isoString: string, t: ReturnType<typeof useT>): string {
   try {
     const date = new Date(isoString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays === 0) return t({ en: "Today", ja: "今日" });
+    if (diffDays === 1) return t({ en: "Yesterday", ja: "昨日" });
+    if (diffDays < 7) return t({ en: "{n}d ago", ja: "{n}日前" }, { n: diffDays });
 
     return date.toLocaleDateString(undefined, {
       month: "short",

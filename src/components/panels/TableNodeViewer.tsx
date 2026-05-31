@@ -10,6 +10,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { NodeData, TableModel, TableSource } from "../../types";
 import { useGraphStore } from "../../store/graphStore";
 import { importTableFile } from "../../lib/tauri-commands";
+import { useT } from "../../lib/i18n";
 
 const ACCENT = "#0f766e";
 const BLANK_ROWS = 3;
@@ -56,6 +57,7 @@ function rectangularize(rows: string[][]): string[][] {
 
 export function TableNodeViewer({ node }: TableNodeViewerProps) {
   const updateNodeContent = useGraphStore((s) => s.updateNodeContent);
+  const t = useT();
 
   const [title, setTitle] = useState(node.title);
   const [model, setModel] = useState<TableModel>(() => parseModel(node));
@@ -198,7 +200,7 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
     return (
       <div style={containerStyle}>
         <div style={sectionStyle}>
-          <label style={labelStyle}>Title</label>
+          <label style={labelStyle}>{t("common.title")}</label>
           <input
             type="text"
             value={title}
@@ -208,17 +210,17 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
           />
         </div>
 
-        <p style={chooserHintStyle}>このテーブルの作成方法を選択してください。</p>
+        <p style={chooserHintStyle}>{t("table.chooser.hint")}</p>
         <div style={choicesStyle}>
           <button onClick={chooseManual} style={choiceBtnStyle} disabled={busy}>
             <TableChartIcon sx={{ fontSize: 28, color: ACCENT }} />
-            <span style={choiceLabelStyle}>新規作成</span>
-            <span style={choiceDescStyle}>{BLANK_ROWS}×{BLANK_COLS} の編集可能な表</span>
+            <span style={choiceLabelStyle}>{t("table.chooser.createNew")}</span>
+            <span style={choiceDescStyle}>{t("table.chooser.createNewDesc", { rows: BLANK_ROWS, cols: BLANK_COLS })}</span>
           </button>
           <button onClick={() => pickAndImport(true)} style={choiceBtnStyle} disabled={busy}>
             <UploadFileIcon sx={{ fontSize: 28, color: ACCENT }} />
-            <span style={choiceLabelStyle}>{busy ? "読込中..." : "既存ファイルを読み込む"}</span>
-            <span style={choiceDescStyle}>CSV / XLSX(編集不可・参照のみ)</span>
+            <span style={choiceLabelStyle}>{busy ? t("common.loading") : t("table.chooser.importFile")}</span>
+            <span style={choiceDescStyle}>{t("table.chooser.importFileDesc")}</span>
           </button>
         </div>
         {error && <div style={errorStyle}>{error}</div>}
@@ -244,7 +246,7 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
 
       {/* Mode / source info */}
       <div style={metaRowStyle}>
-        <span style={modeBadgeStyle}>{isManual ? "手入力 (編集可)" : "取込 (読み取り専用)"}</span>
+        <span style={modeBadgeStyle}>{isManual ? t("table.mode.manualEditable") : t("table.mode.importedReadonly")}</span>
         {model.source && (
           <span style={sourceTextStyle} title={model.source.path}>
             {model.source.filename}
@@ -260,12 +262,12 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
             onClick={reloadSamePath}
             style={controlBtnStyle}
             disabled={busy || !model.source?.path}
-            title={model.source?.path ?? "保存されたパスがありません"}
+            title={model.source?.path ?? t("table.tip.noStoredPath")}
           >
-            <RefreshIcon sx={{ fontSize: 14 }} /> {busy ? "読込中..." : "最新状態に更新"}
+            <RefreshIcon sx={{ fontSize: 14 }} /> {busy ? t("common.loading") : t("table.action.reload")}
           </button>
           <button onClick={() => pickAndImport(true)} style={controlBtnStyle} disabled={busy}>
-            <SwapHorizIcon sx={{ fontSize: 14 }} /> 別のファイルを選択
+            <SwapHorizIcon sx={{ fontSize: 14 }} /> {t("table.action.replaceFile")}
           </button>
         </div>
       )}
@@ -276,13 +278,13 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
         {selected ? (
           <>
             <code style={refCodeStyle}>{`{@${displayId}[${selected.r},${selected.c}]}`}</code>
-            <button onClick={handleCopyRef} style={copyBtnStyle} title="参照をコピー">
+            <button onClick={handleCopyRef} style={copyBtnStyle} title={t("table.action.copyRefTitle")}>
               <ContentCopyIcon sx={{ fontSize: 13 }} />
-              {copied ? "コピー済み" : "コピー"}
+              {copied ? t("common.copied") : t("common.copy")}
             </button>
           </>
         ) : (
-          <span style={refHintStyle}>セルを選択すると引用参照 {`{@${displayId}[行,列]}`} をコピーできます</span>
+          <span style={refHintStyle}>{t("table.refHint", { id: displayId })}</span>
         )}
       </div>
 
@@ -299,7 +301,7 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
                     <button
                       onClick={() => removeColumn(ci)}
                       style={miniDeleteBtnStyle}
-                      title="列を削除"
+                      title={t("table.action.deleteColumn")}
                     >
                       <CloseIcon sx={{ fontSize: 10 }} />
                     </button>
@@ -317,7 +319,7 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
                     <button
                       onClick={() => removeRow(ri)}
                       style={miniDeleteBtnStyle}
-                      title="行を削除"
+                      title={t("table.action.deleteRow")}
                     >
                       <CloseIcon sx={{ fontSize: 10 }} />
                     </button>
@@ -358,10 +360,10 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
       {isManual && (
         <div style={controlsRowStyle}>
           <button onClick={addRow} style={controlBtnStyle}>
-            <AddIcon sx={{ fontSize: 14 }} /> 行を追加
+            <AddIcon sx={{ fontSize: 14 }} /> {t("table.action.addRow")}
           </button>
           <button onClick={addColumn} style={controlBtnStyle}>
-            <AddIcon sx={{ fontSize: 14 }} /> 列を追加
+            <AddIcon sx={{ fontSize: 14 }} /> {t("table.action.addColumn")}
           </button>
         </div>
       )}

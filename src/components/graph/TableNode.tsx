@@ -3,6 +3,7 @@ import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflo
 import TableChartIcon from "@mui/icons-material/TableChart";
 import { useGraphStore } from "../../store/graphStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
+import { useT } from "../../lib/i18n";
 import type { TableModel } from "../../types";
 
 const ACCENT = "#0f766e";
@@ -32,6 +33,7 @@ export function TableNode({ id, data, selected }: NodeProps<Node<TableNodeData>>
   const displayId = (data.display_id as string) ?? null;
   const updateNodeSize = useGraphStore((s) => s.updateNodeSize);
   const connectedRefs = useConnectedDisplayIds(id);
+  const t = useT();
 
   const model = parseModel(data.metadata as string | null | undefined);
   const rows = model?.rows ?? [];
@@ -87,12 +89,16 @@ export function TableNode({ id, data, selected }: NodeProps<Node<TableNodeData>>
           <TableChartIcon sx={{ fontSize: 16, color: ACCENT }} />
           <span style={{ fontWeight: 600, wordBreak: "break-word", flex: 1 }}>{title}</span>
           <span style={modeBadgeStyle}>
-            {mode === "imported" ? "取込" : mode === "manual" ? "手入力" : "未設定"}
+            {mode === "imported"
+              ? t("table.badge.imported")
+              : mode === "manual"
+                ? t("table.badge.manual")
+                : t("table.badge.unconfigured")}
           </span>
         </div>
 
         {mode === "unconfigured" ? (
-          <div style={hintStyle}>右パネルで「新規作成」または「ファイル読込」を選択</div>
+          <div style={hintStyle}>{t("table.node.unconfiguredHint")}</div>
         ) : previewRows.length > 0 && previewCols > 0 ? (
           <div style={previewWrapStyle}>
             <table style={previewTableStyle}>

@@ -39,6 +39,12 @@ pub fn run() {
             let settings_item = MenuItemBuilder::with_id("settings", "Settings...")
                 .accelerator("CmdOrCtrl+,")
                 .build(app)?;
+            // Custom Quit item: routes Cmd+Q through the frontend so unsaved
+            // changes can be guarded (the predefined quit() bypasses the
+            // window's close-requested handler).
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit Cladel")
+                .accelerator("CmdOrCtrl+Q")
+                .build(app)?;
 
             // App submenu (macOS: appears under the app name)
             let app_submenu = SubmenuBuilder::new(app, "Cladel")
@@ -54,7 +60,7 @@ pub fn run() {
                 .hide_others()
                 .show_all()
                 .separator()
-                .quit()
+                .item(&quit_item)
                 .build()?;
 
             let file_close_tab = MenuItemBuilder::with_id("file-close-tab", "Close Tab")
@@ -126,6 +132,13 @@ pub fn run() {
                 }
                 "settings" => {
                     let _ = app_handle.emit("menu-settings", ());
+                }
+                "quit" => {
+                    // Let the frontend check for unsaved changes before quitting.
+                    // It will destroy the main window (→ app exit) when clear.
+                    if let Some(main) = app_handle.get_webview_window("main") {
+                        let _ = main.emit("menu-quit", ());
+                    }
                 }
                 _ => {}
             });

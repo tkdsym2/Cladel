@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useGraphStore } from "../../store/graphStore";
 import { useLayerStore } from "../../store/layerStore";
+import { useT } from "../../lib/i18n";
 
 interface GroupNamePopoverProps {
   position: { x: number; y: number };
@@ -9,6 +10,7 @@ interface GroupNamePopoverProps {
 }
 
 export function GroupNamePopover({ position, memberIds, onClose }: GroupNamePopoverProps) {
+  const t = useT();
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const createPaperGroup = useGraphStore((s) => s.createPaperGroup);
@@ -54,7 +56,7 @@ export function GroupNamePopover({ position, memberIds, onClose }: GroupNamePopo
       onClick={(e) => e.stopPropagation()}
     >
       <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-        Group Name
+        {t({ en: "Group Name", ja: "グループ名" })}
       </div>
       <input
         ref={inputRef}
@@ -62,7 +64,7 @@ export function GroupNamePopover({ position, memberIds, onClose }: GroupNamePopo
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Enter group name..."
+        placeholder={t({ en: "Enter group name...", ja: "グループ名を入力..." })}
         style={{
           width: "100%",
           padding: "6px 8px",
@@ -76,7 +78,7 @@ export function GroupNamePopover({ position, memberIds, onClose }: GroupNamePopo
       />
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
         <button onClick={onClose} style={cancelBtnStyle}>
-          Cancel
+          {t({ en: "Cancel", ja: "キャンセル" })}
         </button>
         <button
           onClick={handleConfirm}
@@ -86,7 +88,7 @@ export function GroupNamePopover({ position, memberIds, onClose }: GroupNamePopo
             opacity: name.trim() ? 1 : 0.5,
           }}
         >
-          Create Group
+          {t({ en: "Create Group", ja: "グループを作成" })}
         </button>
       </div>
     </div>

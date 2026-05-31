@@ -1001,6 +1001,36 @@ export function SettingsDialog() {
         {/* ── UI Layout Tab ── */}
         {activeTab === "ui_layout" && (
           <div style={sectionStyle}>
+            <div style={subHeadingStyle}>Language</div>
+            <div style={uiRowStyle}>
+              <span style={uiFieldLabelStyle}>Display language</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                {(["en", "ja"] as const).map((lng) => {
+                  const active = localUiPrefs.language === lng;
+                  return (
+                    <button
+                      key={lng}
+                      onClick={() => handleUiPrefsChange({ language: lng })}
+                      style={{
+                        padding: "5px 14px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        border: active ? "1px solid #2563eb" : "1px solid #d1d5db",
+                        background: active ? "#2563eb" : "#fff",
+                        color: active ? "#fff" : "#374151",
+                      }}
+                    >
+                      {lng === "en" ? "English" : "日本語"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={dividerStyle} />
+
             <div style={subHeadingStyle}>Default Node Sizes</div>
             <div style={uiGridStyle}>
               <NodeSizeRow label="Core" color="#1e40af"

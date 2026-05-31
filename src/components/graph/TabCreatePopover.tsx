@@ -9,6 +9,7 @@ import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import TitleIcon from "@mui/icons-material/Title";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import type { TabNodeType, TabDirection } from "../../types";
+import { useT, type Entry } from "../../lib/i18n";
 
 interface TabCreatePopoverProps {
   isOpen: boolean;
@@ -20,21 +21,21 @@ interface TabCreatePopoverProps {
 
 const GRID_COLS = 3;
 
-const ITEMS: { type: TabNodeType; label: string; key: string; color: string; bg: string }[] = [
-  { type: "user_doc", label: "Edit", key: "1", color: "#d97706", bg: "#fffbeb" },
-  { type: "paper", label: "Paper", key: "2", color: "#059669", bg: "#f0fdf4" },
-  { type: "image", label: "Image", key: "3", color: "#0891b2", bg: "#f0fdfa" },
-  { type: "agent", label: "Agent", key: "4", color: "#4338ca", bg: "rgba(67,56,202,0.08)" },
-  { type: "import", label: "Import", key: "5", color: "#6b7280", bg: "#f3f4f6" },
-  { type: "export", label: "Export", key: "6", color: "#e11d48", bg: "rgba(225,29,72,0.08)" },
-  { type: "compare", label: "Compare", key: "7", color: "#0284c7", bg: "rgba(2,132,199,0.08)" },
-  { type: "title", label: "Title", key: "8", color: "#78716c", bg: "rgba(120,113,108,0.08)" },
-  { type: "table", label: "Table", key: "9", color: "#0f766e", bg: "rgba(15,118,110,0.08)" },
+const ITEMS: { type: TabNodeType; label: Entry; key: string; color: string; bg: string }[] = [
+  { type: "user_doc", label: { en: "Edit", ja: "\u7de8\u96c6(Edit)" }, key: "1", color: "#d97706", bg: "#fffbeb" },
+  { type: "paper", label: { en: "Paper", ja: "\u8ad6\u6587(Paper)" }, key: "2", color: "#059669", bg: "#f0fdf4" },
+  { type: "image", label: { en: "Image", ja: "\u753b\u50cf(Image)" }, key: "3", color: "#0891b2", bg: "#f0fdfa" },
+  { type: "agent", label: { en: "Agent", ja: "\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8(Agent)" }, key: "4", color: "#4338ca", bg: "rgba(67,56,202,0.08)" },
+  { type: "import", label: { en: "Import", ja: "\u30a4\u30f3\u30dd\u30fc\u30c8(Import)" }, key: "5", color: "#6b7280", bg: "#f3f4f6" },
+  { type: "export", label: { en: "Export", ja: "\u30a8\u30af\u30b9\u30dd\u30fc\u30c8(Export)" }, key: "6", color: "#e11d48", bg: "rgba(225,29,72,0.08)" },
+  { type: "compare", label: { en: "Compare", ja: "\u6bd4\u8f03(Compare)" }, key: "7", color: "#0284c7", bg: "rgba(2,132,199,0.08)" },
+  { type: "title", label: { en: "Title", ja: "\u30bf\u30a4\u30c8\u30eb(Title)" }, key: "8", color: "#78716c", bg: "rgba(120,113,108,0.08)" },
+  { type: "table", label: { en: "Table", ja: "\u30c6\u30fc\u30d6\u30eb(Table)" }, key: "9", color: "#0f766e", bg: "rgba(15,118,110,0.08)" },
 ];
 
-const DIRECTION_LABELS: Record<TabDirection, string> = {
-  right: "\u2192 Right",
-  left: "\u2190 Left",
+const DIRECTION_LABELS: Record<TabDirection, Entry> = {
+  right: { en: "\u2192 Right", ja: "\u2192 \u53f3" },
+  left: { en: "\u2190 Left", ja: "\u2190 \u5de6" },
 };
 
 const ICONS = [NoteAddIcon, PictureAsPdfIcon, AddPhotoAlternateIcon, SmartToyIcon, FileUploadIcon, SaveAltIcon, CompareArrowsIcon, TitleIcon, TableChartIcon];
@@ -46,6 +47,7 @@ export function TabCreatePopover({
   onSelect,
   onClose,
 }: TabCreatePopoverProps) {
+  const t = useT();
   const [focusIndex, setFocusIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -181,9 +183,9 @@ export function TabCreatePopover({
 
       {/* Header */}
       <div style={headerStyle}>
-        <span style={{ fontWeight: 600, fontSize: 12 }}>Create Node</span>
+        <span style={{ fontWeight: 600, fontSize: 12 }}>{t({ en: "Create Node", ja: "ノードを作成" })}</span>
         <span style={{ fontSize: 11, color: "#9ca3af" }}>
-          {DIRECTION_LABELS[direction]}
+          {t(DIRECTION_LABELS[direction])}
         </span>
       </div>
 
@@ -207,7 +209,7 @@ export function TabCreatePopover({
               <div style={gridIconBoxStyle(item)}>
                 <Icon sx={{ fontSize: 20, color: item.color }} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 500, color: "#374151" }}>{item.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 500, color: "#374151" }}>{t(item.label)}</span>
               <span style={badgeStyle}>{item.key}</span>
             </div>
           );
@@ -216,11 +218,11 @@ export function TabCreatePopover({
 
       {/* Footer */}
       <div style={footerStyle}>
-        <span>\u2190\u2191\u2193\u2192 Navigate</span>
+        <span>{t({ en: "\u2190\u2191\u2193\u2192 Navigate", ja: "\u2190\u2191\u2193\u2192 \u79fb\u52d5" })}</span>
         <span style={{ margin: "0 6px", opacity: 0.3 }}>\u00b7</span>
-        <span>Enter Select</span>
+        <span>{t({ en: "Enter Select", ja: "Enter \u9078\u629e" })}</span>
         <span style={{ margin: "0 6px", opacity: 0.3 }}>\u00b7</span>
-        <span>Esc Cancel</span>
+        <span>{t({ en: "Esc Cancel", ja: "Esc \u30ad\u30e3\u30f3\u30bb\u30eb" })}</span>
       </div>
     </div>
   );

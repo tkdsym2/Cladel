@@ -5,6 +5,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import SettingsIcon from "@mui/icons-material/Settings";
 import DvrIcon from "@mui/icons-material/Dvr";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import { useT } from "../lib/i18n";
 import type { TabInfo } from "../store/tabStore";
 
 interface Props {
@@ -28,6 +29,7 @@ export function FileTabBar({
   onOpenManual,
   onOpenSettings,
 }: Props) {
+  const t = useT();
   const handleCloseTab = useCallback(
     (e: React.MouseEvent, tabId: string) => {
       e.stopPropagation();
@@ -56,7 +58,7 @@ export function FileTabBar({
                 if (!isActive)
                   e.currentTarget.style.background = inactiveTabStyle.background as string;
               }}
-              title={tab.file_path ?? "Untitled"}
+              title={tab.file_path ?? t({ en: "Untitled", ja: "無題" })}
             >
               <DescriptionIcon sx={{ fontSize: 14, color: isActive ? "#1e40af" : "#9ca3af", flexShrink: 0 }} />
               <span style={tabNameStyle}>
@@ -83,7 +85,7 @@ export function FileTabBar({
         <button
           onClick={onNewTab}
           style={newTabButtonStyle}
-          title="New Tab (Cmd+N)"
+          title={t({ en: "New Tab (Cmd+N)", ja: "新しいタブ (Cmd+N)" })}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#e5e7eb";
           }}
@@ -98,7 +100,7 @@ export function FileTabBar({
         <button
           onClick={onOpenConsole}
           style={settingsButtonStyle}
-          title="Agent Console"
+          title={t({ en: "Agent Console", ja: "エージェントコンソール" })}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#e5e7eb";
           }}
@@ -111,7 +113,7 @@ export function FileTabBar({
         <button
           onClick={onOpenManual}
           style={settingsButtonStyle}
-          title="Manual"
+          title={t({ en: "Manual", ja: "マニュアル" })}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#e5e7eb";
           }}
@@ -124,7 +126,7 @@ export function FileTabBar({
         <button
           onClick={onOpenSettings}
           style={settingsButtonStyle}
-          title="Settings (Cmd+,)"
+          title={t({ en: "Settings (Cmd+,)", ja: "設定 (Cmd+,)" })}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#e5e7eb";
           }}
