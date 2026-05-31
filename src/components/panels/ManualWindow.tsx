@@ -252,11 +252,6 @@ export function ManualWindow() {
             Connect to an Export node to include as the first page.
           </p>
 
-          <Sub>NanoBanana Node</Sub>
-          <p>
-            Yellow node with AutoAwesome icon. AI image generation via Gemini.
-            Enter a prompt and select an aspect ratio to generate a PNG image.
-          </p>
 
           <Sub>Paper Group</Sub>
           <p>
@@ -329,7 +324,6 @@ export function ManualWindow() {
             <li><b>Add Edit Node</b> -- creates a new Edit node at the click position</li>
             <li><b>Import File</b> -- opens a file dialog to import PDF or image</li>
             <li><b>Add Agent Node</b> -- creates a new Agent node</li>
-            <li><b>Add NanoBanana Node</b> -- creates an AI image generation node</li>
           </ul>
 
           <Sub>Drag and Drop</Sub>
@@ -404,11 +398,6 @@ export function ManualWindow() {
             full PDF context. Requires a Gemini API key.
           </p>
 
-          <Sub>NanoBanana (AI Image Generation)</Sub>
-          <p>
-            Create a NanoBanana node, enter a prompt, select an aspect ratio, and generate
-            an AI image via Gemini. The generated PNG is saved to disk.
-          </p>
 
           <Sub>Autonomous Agent</Sub>
           <p>

@@ -14,9 +14,10 @@ type UpdateState =
 interface Props {
   open: boolean;
   onClose: () => void;
+  silentErrors?: boolean;
 }
 
-export function UpdateDialog({ open, onClose }: Props) {
+export function UpdateDialog({ open, onClose, silentErrors = false }: Props) {
   const [state, setState] = useState<UpdateState>({ phase: "checking" });
   const updateRef = useRef<Awaited<ReturnType<typeof import("@tauri-apps/plugin-updater").check>> | null>(null);
 
@@ -44,12 +45,16 @@ export function UpdateDialog({ open, onClose }: Props) {
         }
       } catch (err) {
         if (cancelled) return;
+        if (silentErrors) {
+          onClose();
+          return;
+        }
         setState({ phase: "error", message: String(err) });
       }
     })();
 
     return () => { cancelled = true; };
-  }, [open, onClose]);
+  }, [open, onClose, silentErrors]);
 
   const handleUpdate = useCallback(async () => {
     const update = updateRef.current;

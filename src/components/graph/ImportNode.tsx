@@ -7,33 +7,40 @@ type ImportNodeData = {
 };
 
 export function ImportNode({ id, selected }: NodeProps<Node<ImportNodeData>>) {
-  const handleClick = useCallback(async () => {
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const selected = await open({
-        title: "Select file to import",
-        filters: [
-          {
-            name: "Supported Files",
-            extensions: [
-              "pdf",
-              "png", "jpg", "jpeg", "svg", "gif", "webp", "bmp", "tiff", "tif", "ico",
-            ],
-          },
-        ],
-        multiple: false,
-      });
-      if (selected) {
-        window.dispatchEvent(
-          new CustomEvent("import-node-file-selected", {
-            detail: { nodeId: id, filePath: selected },
-          }),
-        );
+  // Only the center button (or a drag-and-drop onto the canvas) triggers the import
+  // dialog. The node body itself stays draggable / selectable / resizable like any
+  // other node, so it can be moved, resized, and deleted.
+  const handleSelectFile = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const selectedPath = await open({
+          title: "Select file to import",
+          filters: [
+            {
+              name: "Supported Files",
+              extensions: [
+                "pdf",
+                "png", "jpg", "jpeg", "svg", "gif", "webp", "bmp", "tiff", "tif", "ico",
+              ],
+            },
+          ],
+          multiple: false,
+        });
+        if (selectedPath) {
+          window.dispatchEvent(
+            new CustomEvent("import-node-file-selected", {
+              detail: { nodeId: id, filePath: selectedPath },
+            }),
+          );
+        }
+      } catch (err) {
+        console.error("File dialog error:", err);
       }
-    } catch (err) {
-      console.error("File dialog error:", err);
-    }
-  }, [id]);
+    },
+    [id],
+  );
 
   return (
     <>
@@ -44,11 +51,18 @@ export function ImportNode({ id, selected }: NodeProps<Node<ImportNodeData>>) {
         lineStyle={resizerLineStyle}
         handleStyle={resizerHandleStyle}
       />
-      <div onClick={handleClick} style={containerStyle(selected)}>
+      <div style={containerStyle(selected)}>
         <div style={contentStyle}>
           <FileUploadIcon sx={{ fontSize: 28, color: "#9ca3af" }} />
-          <span style={labelStyle}>Drop or select file</span>
-          <span style={hintStyle}>PDF or Image</span>
+          <button
+            type="button"
+            className="nodrag"
+            onClick={handleSelectFile}
+            style={buttonStyle}
+          >
+            Select file
+          </button>
+          <span style={hintStyle}>or drag &amp; drop a PDF / Image</span>
         </div>
         <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
         <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
@@ -77,7 +91,7 @@ function containerStyle(selected: boolean | undefined): React.CSSProperties {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    cursor: "pointer",
+    cursor: "default",
     boxShadow: selected
       ? "0 0 0 2px rgba(107,114,128,0.3)"
       : "0 1px 4px rgba(0,0,0,0.05)",
@@ -88,13 +102,19 @@ const contentStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: 4,
+  gap: 6,
 };
 
-const labelStyle: React.CSSProperties = {
+const buttonStyle: React.CSSProperties = {
+  cursor: "pointer",
+  background: "#fff",
+  border: "1px solid #9ca3af",
+  borderRadius: 6,
+  padding: "6px 16px",
   fontSize: 12,
-  fontWeight: 500,
-  color: "#6b7280",
+  fontWeight: 600,
+  color: "#374151",
+  boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
 };
 
 const hintStyle: React.CSSProperties = {

@@ -77,6 +77,10 @@ export function closeTab(tabId: string): Promise<string> {
   return invoke("close_tab", { tabId });
 }
 
+export function reloadActiveTabFromDisk(): Promise<void> {
+  return invoke("reload_active_tab_from_disk");
+}
+
 export function updateTabAfterSave(
   filePath: string,
   displayName: string,
@@ -713,23 +717,6 @@ export function getSupabaseConfigStatus(): Promise<boolean> {
 
 export function deleteSupabaseConfig(): Promise<void> {
   return invoke("delete_supabase_config");
-}
-
-// ─── Nano Banana ───
-
-export interface NanoBananaResult {
-  file_path: string;
-  mime_type: string;
-  description: string | null;
-}
-
-export function generateNanoBananaImage(
-  nodeId: string,
-  layerId: string,
-  prompt: string,
-  aspectRatio?: string,
-): Promise<NanoBananaResult> {
-  return invoke("generate_nano_banana_image", { nodeId, layerId, prompt, aspectRatio });
 }
 
 // ─── Cloud Sync ───

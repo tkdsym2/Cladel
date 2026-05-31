@@ -31,7 +31,6 @@ import { AgentNode } from "./AgentNode";
 import { ExportNode } from "./ExportNode";
 import { CompareNode } from "./CompareNode";
 import { TitleNode } from "./TitleNode";
-import { NanoBananaNode } from "./NanoBananaNode";
 import { PaperGroupNode } from "./PaperGroupNode";
 import { ImportNode } from "./ImportNode";
 import { AnnotatedEdge, bezierPoint, parseBezierPath } from "./AnnotatedEdge";
@@ -60,7 +59,6 @@ const nodeTypes = {
   export: ExportNode,
   compare: CompareNode,
   title: TitleNode,
-  nano_banana: NanoBananaNode,
   import: ImportNode,
 };
 
@@ -100,7 +98,7 @@ interface ClipboardData {
 
 let _clipboard: ClipboardData | null = null;
 
-const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "nano_banana"]);
+const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare"]);
 
 // ─── Edge proximity detection for drop-on-edge ───
 
@@ -429,8 +427,6 @@ export function GraphCanvas({
         return { width: 280, height: 210, title: "Compare" };
       case "title":
         return { width: 280, height: 210, title: "Title" };
-      case "nano_banana":
-        return { width: 280, height: 210, title: "Nano Banana" };
     }
   }, []);
 
@@ -766,6 +762,14 @@ export function GraphCanvas({
 
       // Normal position update
       for (const n of nodes) {
+        if (n.type === "import") {
+          // Temp React-only node: keep the pending import target position in sync,
+          // but don't persist to the DB (there is no row for it yet).
+          setPendingImport((prev) =>
+            prev && prev.tempNodeId === n.id ? { ...prev, position: n.position } : prev,
+          );
+          continue;
+        }
         updateNodePosition(n.id, n.position.x, n.position.y);
       }
       preDragPositionRef.current.clear();
@@ -934,6 +938,19 @@ export function GraphCanvas({
       if (selectedEdge) {
         e.preventDefault();
         onRequestDeleteEdge(selectedEdge.id);
+        return;
+      }
+
+      // Temp import node (React-only): remove it locally without touching the backend.
+      const selectedImport = state.nodes.find((n) => n.selected && n.type === "import");
+      if (selectedImport) {
+        e.preventDefault();
+        useGraphStore.setState((s) => ({
+          nodes: s.nodes.filter((nn) => nn.id !== selectedImport.id),
+        }));
+        setPendingImport((prev) =>
+          prev && prev.tempNodeId === selectedImport.id ? null : prev,
+        );
         return;
       }
 
@@ -1452,17 +1469,25 @@ export function GraphCanvas({
         const handlePos = getHandlePos(dbNode, tabPopover.sourceHandleId ?? null);
         const screenStart = flowToScreenPosition({ x: handlePos.x, y: handlePos.y });
         const screenEnd = tabPopover.position;
+        // Curve the preview branch like a real edge (bezier), not a straight line.
+        const [previewPath] = getBezierPath({
+          sourceX: screenStart.x,
+          sourceY: screenStart.y,
+          sourcePosition: handlePos.position,
+          targetX: screenEnd.x,
+          targetY: screenEnd.y,
+          targetPosition:
+            handlePos.position === Position.Left ? Position.Right : Position.Left,
+        });
         return (
           <svg
             style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1100 }}
             width="100%"
             height="100%"
           >
-            <line
-              x1={screenStart.x}
-              y1={screenStart.y}
-              x2={screenEnd.x}
-              y2={screenEnd.y}
+            <path
+              d={previewPath}
+              fill="none"
               stroke="#6b7280"
               strokeWidth={2}
               strokeDasharray="6 3"

@@ -69,7 +69,6 @@ function getDefaultNodeSizes(): Record<string, { width: number; height: number }
     agent: { width: 280, height: 210 },
     paper_group: { width: 200, height: 200 },
     export: { width: 280, height: 210 },
-    nano_banana: { width: 280, height: 210 },
   };
 }
 
@@ -352,6 +351,14 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     const { dbEdges } = get();
     const firstDbNode = get().dbNodes[0];
     if (!firstDbNode) return;
+    if (!connection.source || !connection.target) return;
+    if (connection.source === connection.target) return;
+    const duplicate = dbEdges.some(
+      (e) =>
+        e.source_node_id === connection.source &&
+        e.target_node_id === connection.target,
+    );
+    if (duplicate) return;
 
     const input: CreateEdgeInput = {
       layer_id: firstDbNode.layer_id,

@@ -18,6 +18,7 @@ interface TabStore {
   switchTab: (tabId: string) => Promise<void>;
   newTab: () => Promise<void>;
   openFileInTab: (path: string) => Promise<void>;
+  reloadActiveTabFromDisk: () => Promise<void>;
   closeTab: (tabId: string) => Promise<void>;
   markActiveTabDirty: () => void;
   markActiveTabClean: () => void;
@@ -138,6 +139,28 @@ export const useTabStore = create<TabStore>((set, get) => ({
       cmd.addRecentFile(path).catch(() => {});
     } catch (err) {
       console.error("Failed to open file in tab:", err);
+      set({ switching: false });
+      throw err;
+    }
+  },
+
+  reloadActiveTabFromDisk: async () => {
+    const { switching } = get();
+    if (switching) return;
+
+    set({ switching: true });
+    try {
+      await closeAllDetachedWindows();
+      await cmd.reloadActiveTabFromDisk();
+      await reinitialize();
+
+      const [tabs, activeId] = await Promise.all([
+        cmd.getTabs(),
+        cmd.getActiveTabId(),
+      ]);
+      set({ tabs, activeTabId: activeId, switching: false });
+    } catch (err) {
+      console.error("Failed to reload active tab:", err);
       set({ switching: false });
       throw err;
     }

@@ -15,7 +15,7 @@ export interface LayerData {
   updated_at: string;
 }
 
-export type NodeType = "core" | "paper" | "user_doc" | "agent_proposal" | "deleted" | "junction" | "image" | "agent" | "paper_group" | "export" | "compare" | "title" | "nano_banana";
+export type NodeType = "core" | "paper" | "user_doc" | "agent_proposal" | "deleted" | "junction" | "image" | "agent" | "paper_group" | "export" | "compare" | "title";
 export type NodeStatus = "active" | "ghost" | "dismissed";
 export type CreatedBy = "user" | "agent";
 
@@ -444,17 +444,6 @@ export interface ImageFileInfo {
   node_id: string | null;
 }
 
-// ─── Nano Banana node ───
-
-export interface NanoBananaMetadata {
-  prompt?: string;
-  aspect_ratio?: string;
-  model?: string;
-  generated_at?: string;
-  file_path?: string;
-  description?: string;
-}
-
 // ─── UI Preferences ───
 
 export interface UIPreferences {
@@ -582,7 +571,7 @@ export interface PaperGroupMetadata {
 
 // ─── Tab-to-Create ───
 
-export type TabNodeType = "user_doc" | "paper" | "image" | "agent" | "import" | "export" | "compare" | "title" | "nano_banana";
+export type TabNodeType = "user_doc" | "paper" | "image" | "agent" | "import" | "export" | "compare" | "title";
 
 export type TabDirection = "right" | "left";
 

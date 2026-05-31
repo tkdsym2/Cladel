@@ -148,6 +148,7 @@ pub fn run() {
             commands::tab_commands::open_file_in_tab,
             commands::tab_commands::switch_tab,
             commands::tab_commands::close_tab,
+            commands::tab_commands::reload_active_tab_from_disk,
             commands::tab_commands::update_tab_after_save,
             // Node commands
             commands::nodes::create_node,
@@ -261,8 +262,6 @@ pub fn run() {
             commands::agent_node_messages::get_agent_node_messages,
             commands::agent_node_messages::add_agent_node_message,
             commands::agent_node_messages::delete_agent_node_message,
-            // Nano Banana commands
-            commands::nano_banana::generate_nano_banana_image,
             // Sync commands
             commands::sync::sync_list_remote,
             commands::sync::sync_check_status,

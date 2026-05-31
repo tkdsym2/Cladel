@@ -26,7 +26,6 @@ import { AgentNodeViewer } from "./AgentNodeViewer";
 import { ExportNodeViewer } from "./ExportNodeViewer";
 import { CompareNodeViewer } from "./CompareNodeViewer";
 import { TitleNodeViewer } from "./TitleNodeViewer";
-import { NanoBananaNodeViewer } from "./NanoBananaNodeViewer";
 import { AccordionSection } from "../graph/NodeAccordionSection";
 import type { NodeData, EdgeData, NodeComment, AgentNodeMessage, PaperGroupMetadata } from "../../types";
 
@@ -56,7 +55,7 @@ export function NodeDetailPanel({
 
   if (!node || node.node_type === "deleted" || node.node_type === "junction") return null;
 
-  const isDeletable = node.node_type === "paper" || node.node_type === "user_doc" || node.node_type === "image" || node.node_type === "agent" || node.node_type === "export" || node.node_type === "compare" || node.node_type === "title" || node.node_type === "nano_banana";
+  const isDeletable = node.node_type === "paper" || node.node_type === "user_doc" || node.node_type === "image" || node.node_type === "agent" || node.node_type === "export" || node.node_type === "compare" || node.node_type === "title";
 
   return (
     <div style={panelStyle}>
@@ -108,12 +107,6 @@ export function NodeDetailPanel({
       )}
       {node.node_type === "title" && (
         <TitleNodeViewer node={node} />
-      )}
-      {node.node_type === "nano_banana" && (
-        <>
-          <NanoBananaNodeViewer node={node} />
-          <CommentSection nodeId={node.id} layerId={node.layer_id} />
-        </>
       )}
     </div>
   );
@@ -2231,8 +2224,6 @@ function typeLabel(t: string): string {
       return "Export";
     case "compare":
       return "Compare";
-    case "nano_banana":
-      return "NanoBanana";
     default:
       return t;
   }
@@ -2249,7 +2240,6 @@ function typeBadgeStyle(t: string): React.CSSProperties {
     paper_group: { bg: "#059669", fg: "#fff" },
     export: { bg: "#e11d48", fg: "#fff" },
     compare: { bg: "#0284c7", fg: "#fff" },
-    nano_banana: { bg: "#ca8a04", fg: "#fff" },
   };
   const c = colors[t] ?? { bg: "#6b7280", fg: "#fff" };
   return {

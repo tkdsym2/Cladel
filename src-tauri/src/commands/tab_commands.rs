@@ -8,6 +8,45 @@ fn tab_snapshot_dir() -> PathBuf {
     std::env::temp_dir().join("cladel-tabs")
 }
 
+fn tab_snapshot_path(tab_id: &str) -> Result<PathBuf, String> {
+    let snap_dir = tab_snapshot_dir();
+    std::fs::create_dir_all(&snap_dir).map_err(|e| format!("Cannot create snapshot dir: {e}"))?;
+    Ok(snap_dir.join(format!("{tab_id}.cld")))
+}
+
+fn validate_and_initialize(conn: &Connection) -> Result<(), String> {
+    let has_projects: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='projects'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .map_err(|e| format!("File is not a valid Cladel document: {e}"))?;
+    if !has_projects {
+        return Err("File is not a valid Cladel document (missing schema).".to_string());
+    }
+    initialize_schema(conn).map_err(|e| format!("Schema migration failed: {e}"))
+}
+
+fn open_snapshot_connection(path: &PathBuf) -> Result<Connection, String> {
+    let conn =
+        Connection::open(path).map_err(|e| format!("Failed to open tab working copy: {e}"))?;
+    validate_and_initialize(&conn)?;
+    Ok(conn)
+}
+
+fn create_working_copy(source_path: &PathBuf, tab_id: &str) -> Result<PathBuf, String> {
+    let snap_path = tab_snapshot_path(tab_id)?;
+    if snap_path.exists() {
+        std::fs::remove_file(&snap_path)
+            .map_err(|e| format!("Cannot replace tab working copy: {e}"))?;
+    }
+    std::fs::copy(source_path, &snap_path)
+        .map_err(|e| format!("Failed to create tab working copy: {e}"))?;
+    Ok(snap_path)
+}
+
 /// Return all tab metadata for UI.
 #[tauri::command]
 pub fn get_tabs(db: State<Database>) -> Result<Vec<TabInfo>, String> {
@@ -87,21 +126,9 @@ pub fn open_file_in_tab(db: State<Database>, path: String) -> Result<TabInfo, St
     // Snapshot current tab before switching
     snapshot_current_tab_inner(&db)?;
 
-    // Open file
-    let conn =
-        Connection::open(&file_path).map_err(|e| format!("Cannot open file as database: {}", e))?;
-    let has_projects: bool = conn
-        .query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='projects'",
-            [],
-            |row| row.get::<_, i32>(0),
-        )
-        .map(|count| count > 0)
-        .map_err(|e| format!("File is not a valid Cladel document: {}", e))?;
-    if !has_projects {
-        return Err("File is not a valid Cladel document (missing schema).".to_string());
-    }
-    initialize_schema(&conn).map_err(|e| format!("Schema migration failed: {}", e))?;
+    let new_tab_id = uuid::Uuid::new_v4().to_string();
+    let snapshot_path = create_working_copy(&file_path, &new_tab_id)?;
+    let conn = open_snapshot_connection(&snapshot_path)?;
 
     // Extract display name from filename
     let display_name = file_path
@@ -110,9 +137,9 @@ pub fn open_file_in_tab(db: State<Database>, path: String) -> Result<TabInfo, St
         .unwrap_or_else(|| "Untitled".to_string());
 
     let new_tab = TabInfo {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: new_tab_id,
         file_path: Some(path),
-        snapshot_path: None,
+        snapshot_path: Some(snapshot_path.to_string_lossy().to_string()),
         display_name,
         is_dirty: false,
     };
@@ -220,6 +247,40 @@ pub fn close_tab(db: State<Database>, tab_id: String) -> Result<String, String> 
     Ok(next_active_id)
 }
 
+/// Discard the active tab's working copy and reload it from its real file path.
+#[tauri::command]
+pub fn reload_active_tab_from_disk(db: State<Database>) -> Result<(), String> {
+    let active_id = db.active_tab_id.lock().map_err(|e| e.to_string())?.clone();
+    let tab = {
+        let tabs = db.tabs.lock().map_err(|e| e.to_string())?;
+        tabs.iter()
+            .find(|t| t.id == active_id)
+            .cloned()
+            .ok_or_else(|| "Active tab not found".to_string())?
+    };
+
+    let file_path = tab
+        .file_path
+        .as_deref()
+        .map(PathBuf::from)
+        .ok_or_else(|| "Active tab has no file path".to_string())?;
+    if !file_path.exists() {
+        return Err(format!("File not found: {}", file_path.to_string_lossy()));
+    }
+
+    let snapshot_path = create_working_copy(&file_path, &active_id)?;
+    let conn = open_snapshot_connection(&snapshot_path)?;
+    db.swap_connection(conn, Some(file_path))?;
+
+    let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
+    if let Some(tab) = tabs.iter_mut().find(|t| t.id == active_id) {
+        tab.snapshot_path = Some(snapshot_path.to_string_lossy().to_string());
+        tab.is_dirty = false;
+    }
+
+    Ok(())
+}
+
 /// Update tab metadata after a save operation.
 #[tauri::command]
 pub fn update_tab_after_save(
@@ -232,12 +293,7 @@ pub fn update_tab_after_save(
     let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
 
     if let Some(tab) = tabs.iter_mut().find(|t| t.id == active_id) {
-        // Clean up old snapshot if tab had one (it now has a real path)
-        if let Some(ref snap) = tab.snapshot_path {
-            let _ = std::fs::remove_file(snap);
-        }
         tab.file_path = Some(file_path);
-        tab.snapshot_path = None;
         tab.display_name = display_name;
         tab.is_dirty = is_dirty;
     }
@@ -247,20 +303,24 @@ pub fn update_tab_after_save(
 
 // ─── Internal helpers ───
 
-/// Snapshot the current active tab's DB if it's in-memory (no file path).
+/// Snapshot the current active tab's working DB.
 fn snapshot_current_tab_inner(db: &Database) -> Result<(), String> {
     let active_id = db.active_tab_id.lock().map_err(|e| e.to_string())?.clone();
-    let current_path = db.get_current_path()?;
-
-    if current_path.is_some() {
-        // File-backed tab: data is already on disk, no snapshot needed
-        return Ok(());
+    let existing_snapshot = {
+        let tabs = db.tabs.lock().map_err(|e| e.to_string())?;
+        tabs.iter()
+            .find(|t| t.id == active_id)
+            .and_then(|t| t.snapshot_path.clone())
+    };
+    if let Some(snapshot) = existing_snapshot {
+        if PathBuf::from(snapshot).exists() {
+            // The active connection is already backed by this working-copy file,
+            // so SQLite has committed changes there as they happened.
+            return Ok(());
+        }
     }
 
-    // In-memory tab: VACUUM INTO a temp file
-    let snap_dir = tab_snapshot_dir();
-    std::fs::create_dir_all(&snap_dir).map_err(|e| format!("Cannot create snapshot dir: {}", e))?;
-    let snap_path = snap_dir.join(format!("{}.cld", active_id));
+    let snap_path = tab_snapshot_path(&active_id)?;
 
     // Remove existing snapshot if any
     if snap_path.exists() {
@@ -299,34 +359,42 @@ fn switch_tab_inner(db: &Database, target_tab_id: &str) -> Result<(), String> {
             .ok_or_else(|| format!("Tab not found: {}", target_tab_id))?
     };
 
-    // 3. Open target tab's connection
-    let (new_conn, new_path) = if let Some(ref fp) = target_tab.file_path {
-        // File-backed tab
-        let path = PathBuf::from(fp);
-        let conn = Connection::open(&path)
-            .map_err(|e| format!("Failed to open tab file: {}", e))?;
-        conn.execute_batch("PRAGMA journal_mode=DELETE;")
-            .map_err(|e| e.to_string())?;
-        conn.execute_batch("PRAGMA foreign_keys=ON;")
-            .map_err(|e| e.to_string())?;
-        (conn, Some(path))
-    } else if let Some(ref snap) = target_tab.snapshot_path {
-        // In-memory tab with snapshot
+    // 3. Open target tab's working connection
+    let (new_conn, new_path) = if let Some(ref snap) = target_tab.snapshot_path {
+        // Existing working copy
         let snap_path = PathBuf::from(snap);
         if snap_path.exists() {
-            let conn = Connection::open(&snap_path)
-                .map_err(|e| format!("Failed to open tab snapshot: {}", e))?;
-            conn.execute_batch("PRAGMA journal_mode=DELETE;")
-                .map_err(|e| e.to_string())?;
-            conn.execute_batch("PRAGMA foreign_keys=ON;")
-                .map_err(|e| e.to_string())?;
-            (conn, None)
+            let conn = open_snapshot_connection(&snap_path)?;
+            (conn, target_tab.file_path.as_deref().map(PathBuf::from))
+        } else if let Some(ref fp) = target_tab.file_path {
+            let file_path = PathBuf::from(fp);
+            let new_snap = create_working_copy(&file_path, target_tab_id)?;
+            let conn = open_snapshot_connection(&new_snap)?;
+            {
+                let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
+                if let Some(tab) = tabs.iter_mut().find(|t| t.id == target_tab_id) {
+                    tab.snapshot_path = Some(new_snap.to_string_lossy().to_string());
+                }
+            }
+            (conn, Some(file_path))
         } else {
             // Snapshot missing — create fresh
             let conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
             initialize_schema(&conn).map_err(|e| e.to_string())?;
             (conn, None)
         }
+    } else if let Some(ref fp) = target_tab.file_path {
+        // File-backed tab that has not yet created a working copy
+        let file_path = PathBuf::from(fp);
+        let snap_path = create_working_copy(&file_path, target_tab_id)?;
+        let conn = open_snapshot_connection(&snap_path)?;
+        {
+            let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
+            if let Some(tab) = tabs.iter_mut().find(|t| t.id == target_tab_id) {
+                tab.snapshot_path = Some(snap_path.to_string_lossy().to_string());
+            }
+        }
+        (conn, Some(file_path))
     } else {
         // Fresh in-memory tab (never been snapshotted)
         let conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
