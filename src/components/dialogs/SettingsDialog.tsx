@@ -1399,8 +1399,8 @@ const dialogStyle: React.CSSProperties = {
   background: "#fff",
   borderRadius: 12,
   padding: 24,
-  width: 480,
-  maxWidth: "90vw",
+  width: 600,
+  maxWidth: "92vw",
   maxHeight: "85vh",
   overflow: "hidden",
   boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
@@ -1422,6 +1422,10 @@ const tabBarStyle: React.CSSProperties = {
   marginBottom: 16,
   marginTop: 4,
   flexShrink: 0,
+  // Tabs keep their full size and scroll horizontally instead of being clipped.
+  overflowX: "auto",
+  overflowY: "hidden",
+  scrollbarWidth: "thin",
 };
 
 const tabButtonStyle: React.CSSProperties = {
@@ -1438,6 +1442,8 @@ const tabButtonStyle: React.CSSProperties = {
   cursor: "pointer",
   transition: "color 100ms ease, border-color 100ms ease",
   whiteSpace: "nowrap",
+  // Don't shrink — overflow scrolls in the tab bar rather than clipping labels.
+  flexShrink: 0,
 };
 
 const tabButtonActiveStyle: React.CSSProperties = {

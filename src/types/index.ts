@@ -462,7 +462,11 @@ export interface UIPreferences {
   canvas_grid_enabled: boolean;
   canvas_grid_size: number;
   editor_font_size: number;
+  /** UI language: "en" (default) or "ja". */
+  language: AppLanguage;
 }
+
+export type AppLanguage = "en" | "ja";
 
 export const SYSTEM_DEFAULTS: UIPreferences = {
   core_default_width: 280,
@@ -480,6 +484,7 @@ export const SYSTEM_DEFAULTS: UIPreferences = {
   canvas_grid_enabled: true,
   canvas_grid_size: 20,
   editor_font_size: 13,
+  language: "en",
 };
 
 // ─── Agent usage tracking ───

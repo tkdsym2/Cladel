@@ -326,6 +326,25 @@ function App() {
     };
   }, []);
 
+  // Intercept Cmd+Q (custom Quit menu item) — route through the unsaved guard.
+  // The native predefined quit bypasses onCloseRequested, so the backend emits
+  // "menu-quit" to the main window and we handle the prompt here.
+  useEffect(() => {
+    const unlisten = listen("menu-quit", () => {
+      const hasDirty = useTabStore.getState().tabs.some((t) => t.is_dirty);
+      if (hasDirty) {
+        setPendingFileAction("close-app");
+      } else {
+        // No unsaved changes — destroying the main window exits the app
+        // (see on_window_event in lib.rs).
+        getCurrentWindow().destroy();
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
   // Load API key status, autonomous settings, and UI preferences on startup
   useEffect(() => {
     useSettingsStore.getState().loadApiKeyStatus();
