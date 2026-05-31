@@ -142,6 +142,7 @@ pub fn create_node(db: State<Database>, input: CreateNodeInput) -> Result<NodeDa
         "compare" => Some(get_next_display_id(&conn, "compare")?),
         "title" => Some(get_next_display_id(&conn, "title")?),
         "nano_banana" => Some(get_next_display_id(&conn, "nanob")?),
+        "table" => Some(get_next_display_id(&conn, "table")?),
         "junction" | "deleted" => None,
         _ => None,
     };

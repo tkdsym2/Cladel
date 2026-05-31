@@ -26,6 +26,7 @@ import { AgentNodeViewer } from "./AgentNodeViewer";
 import { ExportNodeViewer } from "./ExportNodeViewer";
 import { CompareNodeViewer } from "./CompareNodeViewer";
 import { TitleNodeViewer } from "./TitleNodeViewer";
+import { TableNodeViewer } from "./TableNodeViewer";
 import { AccordionSection } from "../graph/NodeAccordionSection";
 import type { NodeData, EdgeData, NodeComment, AgentNodeMessage, PaperGroupMetadata } from "../../types";
 
@@ -55,7 +56,7 @@ export function NodeDetailPanel({
 
   if (!node || node.node_type === "deleted" || node.node_type === "junction") return null;
 
-  const isDeletable = node.node_type === "paper" || node.node_type === "user_doc" || node.node_type === "image" || node.node_type === "agent" || node.node_type === "export" || node.node_type === "compare" || node.node_type === "title";
+  const isDeletable = node.node_type === "paper" || node.node_type === "user_doc" || node.node_type === "image" || node.node_type === "agent" || node.node_type === "export" || node.node_type === "compare" || node.node_type === "title" || node.node_type === "table";
 
   return (
     <div style={panelStyle}>
@@ -107,6 +108,9 @@ export function NodeDetailPanel({
       )}
       {node.node_type === "title" && (
         <TitleNodeViewer node={node} />
+      )}
+      {node.node_type === "table" && (
+        <TableNodeViewer node={node} />
       )}
     </div>
   );

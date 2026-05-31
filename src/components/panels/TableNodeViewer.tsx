@@ -1,0 +1,638 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import { open } from "@tauri-apps/plugin-dialog";
+import type { NodeData, TableModel, TableSource } from "../../types";
+import { useGraphStore } from "../../store/graphStore";
+import { importTableFile } from "../../lib/tauri-commands";
+
+const ACCENT = "#0f766e";
+const BLANK_ROWS = 3;
+const BLANK_COLS = 3;
+const FILE_FILTERS = [
+  { name: "Table", extensions: ["csv", "tsv", "xlsx", "xlsm", "xls", "ods"] },
+];
+
+interface TableNodeViewerProps {
+  node: NodeData;
+}
+
+function parseModel(node: NodeData): TableModel {
+  try {
+    const m = node.metadata ? (JSON.parse(node.metadata) as TableModel) : null;
+    if (m && (m.mode === "manual" || m.mode === "imported" || m.mode === "unconfigured")) {
+      return {
+        kind: "table",
+        mode: m.mode,
+        rows: Array.isArray(m.rows)
+          ? m.rows.map((r) => (Array.isArray(r) ? r.map((c) => String(c ?? "")) : []))
+          : [],
+        source: m.source ?? null,
+      };
+    }
+    // Legacy / unknown metadata with rows → treat as manual.
+    if (m && Array.isArray(m.rows)) {
+      return { kind: "table", mode: "manual", rows: m.rows, source: m.source ?? null };
+    }
+  } catch {
+    // ignore
+  }
+  return { kind: "table", mode: "unconfigured", rows: [], source: null };
+}
+
+function rectangularize(rows: string[][]): string[][] {
+  const cols = rows.reduce((max, r) => Math.max(max, r.length), 0) || 1;
+  return rows.map((r) => {
+    const copy = [...r];
+    while (copy.length < cols) copy.push("");
+    return copy;
+  });
+}
+
+export function TableNodeViewer({ node }: TableNodeViewerProps) {
+  const updateNodeContent = useGraphStore((s) => s.updateNodeContent);
+
+  const [title, setTitle] = useState(node.title);
+  const [model, setModel] = useState<TableModel>(() => parseModel(node));
+  const [selected, setSelected] = useState<{ r: number; c: number } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setTitle(node.title);
+    setModel(parseModel(node));
+    setSelected(null);
+    setError(null);
+  }, [node.id, node.title, node.metadata]);
+
+  const mode = model.mode;
+  const displayId = node.display_id ?? "table";
+  const rows = model.rows;
+  const colCount = rows.reduce((max, r) => Math.max(max, r.length), 0);
+
+  // ── Persistence ──
+  // Debounced (manual cell edits)
+  const saveModelDebounced = useCallback(
+    (next: TableModel) => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        updateNodeContent(node.id, { metadata: JSON.stringify(next) });
+      }, 800);
+    },
+    [node.id, updateNodeContent],
+  );
+
+  // Immediate (structural / mode changes / imports)
+  const persistModel = useCallback(
+    (next: TableModel, newTitle?: string) => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      setModel(next);
+      const fields: { metadata: string; title?: string } = { metadata: JSON.stringify(next) };
+      if (newTitle !== undefined) {
+        fields.title = newTitle;
+        setTitle(newTitle);
+      }
+      updateNodeContent(node.id, fields);
+    },
+    [node.id, updateNodeContent],
+  );
+
+  const commit = useCallback(
+    (nextRows: string[][]) => {
+      const next: TableModel = { ...model, rows: rectangularize(nextRows) };
+      setModel(next);
+      saveModelDebounced(next);
+    },
+    [model, saveModelDebounced],
+  );
+
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setTitle(value);
+      if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
+      titleTimerRef.current = setTimeout(() => {
+        updateNodeContent(node.id, { title: value });
+      }, 800);
+    },
+    [node.id, updateNodeContent],
+  );
+
+  // ── Mode selection (unconfigured) ──
+  const chooseManual = useCallback(() => {
+    const blank: string[][] = Array.from({ length: BLANK_ROWS }, () =>
+      Array.from({ length: BLANK_COLS }, () => ""),
+    );
+    persistModel({ kind: "table", mode: "manual", rows: blank, source: null });
+  }, [persistModel]);
+
+  // ── Import / reload from file ──
+  const doImport = useCallback(
+    async (path: string, updateTitle: boolean) => {
+      setError(null);
+      setBusy(true);
+      try {
+        const result = await importTableFile(path);
+        const source: TableSource = {
+          format: result.format,
+          filename: result.filename,
+          path,
+          sheet: result.sheet,
+        };
+        const next: TableModel = { kind: "table", mode: "imported", rows: result.rows, source };
+        persistModel(next, updateTitle ? result.filename : undefined);
+        setSelected(null);
+      } catch (err) {
+        console.error("Table import failed:", err);
+        setError(String(err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [persistModel],
+  );
+
+  const pickAndImport = useCallback(
+    async (updateTitle: boolean) => {
+      try {
+        const path = await open({ multiple: false, filters: FILE_FILTERS });
+        if (typeof path !== "string") return;
+        await doImport(path, updateTitle);
+      } catch (err) {
+        console.error("File pick failed:", err);
+        setError(String(err));
+      }
+    },
+    [doImport],
+  );
+
+  const reloadSamePath = useCallback(() => {
+    const path = model.source?.path;
+    if (!path) return;
+    doImport(path, false);
+  }, [model.source, doImport]);
+
+  // ── Copy citation reference for the selected cell ──
+  const handleCopyRef = useCallback(async () => {
+    if (!selected) return;
+    const ref = `{@${displayId}[${selected.r},${selected.c}]}`;
+    try {
+      await navigator.clipboard.writeText(ref);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  }, [selected, displayId]);
+
+  // ── Render: unconfigured chooser ──
+  if (mode === "unconfigured") {
+    return (
+      <div style={containerStyle}>
+        <div style={sectionStyle}>
+          <label style={labelStyle}>Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            style={inputStyle}
+            placeholder="Table name"
+          />
+        </div>
+
+        <p style={chooserHintStyle}>このテーブルの作成方法を選択してください。</p>
+        <div style={choicesStyle}>
+          <button onClick={chooseManual} style={choiceBtnStyle} disabled={busy}>
+            <TableChartIcon sx={{ fontSize: 28, color: ACCENT }} />
+            <span style={choiceLabelStyle}>新規作成</span>
+            <span style={choiceDescStyle}>{BLANK_ROWS}×{BLANK_COLS} の編集可能な表</span>
+          </button>
+          <button onClick={() => pickAndImport(true)} style={choiceBtnStyle} disabled={busy}>
+            <UploadFileIcon sx={{ fontSize: 28, color: ACCENT }} />
+            <span style={choiceLabelStyle}>{busy ? "読込中..." : "既存ファイルを読み込む"}</span>
+            <span style={choiceDescStyle}>CSV / XLSX(編集不可・参照のみ)</span>
+          </button>
+        </div>
+        {error && <div style={errorStyle}>{error}</div>}
+      </div>
+    );
+  }
+
+  const isManual = mode === "manual";
+
+  return (
+    <div style={containerStyle}>
+      {/* Title */}
+      <div style={sectionStyle}>
+        <label style={labelStyle}>Title</label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          style={inputStyle}
+          placeholder="Table name"
+        />
+      </div>
+
+      {/* Mode / source info */}
+      <div style={metaRowStyle}>
+        <span style={modeBadgeStyle}>{isManual ? "手入力 (編集可)" : "取込 (読み取り専用)"}</span>
+        {model.source && (
+          <span style={sourceTextStyle} title={model.source.path}>
+            {model.source.filename}
+            {model.source.sheet ? ` · ${model.source.sheet}` : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Imported: reload / replace controls */}
+      {!isManual && (
+        <div style={importActionsStyle}>
+          <button
+            onClick={reloadSamePath}
+            style={controlBtnStyle}
+            disabled={busy || !model.source?.path}
+            title={model.source?.path ?? "保存されたパスがありません"}
+          >
+            <RefreshIcon sx={{ fontSize: 14 }} /> {busy ? "読込中..." : "最新状態に更新"}
+          </button>
+          <button onClick={() => pickAndImport(true)} style={controlBtnStyle} disabled={busy}>
+            <SwapHorizIcon sx={{ fontSize: 14 }} /> 別のファイルを選択
+          </button>
+        </div>
+      )}
+      {error && <div style={errorStyle}>{error}</div>}
+
+      {/* Selected cell reference */}
+      <div style={refBarStyle}>
+        {selected ? (
+          <>
+            <code style={refCodeStyle}>{`{@${displayId}[${selected.r},${selected.c}]}`}</code>
+            <button onClick={handleCopyRef} style={copyBtnStyle} title="参照をコピー">
+              <ContentCopyIcon sx={{ fontSize: 13 }} />
+              {copied ? "コピー済み" : "コピー"}
+            </button>
+          </>
+        ) : (
+          <span style={refHintStyle}>セルを選択すると引用参照 {`{@${displayId}[行,列]}`} をコピーできます</span>
+        )}
+      </div>
+
+      {/* Grid */}
+      <div style={gridScrollStyle}>
+        <table style={gridTableStyle}>
+          <thead>
+            <tr>
+              <th style={cornerCellStyle}></th>
+              {Array.from({ length: colCount }).map((_, ci) => (
+                <th key={ci} style={indexHeaderStyle}>
+                  <span>{ci}</span>
+                  {isManual && colCount > 1 && (
+                    <button
+                      onClick={() => removeColumn(ci)}
+                      style={miniDeleteBtnStyle}
+                      title="列を削除"
+                    >
+                      <CloseIcon sx={{ fontSize: 10 }} />
+                    </button>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => (
+              <tr key={ri}>
+                <th style={indexHeaderStyle}>
+                  <span>{ri}</span>
+                  {isManual && rows.length > 1 && (
+                    <button
+                      onClick={() => removeRow(ri)}
+                      style={miniDeleteBtnStyle}
+                      title="行を削除"
+                    >
+                      <CloseIcon sx={{ fontSize: 10 }} />
+                    </button>
+                  )}
+                </th>
+                {Array.from({ length: colCount }).map((_, ci) => {
+                  const isSel = selected?.r === ri && selected?.c === ci;
+                  const value = row[ci] ?? "";
+                  return (
+                    <td key={ci} style={{ ...dataCellStyle, ...(isSel ? selectedCellStyle : null) }}>
+                      {isManual ? (
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => handleCellChange(ri, ci, e.target.value)}
+                          onFocus={() => setSelected({ r: ri, c: ci })}
+                          style={cellInputStyle}
+                        />
+                      ) : (
+                        <div
+                          onClick={() => setSelected({ r: ri, c: ci })}
+                          style={readonlyCellStyle}
+                          title={value}
+                        >
+                          {value}
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Manual: structural controls */}
+      {isManual && (
+        <div style={controlsRowStyle}>
+          <button onClick={addRow} style={controlBtnStyle}>
+            <AddIcon sx={{ fontSize: 14 }} /> 行を追加
+          </button>
+          <button onClick={addColumn} style={controlBtnStyle}>
+            <AddIcon sx={{ fontSize: 14 }} /> 列を追加
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── Cell / structure handlers (manual only) ──
+  function handleCellChange(r: number, c: number, value: string) {
+    const next = rows.map((rowArr) => [...rowArr]);
+    next[r][c] = value;
+    commit(next);
+  }
+  function addRow() {
+    const cols = colCount || 1;
+    commit([...rows.map((r) => [...r]), Array.from({ length: cols }, () => "")]);
+  }
+  function addColumn() {
+    commit(rows.map((r) => [...r, ""]));
+  }
+  function removeRow(idx: number) {
+    if (rows.length <= 1) return;
+    commit(rows.filter((_, i) => i !== idx));
+  }
+  function removeColumn(idx: number) {
+    if (colCount <= 1) return;
+    commit(rows.map((r) => r.filter((_, i) => i !== idx)));
+  }
+}
+
+// ─── Styles ───
+
+const containerStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  padding: "8px 0",
+};
+
+const sectionStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#6b7280",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 10px",
+  fontSize: 14,
+  border: "1px solid #d1d5db",
+  borderRadius: 6,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const chooserHintStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 13,
+  color: "#4b5563",
+};
+
+const choicesStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 12,
+};
+
+const choiceBtnStyle: React.CSSProperties = {
+  flex: 1,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: 6,
+  padding: "18px 12px",
+  background: "rgba(15,118,110,0.04)",
+  border: `1px solid ${ACCENT}`,
+  borderRadius: 8,
+  cursor: "pointer",
+  textAlign: "center",
+};
+
+const choiceLabelStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#111827",
+};
+
+const choiceDescStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: "#6b7280",
+};
+
+const metaRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const modeBadgeStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: ACCENT,
+  background: "rgba(15,118,110,0.12)",
+  borderRadius: 4,
+  padding: "2px 8px",
+};
+
+const sourceTextStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: "#6b7280",
+  fontFamily: "monospace",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  maxWidth: "100%",
+};
+
+const importActionsStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const refBarStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  minHeight: 28,
+  background: "#f9fafb",
+  border: "1px solid #e5e7eb",
+  borderRadius: 6,
+  padding: "4px 8px",
+};
+
+const refCodeStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontFamily: "monospace",
+  color: ACCENT,
+  flex: 1,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const copyBtnStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
+  fontSize: 11,
+  fontWeight: 600,
+  color: "#fff",
+  background: ACCENT,
+  border: "none",
+  borderRadius: 4,
+  padding: "4px 8px",
+  cursor: "pointer",
+  flexShrink: 0,
+};
+
+const refHintStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: "#9ca3af",
+};
+
+const gridScrollStyle: React.CSSProperties = {
+  overflow: "auto",
+  maxHeight: 360,
+  border: "1px solid #e5e7eb",
+  borderRadius: 6,
+};
+
+const gridTableStyle: React.CSSProperties = {
+  borderCollapse: "collapse",
+  width: "max-content",
+  minWidth: "100%",
+};
+
+const cornerCellStyle: React.CSSProperties = {
+  background: "#f3f4f6",
+  border: "1px solid #e5e7eb",
+  width: 32,
+  position: "sticky",
+  left: 0,
+  zIndex: 1,
+};
+
+const indexHeaderStyle: React.CSSProperties = {
+  background: "#f3f4f6",
+  border: "1px solid #e5e7eb",
+  fontSize: 10,
+  fontFamily: "monospace",
+  color: "#6b7280",
+  fontWeight: 600,
+  padding: "2px 4px",
+  textAlign: "center",
+  minWidth: 28,
+  whiteSpace: "nowrap",
+};
+
+const miniDeleteBtnStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  color: "#9ca3af",
+  padding: 0,
+  marginLeft: 2,
+  verticalAlign: "middle",
+};
+
+const dataCellStyle: React.CSSProperties = {
+  border: "1px solid #e5e7eb",
+  padding: 0,
+};
+
+const selectedCellStyle: React.CSSProperties = {
+  outline: `2px solid ${ACCENT}`,
+  outlineOffset: -2,
+};
+
+const cellInputStyle: React.CSSProperties = {
+  border: "none",
+  outline: "none",
+  fontSize: 12,
+  padding: "4px 6px",
+  width: 110,
+  background: "transparent",
+  boxSizing: "border-box",
+};
+
+const readonlyCellStyle: React.CSSProperties = {
+  fontSize: 12,
+  padding: "4px 6px",
+  minWidth: 80,
+  maxWidth: 220,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  cursor: "pointer",
+};
+
+const controlsRowStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+};
+
+const controlBtnStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
+  fontSize: 12,
+  fontWeight: 500,
+  color: "#374151",
+  background: "#fff",
+  border: "1px solid #d1d5db",
+  borderRadius: 6,
+  padding: "6px 12px",
+  cursor: "pointer",
+};
+
+const errorStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "#dc2626",
+  wordBreak: "break-word",
+};

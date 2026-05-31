@@ -15,7 +15,7 @@ export interface LayerData {
   updated_at: string;
 }
 
-export type NodeType = "core" | "paper" | "user_doc" | "agent_proposal" | "deleted" | "junction" | "image" | "agent" | "paper_group" | "export" | "compare" | "title";
+export type NodeType = "core" | "paper" | "user_doc" | "agent_proposal" | "deleted" | "junction" | "image" | "agent" | "paper_group" | "export" | "compare" | "title" | "table";
 export type NodeStatus = "active" | "ghost" | "dismissed";
 export type CreatedBy = "user" | "agent";
 
@@ -571,7 +571,35 @@ export interface PaperGroupMetadata {
 
 // ─── Tab-to-Create ───
 
-export type TabNodeType = "user_doc" | "paper" | "image" | "agent" | "import" | "export" | "compare" | "title";
+export type TabNodeType = "user_doc" | "paper" | "image" | "agent" | "import" | "export" | "compare" | "title" | "table";
+
+// ─── Table Node ───
+
+export type TableMode = "unconfigured" | "manual" | "imported";
+
+export interface TableSource {
+  format: "csv" | "xlsx";
+  filename: string;
+  /** Absolute path of the source file — used to reload the latest state on demand. */
+  path: string;
+  sheet?: string | null;
+}
+
+/** Table node model, stored as JSON in NodeData.metadata. */
+export interface TableModel {
+  kind: "table";
+  mode: TableMode;
+  rows: string[][];
+  source?: TableSource | null;
+}
+
+/** Result of the import_table_file backend command. */
+export interface TableImportResult {
+  format: "csv" | "xlsx";
+  filename: string;
+  sheet: string | null;
+  rows: string[][];
+}
 
 export type TabDirection = "right" | "left";
 

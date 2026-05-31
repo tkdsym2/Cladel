@@ -15,6 +15,7 @@ const NODE_COLORS: Record<string, string> = {
   export: "#e11d48",
   compare: "#0284c7",
   title: "#78716c",
+  table: "#0f766e",
 };
 
 const MAP_WIDTH = 160;

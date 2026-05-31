@@ -39,6 +39,7 @@ import type {
   RemoteFileStats,
   SyncStatusResult,
   UserIdentity,
+  TableImportResult,
 } from "../types";
 
 // ─── Tab Info ───
@@ -462,6 +463,12 @@ export function importPdf(filePath: string): Promise<PdfMetadata> {
 
 export function extractPdfWithClaude(filePath: string): Promise<PdfMetadata> {
   return invoke("extract_pdf_with_claude", { filePath });
+}
+
+// ─── Table Import ───
+
+export function importTableFile(path: string): Promise<TableImportResult> {
+  return invoke("import_table_file", { path });
 }
 
 // ─── Export ───

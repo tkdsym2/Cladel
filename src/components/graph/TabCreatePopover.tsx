@@ -7,6 +7,7 @@ import FileUploadIcon from "@mui/icons-material/FileUpload";
 import SaveAltIcon from "@mui/icons-material/SaveAlt";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import TitleIcon from "@mui/icons-material/Title";
+import TableChartIcon from "@mui/icons-material/TableChart";
 import type { TabNodeType, TabDirection } from "../../types";
 
 interface TabCreatePopoverProps {
@@ -28,6 +29,7 @@ const ITEMS: { type: TabNodeType; label: string; key: string; color: string; bg:
   { type: "export", label: "Export", key: "6", color: "#e11d48", bg: "rgba(225,29,72,0.08)" },
   { type: "compare", label: "Compare", key: "7", color: "#0284c7", bg: "rgba(2,132,199,0.08)" },
   { type: "title", label: "Title", key: "8", color: "#78716c", bg: "rgba(120,113,108,0.08)" },
+  { type: "table", label: "Table", key: "9", color: "#0f766e", bg: "rgba(15,118,110,0.08)" },
 ];
 
 const DIRECTION_LABELS: Record<TabDirection, string> = {
@@ -35,7 +37,7 @@ const DIRECTION_LABELS: Record<TabDirection, string> = {
   left: "\u2190 Left",
 };
 
-const ICONS = [NoteAddIcon, PictureAsPdfIcon, AddPhotoAlternateIcon, SmartToyIcon, FileUploadIcon, SaveAltIcon, CompareArrowsIcon, TitleIcon];
+const ICONS = [NoteAddIcon, PictureAsPdfIcon, AddPhotoAlternateIcon, SmartToyIcon, FileUploadIcon, SaveAltIcon, CompareArrowsIcon, TitleIcon, TableChartIcon];
 
 export function TabCreatePopover({
   isOpen,
@@ -87,10 +89,12 @@ export function TabCreatePopover({
         case "4":
         case "5":
         case "7":
-        case "6": {
+        case "6":
+        case "8":
+        case "9": {
           e.preventDefault();
           const idx = Number(e.key) - 1;
-          onSelect(ITEMS[idx].type);
+          if (idx < ITEMS.length) onSelect(ITEMS[idx].type);
           break;
         }
         case "Escape":

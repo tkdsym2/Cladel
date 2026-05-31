@@ -234,6 +234,8 @@ pub fn run() {
             // PDF import commands
             commands::pdf_import::import_pdf,
             commands::pdf_import::extract_pdf_with_claude,
+            // Table import commands
+            commands::table_import::import_table_file,
             // Image import commands
             commands::image_import::validate_image_file,
             commands::image_import::create_image_node,

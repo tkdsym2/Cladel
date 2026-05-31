@@ -18,4 +18,5 @@ pub mod pdf_import;
 pub mod settings;
 pub mod sync;
 pub mod tab_commands;
+pub mod table_import;
 pub mod usage;
