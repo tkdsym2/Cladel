@@ -27,6 +27,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
   const [loading, setLoading] = useState(false);
   const openFilePath = useFileStore((s) => s.openFilePath);
   const openFile = useFileStore((s) => s.openFile);
+  const openSample = useFileStore((s) => s.openSample);
   const tabs = useTabStore((s) => s.tabs);
 
   // User registration state
@@ -67,15 +68,15 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
     if (loading) return;
     setLoading(true);
     try {
-      const samplePath = await cmd.ensureSampleFile();
-      await openFilePath(samplePath);
+      // Open the sample as a read-only template (untitled → first save is Save As).
+      await openSample();
       onFileOpened();
     } catch (err) {
       console.error("Failed to open sample file:", err);
     } finally {
       setLoading(false);
     }
-  }, [loading, openFilePath, onFileOpened]);
+  }, [loading, openSample, onFileOpened]);
 
   const handleOpenRecent = useCallback(
     async (file: RecentFile) => {

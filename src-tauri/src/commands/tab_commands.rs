@@ -1,7 +1,7 @@
 use crate::db::{initialize_schema, Database, TabInfo};
 use rusqlite::Connection;
 use std::path::PathBuf;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 /// Get the temp directory for tab snapshots.
 fn tab_snapshot_dir() -> PathBuf {
@@ -166,6 +166,46 @@ pub fn switch_tab(db: State<Database>, tab_id: String) -> Result<(), String> {
         return Ok(());
     }
     switch_tab_inner(&db, &tab_id)
+}
+
+/// Open the built-in sample as a NEW untitled tab (read-only template semantics).
+///
+/// The sample is loaded from the bundled resource into a fresh working copy, but
+/// the tab has NO file path — so the first save becomes "Save As" and the
+/// built-in sample is never overwritten. This replaces the old writable-cache
+/// approach (ensure/restore_sample_file).
+#[tauri::command]
+pub fn open_sample_as_new(app: AppHandle, db: State<Database>) -> Result<TabInfo, String> {
+    let sample_path = crate::commands::file_commands::find_bundled_sample(&app)?;
+
+    // Persist the current tab's edits before switching away from it.
+    snapshot_current_tab_inner(&db)?;
+
+    let new_tab_id = uuid::Uuid::new_v4().to_string();
+    let snapshot_path = create_working_copy(&sample_path, &new_tab_id)?;
+    let conn = open_snapshot_connection(&snapshot_path)?;
+
+    let new_tab = TabInfo {
+        id: new_tab_id,
+        file_path: None, // untitled → first save is "Save As"
+        snapshot_path: Some(snapshot_path.to_string_lossy().to_string()),
+        display_name: "sample".to_string(),
+        is_dirty: false,
+    };
+
+    // No file path: the document is untitled, backed by the working copy.
+    db.swap_connection(conn, None)?;
+
+    {
+        let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
+        tabs.push(new_tab.clone());
+    }
+    {
+        let mut active = db.active_tab_id.lock().map_err(|e| e.to_string())?;
+        *active = new_tab.id.clone();
+    }
+
+    Ok(new_tab)
 }
 
 /// Close a tab. Returns the new active tab ID.

@@ -112,12 +112,9 @@ export function fileGetCurrentPath(): Promise<string | null> {
   return invoke("file_get_current_path");
 }
 
-export function ensureSampleFile(): Promise<string> {
-  return invoke("ensure_sample_file");
-}
-
-export function restoreSampleFile(): Promise<string> {
-  return invoke("restore_sample_file");
+/** Open the built-in sample as a new untitled tab (read-only template). */
+export function openSampleAsNew(): Promise<TabInfo> {
+  return invoke("open_sample_as_new");
 }
 
 // ─── Projects ───

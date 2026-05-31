@@ -20,7 +20,6 @@ import * as cmd from "../../lib/tauri-commands";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useSyncStore } from "../../store/syncStore";
 import { useUserStore } from "../../store/userStore";
-import { useTabStore } from "../../store/tabStore";
 import { useFileStore } from "../../store/fileStore";
 import type { AgentCapabilities, UIPreferences, UsageSummary, UsageLogEntry } from "../../types";
 import { SYSTEM_DEFAULTS } from "../../types";
@@ -618,11 +617,11 @@ export function SettingsDialog() {
               </div>
             </div>
 
-            {/* Restore Sample File */}
+            {/* Open Sample File (read-only template) */}
             <div style={sectionStyle}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Sample File</div>
               <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>
-                Restore the built-in sample file to its initial state. This will overwrite any changes you made to the sample.
+                Open the built-in sample as a new untitled document. Saving prompts for a new location — the built-in sample is never overwritten.
               </div>
               <button
                 disabled={restoringSample}
@@ -630,22 +629,10 @@ export function SettingsDialog() {
                   setRestoringSample(true);
                   setRestoreSampleMsg(null);
                   try {
-                    // Close tabs that have the sample file open
-                    const tabs = useTabStore.getState().tabs;
-                    const samplePath = await cmd.ensureSampleFile();
-                    for (const tab of tabs) {
-                      if (tab.file_path === samplePath) {
-                        await useTabStore.getState().closeTab(tab.id);
-                      }
-                    }
-                    // Restore the sample file
-                    const restoredPath = await cmd.restoreSampleFile();
-                    // Re-open the restored sample
-                    await useFileStore.getState().openFilePath(restoredPath);
-                    setRestoreSampleMsg("Sample file restored successfully");
-                    setTimeout(() => setRestoreSampleMsg(null), 3000);
+                    await useFileStore.getState().openSample();
+                    closeSettings();
                   } catch (err) {
-                    setRestoreSampleMsg("Failed to restore: " + String(err));
+                    setRestoreSampleMsg("Failed to open sample: " + String(err));
                   } finally {
                     setRestoringSample(false);
                   }
@@ -663,7 +650,7 @@ export function SettingsDialog() {
                   transition: "opacity 0.15s",
                 }}
               >
-                {restoringSample ? "Restoring..." : "Restore Sample File"}
+                {restoringSample ? "Opening..." : "Open Sample"}
               </button>
               {restoreSampleMsg && (
                 <div style={{

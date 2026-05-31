@@ -139,9 +139,8 @@ pub fn run() {
             commands::file_commands::file_save,
             commands::file_commands::file_save_as,
             commands::file_commands::file_get_current_path,
-            commands::file_commands::ensure_sample_file,
-            commands::file_commands::restore_sample_file,
             // Tab commands
+            commands::tab_commands::open_sample_as_new,
             commands::tab_commands::get_tabs,
             commands::tab_commands::get_active_tab_id,
             commands::tab_commands::create_tab,
