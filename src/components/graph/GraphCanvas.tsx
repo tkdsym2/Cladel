@@ -766,6 +766,14 @@ export function GraphCanvas({
 
       // Normal position update
       for (const n of nodes) {
+        if (n.type === "import") {
+          // Temp React-only node: keep the pending import target position in sync,
+          // but don't persist to the DB (there is no row for it yet).
+          setPendingImport((prev) =>
+            prev && prev.tempNodeId === n.id ? { ...prev, position: n.position } : prev,
+          );
+          continue;
+        }
         updateNodePosition(n.id, n.position.x, n.position.y);
       }
       preDragPositionRef.current.clear();
@@ -934,6 +942,19 @@ export function GraphCanvas({
       if (selectedEdge) {
         e.preventDefault();
         onRequestDeleteEdge(selectedEdge.id);
+        return;
+      }
+
+      // Temp import node (React-only): remove it locally without touching the backend.
+      const selectedImport = state.nodes.find((n) => n.selected && n.type === "import");
+      if (selectedImport) {
+        e.preventDefault();
+        useGraphStore.setState((s) => ({
+          nodes: s.nodes.filter((nn) => nn.id !== selectedImport.id),
+        }));
+        setPendingImport((prev) =>
+          prev && prev.tempNodeId === selectedImport.id ? null : prev,
+        );
         return;
       }
 
