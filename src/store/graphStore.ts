@@ -69,7 +69,6 @@ function getDefaultNodeSizes(): Record<string, { width: number; height: number }
     agent: { width: 280, height: 210 },
     paper_group: { width: 200, height: 200 },
     export: { width: 280, height: 210 },
-    nano_banana: { width: 280, height: 210 },
   };
 }
 

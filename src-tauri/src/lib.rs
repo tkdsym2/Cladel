@@ -262,8 +262,6 @@ pub fn run() {
             commands::agent_node_messages::get_agent_node_messages,
             commands::agent_node_messages::add_agent_node_message,
             commands::agent_node_messages::delete_agent_node_message,
-            // Nano Banana commands
-            commands::nano_banana::generate_nano_banana_image,
             // Sync commands
             commands::sync::sync_list_remote,
             commands::sync::sync_check_status,

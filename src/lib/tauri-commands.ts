@@ -719,23 +719,6 @@ export function deleteSupabaseConfig(): Promise<void> {
   return invoke("delete_supabase_config");
 }
 
-// ─── Nano Banana ───
-
-export interface NanoBananaResult {
-  file_path: string;
-  mime_type: string;
-  description: string | null;
-}
-
-export function generateNanoBananaImage(
-  nodeId: string,
-  layerId: string,
-  prompt: string,
-  aspectRatio?: string,
-): Promise<NanoBananaResult> {
-  return invoke("generate_nano_banana_image", { nodeId, layerId, prompt, aspectRatio });
-}
-
 // ─── Cloud Sync ───
 
 export function syncListRemote(): Promise<RemoteFileInfo[]> {

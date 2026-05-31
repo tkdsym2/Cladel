@@ -3,7 +3,6 @@ import AddIcon from "@mui/icons-material/Add";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import SaveAltIcon from "@mui/icons-material/SaveAlt";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import CloseIcon from "@mui/icons-material/Close";
@@ -20,7 +19,6 @@ interface ContextMenuProps {
   onAddNoteNode: (x: number, y: number) => void;
   onAddAgentNode: (x: number, y: number) => void;
   onAddExportNode: (x: number, y: number) => void;
-  onAddNanoBananaNode: (x: number, y: number) => void;
   onImportFile: (x: number, y: number) => void;
   /** If set, the context menu was opened on a specific node */
   nodeId?: string | null;
@@ -49,7 +47,6 @@ export function ContextMenu({
   onAddNoteNode,
   onAddAgentNode,
   onAddExportNode,
-  onAddNanoBananaNode,
   onImportFile,
   nodeId,
   nodeType,
@@ -77,11 +74,6 @@ export function ContextMenu({
     onAddExportNode(flowX, flowY);
     onClose();
   }, [flowX, flowY, onAddExportNode, onClose]);
-
-  const handleAddNanoBananaNode = useCallback(() => {
-    onAddNanoBananaNode(flowX, flowY);
-    onClose();
-  }, [flowX, flowY, onAddNanoBananaNode, onClose]);
 
   const handleImportFile = useCallback(() => {
     onImportFile(flowX, flowY);
@@ -131,7 +123,7 @@ export function ContextMenu({
     onClose();
   }, [nodeId, onUngroupPapers, onClose]);
 
-  const isDeletable = nodeType === "paper" || nodeType === "user_doc" || nodeType === "image" || nodeType === "agent" || nodeType === "export" || nodeType === "compare" || nodeType === "title" || nodeType === "nano_banana";
+  const isDeletable = nodeType === "paper" || nodeType === "user_doc" || nodeType === "image" || nodeType === "agent" || nodeType === "export" || nodeType === "compare" || nodeType === "title";
   const isDeletedPlaceholder = nodeType === "deleted";
   const isJunction = nodeType === "junction";
 
@@ -202,19 +194,6 @@ export function ContextMenu({
       >
         <SaveAltIcon sx={{ fontSize: 16, mr: 1 }} />
         Add Export Node
-      </button>
-      <button
-        onClick={handleAddNanoBananaNode}
-        style={itemStyle}
-        onMouseEnter={(e) =>
-          Object.assign(e.currentTarget.style, itemHoverStyle)
-        }
-        onMouseLeave={(e) =>
-          Object.assign(e.currentTarget.style, itemStyle)
-        }
-      >
-        <AutoAwesomeIcon sx={{ fontSize: 16, mr: 1 }} />
-        Add NanoBanana Node
       </button>
       {isDeletable && (
         <>

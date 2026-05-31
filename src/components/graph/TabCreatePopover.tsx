@@ -7,7 +7,6 @@ import FileUploadIcon from "@mui/icons-material/FileUpload";
 import SaveAltIcon from "@mui/icons-material/SaveAlt";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import TitleIcon from "@mui/icons-material/Title";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import type { TabNodeType, TabDirection } from "../../types";
 
 interface TabCreatePopoverProps {
@@ -29,7 +28,6 @@ const ITEMS: { type: TabNodeType; label: string; key: string; color: string; bg:
   { type: "export", label: "Export", key: "6", color: "#e11d48", bg: "rgba(225,29,72,0.08)" },
   { type: "compare", label: "Compare", key: "7", color: "#0284c7", bg: "rgba(2,132,199,0.08)" },
   { type: "title", label: "Title", key: "8", color: "#78716c", bg: "rgba(120,113,108,0.08)" },
-  { type: "nano_banana", label: "NanoBanana", key: "9", color: "#ca8a04", bg: "#fefce8" },
 ];
 
 const DIRECTION_LABELS: Record<TabDirection, string> = {
@@ -37,7 +35,7 @@ const DIRECTION_LABELS: Record<TabDirection, string> = {
   left: "\u2190 Left",
 };
 
-const ICONS = [NoteAddIcon, PictureAsPdfIcon, AddPhotoAlternateIcon, SmartToyIcon, FileUploadIcon, SaveAltIcon, CompareArrowsIcon, TitleIcon, AutoAwesomeIcon];
+const ICONS = [NoteAddIcon, PictureAsPdfIcon, AddPhotoAlternateIcon, SmartToyIcon, FileUploadIcon, SaveAltIcon, CompareArrowsIcon, TitleIcon];
 
 export function TabCreatePopover({
   isOpen,

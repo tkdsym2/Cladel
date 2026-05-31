@@ -31,7 +31,6 @@ import { AgentNode } from "./AgentNode";
 import { ExportNode } from "./ExportNode";
 import { CompareNode } from "./CompareNode";
 import { TitleNode } from "./TitleNode";
-import { NanoBananaNode } from "./NanoBananaNode";
 import { PaperGroupNode } from "./PaperGroupNode";
 import { ImportNode } from "./ImportNode";
 import { AnnotatedEdge, bezierPoint, parseBezierPath } from "./AnnotatedEdge";
@@ -60,7 +59,6 @@ const nodeTypes = {
   export: ExportNode,
   compare: CompareNode,
   title: TitleNode,
-  nano_banana: NanoBananaNode,
   import: ImportNode,
 };
 
@@ -100,7 +98,7 @@ interface ClipboardData {
 
 let _clipboard: ClipboardData | null = null;
 
-const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "nano_banana"]);
+const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare"]);
 
 // ─── Edge proximity detection for drop-on-edge ───
 
@@ -429,8 +427,6 @@ export function GraphCanvas({
         return { width: 280, height: 210, title: "Compare" };
       case "title":
         return { width: 280, height: 210, title: "Title" };
-      case "nano_banana":
-        return { width: 280, height: 210, title: "Nano Banana" };
     }
   }, []);
 

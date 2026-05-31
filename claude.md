@@ -14,7 +14,7 @@ Tauri v2 + React + TypeScript desktop app for researchers to organize thinking a
 
 ## Core Concepts
 
-### Node Types (13 active + deleted placeholder + import temp)
+### Node Types (12 active + deleted placeholder + import temp)
 
 | Type | Visual | Key Behavior |
 |------|--------|-------------|
@@ -28,7 +28,6 @@ Tauri v2 + React + TypeScript desktop app for researchers to organize thinking a
 | **export** | Rose rgba(225,29,72,0.08), 1px solid #e11d48, 280x210 | PDF export node. Connected Edit nodes = sections. Citation styles (IEEE/APA). |
 | **compare** | Cyan rgba(2,132,199,0.08), 1px solid #0284c7, 280x210 | Connects 2 Edit nodes, shows word-level diff. CompareArrows icon. |
 | **title** | Stone rgba(120,113,108,0.08), 1px solid #78716c, 280x210 | Document title page for PDF export. Authors + affiliations metadata. Title icon. |
-| **nano_banana** | Yellow (#fefce8), 1px solid #ca8a04, 280x210 | AI image generation via Gemini. Prompt + aspect ratio. Saves PNG to disk. AutoAwesome icon. |
 | **deleted** | Gray rgba(229,231,235,0.3), 1px dashed #d1d5db, circle | Soft-delete placeholder. Preserves edges. Right-click -> "Remove completely". |
 | **junction** | Dark gray (#4b5563), circle, ~16x16 | Edge branching point. "Dissolve junction" merges back. |
 | **import** | Gray dashed, temp React-only | NOT a DB node_type. Temporary placeholder for file import. Auto-detects PDF vs image. |
@@ -50,7 +49,6 @@ Every node gets a globally unique `display_id` (across ALL layers):
 | export | `export_{N}` | No |
 | compare | `compare_{N}` | No |
 | title | `title_{N}` | No |
-| nano_banana | `nanob_{N}` | No |
 
 ### Edges
 
@@ -165,6 +163,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 - `Mutex<Connection>` for thread-safe single-user access. `Database` struct also holds `tabs: Mutex<Vec<TabInfo>>` and `active_tab_id: Mutex<String>` for multi-tab support.
 - Edges have no ON DELETE CASCADE on node references (soft-delete preserves edges).
 - `core_versions`/`note_versions` tables exist in DB but **version history UI has been removed**.
+- `'nano_banana'` is still a valid `node_type` in the CHECK constraint (migration v19), but the **NanoBanana feature/UI was removed** (unreliable Gemini image API). It is kept as a reserved enum value for backward-compatibility with older files; SCHEMA_VERSION stays 19 and no new nano_banana nodes can be created.
 
 ---
 
@@ -172,7 +171,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ### File Map
 
-**Frontend -- 86 files, ~31,359 lines**
+**Frontend -- 84 files, ~30,655 lines**
 
 | Path | Lines | Purpose |
 |------|------:|---------|
@@ -201,7 +200,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/hooks/useAutonomousTrigger.ts` | 53 | Idle -> auto invoke_agent (shared cooldown) |
 | `src/hooks/useStructureTrigger.ts` | 173 | Structure change -> BFS anomaly check -> trigger (3s debounce) |
 | **Graph Components** | | |
-| `src/components/graph/GraphCanvas.tsx` | 1,612 | Canvas: nodeTypes/edgeTypes, clipboard, connection normalization, Tab-to-Create, drag-drop, edge merge, keyboard handler (V/G/C keys) |
+| `src/components/graph/GraphCanvas.tsx` | 1,637 | Canvas: nodeTypes/edgeTypes, clipboard, connection normalization, Tab-to-Create, drag-drop, edge merge, keyboard handler (V/G/C keys) |
 | `src/components/graph/CoreNode.tsx` | 131 | Core node |
 | `src/components/graph/PaperNode.tsx` | 257 | Paper node (PDF warning icon, metadata, user color) |
 | `src/components/graph/UserDocNode.tsx` | 174 | Edit node (content preview, user color) |
@@ -211,7 +210,6 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/ExportNode.tsx` | 170 | Export node (PictureAsPdf icon, section count) |
 | `src/components/graph/CompareNode.tsx` | 158 | Compare node (CompareArrows icon) |
 | `src/components/graph/TitleNode.tsx` | 159 | Title node card (Title icon, subtitle, author count) |
-| `src/components/graph/NanoBananaNode.tsx` | 282 | NanoBanana node (AutoAwesome icon, image thumbnail, prompt preview) |
 | `src/components/graph/ImportNode.tsx` | 124 | Temp import placeholder (file dialog trigger) |
 | `src/components/graph/DeletedNode.tsx` | 176 | Soft-delete circle (tooltip with original title) |
 | `src/components/graph/JunctionNode.tsx` | 80 | Edge branch point dot |
@@ -227,16 +225,15 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/CustomMiniMap.tsx` | 256 | SVG minimap (160x120) with color-coded nodes + edges |
 | `src/components/graph/EdgePopover.tsx` | 525 | Edge annotation modal: weight slider, comment thread, delete |
 | `src/components/graph/EdgeActionMenu.tsx` | 275 | Edge context menu: Edit Annotations / Properties / Branch Point |
-| `src/components/graph/ContextMenu.tsx` | 380 | Canvas/node right-click menus (unified "Import File", Add Agent/NanoBanana) |
+| `src/components/graph/ContextMenu.tsx` | 359 | Canvas/node right-click menus (unified "Import File", Add Agent) |
 | `src/components/graph/NodeAccordionSection.tsx` | 86 | Collapsible section for node detail panel |
 | `src/components/graph/useConnectedDisplayIds.ts` | 30 | Hook: connected node display_ids |
 | **Panel Components** | | |
-| `src/components/panels/NodeDetailPanel.tsx` | 2,694 | Right sidebar: polymorphic viewer + CommentSection with @Agent |
+| `src/components/panels/NodeDetailPanel.tsx` | 2,684 | Right sidebar: polymorphic viewer + CommentSection with @Agent |
 | `src/components/panels/AgentNodeViewer.tsx` | 1,140 | Agent node chat interface (messages, send, output tracking) |
 | `src/components/panels/AgentPanel.tsx` | 984 | Global agent: queries, suggestions, history, status |
 | `src/components/panels/ExportNodeViewer.tsx` | 664 | Export node: sections, citations, reorder, style config, generate PDF |
 | `src/components/panels/TitleNodeViewer.tsx` | 374 | Title node editor: title, subtitle, authors with affiliations |
-| `src/components/panels/NanoBananaNodeViewer.tsx` | 393 | NanoBanana node: prompt input, aspect ratio selector, image generation + preview |
 | `src/components/panels/CompareNodeViewer.tsx` | 484 | Compare node: word-level diff of 2 connected Edit nodes (LCS algorithm) |
 | `src/components/panels/NoteEditorWithPull.tsx` | 905 | Textarea with Content Pull + @mention support |
 | `src/components/panels/ContentPullPopover.tsx` | 506 | Dark-themed two-step content selection popover |
@@ -266,14 +263,14 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/StatusBar.tsx` | 152 | Bottom status bar: node/edge counts, API status, agent status, sync |
 | `src/components/ResizeHandle.tsx` | 22 | Simple sidebar resize handle with hover state |
 
-**Backend -- 36 files, ~14,481 lines**
+**Backend -- 35 files, ~14,183 lines**
 
 | Path | Lines | Purpose |
 |------|------:|---------|
 | `src-tauri/src/main.rs` | 6 | Calls `cladel_app_lib::run()` |
-| `src-tauri/src/lib.rs` | 285 | App entry: 114 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
+| `src-tauri/src/lib.rs` | 283 | App entry: 113 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
 | `src-tauri/src/db.rs` | 1,017 | SQLite schema, SCHEMA_VERSION=19, 19 migrations, Database+TabInfo |
-| `src-tauri/src/commands/mod.rs` | 21 | Module declarations (22 submodules) |
+| `src-tauri/src/commands/mod.rs` | 21 | Module declarations (21 submodules) |
 | `src-tauri/src/commands/nodes.rs` | 567 | CRUD + soft_delete + restore + update_display_id + update_paper_bibtex |
 | `src-tauri/src/commands/edges.rs` | 225 | CRUD (rejects self-loops + duplicates) + restore with handle persistence, weight 1-5 |
 | `src-tauri/src/commands/layers.rs` | 279 | CRUD + Core node creation per layer + source node inheritance |
@@ -294,7 +291,6 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src-tauri/src/commands/settings.rs` | 686 | API keys (Anthropic+Gemini), AgentCapabilities, UIPreferences, recent files, paper prompt, Supabase config, user identity |
 | `src-tauri/src/commands/usage.rs` | 223 | Usage summary, history, clear, cost estimation |
 | `src-tauri/src/commands/sync.rs` | 445 | Cloud sync via Supabase (upload/download/status/list/stats) |
-| `src-tauri/src/commands/nano_banana.rs` | 260 | NanoBanana image generation via Gemini (gemini-2.5-flash-image) |
 | **Agent subsystem** | | |
 | `src-tauri/src/commands/agent/mod.rs` | 475 | Public API, types (AgentError, AgentService trait), invoke_agent, capability guards |
 | `src-tauri/src/commands/agent/agent_node.rs` | 634 | invoke_agent_node: BFS context, chat, output node creation, provider selection |
@@ -329,7 +325,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ---
 
-## Registered Tauri Commands (114 total)
+## Registered Tauri Commands (113 total)
 
 Counted from `generate_handler![]` in `lib.rs`:
 
@@ -358,7 +354,6 @@ Counted from `generate_handler![]` in `lib.rs`:
 | Usage | 3 | `get_usage_summary`, `get_usage_history`, `clear_usage_log` |
 | Agent Messages | 3 | `add_agent_node_message`, `get_agent_node_messages`, `delete_agent_node_message` |
 | Sync | 5 | `sync_list_remote`, `sync_check_status`, `sync_upload`, `sync_download`, `sync_get_remote_stats` |
-| NanoBanana | 1 | `generate_nano_banana_image` |
 
 *`get_api_key` and `get_gemini_api_key` are **backend-only** -- registered in generate_handler but intentionally have no frontend wrapper (raw keys used only server-side for API calls).
 
@@ -459,7 +454,6 @@ Select 2+ papers -> "Group" button -> enter name -> creates `paper_group` node w
 |----------|-------|---------|-----|
 | Claude (Anthropic) | `claude-sonnet-4-20250514` | Global agent, Agent node, Comment agent | `api.anthropic.com/v1/messages` |
 | Gemini (Google) | `gemini-2.5-flash` | Paper summarize/chat, Agent node (optional), Comment agent (optional) | `generativelanguage.googleapis.com/v1beta/...` |
-| Gemini (Google) | `gemini-2.5-flash-image` | NanoBanana image generation | `generativelanguage.googleapis.com/v1beta/...` |
 
 Both: retry 2x after 2s/5s, only on transient errors. Cost estimation: Sonnet $3/$15, Opus $15/$75, Haiku $0.25/$1.25, Gemini $0.15/$0.60 per M tokens.
 
@@ -519,7 +513,6 @@ Node styles (border: unselected | selected, box-sizing: border-box):
   export:         bg rgba(225,29,72,0.08), 1px|3px solid #e11d48, glow #e11d48
   compare:        bg rgba(2,132,199,0.08), 1px|3px solid #0284c7, glow #0284c7
   title:          bg rgba(120,113,108,0.08), 1px|3px solid #78716c, glow #78716c
-  nano_banana:    bg #fefce8, 1px|3px solid #ca8a04, glow #eab308
   deleted:        bg rgba(229,231,235,0.3), 1px|3px dashed #d1d5db, circle
   junction:       bg #4b5563, circle
   image:          bg #f0fdfa, 1px|3px solid #0891b2, glow #06b6d4
@@ -550,7 +543,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 
 ## Context Menus
 
-- **Canvas right-click**: "Add Edit Node", "Import File", "Add Agent Node", "Add NanoBanana Node"
+- **Canvas right-click**: "Add Edit Node", "Import File", "Add Agent Node"
 - **Node right-click** (Paper/UserDoc/Image/Agent/Compare/Title): "Delete Node"
 - **Deleted placeholder right-click**: "Remove completely"
 - **Junction right-click**: "Dissolve junction", "Remove junction"
