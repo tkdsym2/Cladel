@@ -6,7 +6,7 @@ Tauri v2 + React + TypeScript desktop app for researchers to organize thinking a
 
 - **Framework**: Tauri v2 (Rust backend + WebView frontend)
 - **Frontend**: React 19.2 / TypeScript 5.9, Vite 7.3, react-router-dom 7.13 (HashRouter), @xyflow/react 12.10 (React Flow), Zustand 5.0, @mui/icons-material 7.3, Tailwind CSS 4.2 + @mui/material 7.3 + @emotion, react-markdown 10, rehype-raw 7, remark-gfm 4
-- **Backend**: rusqlite 0.31 (bundled), reqwest 0.12, pdf-extract 0.7, image 0.24, regex 1, serde/chrono/uuid, tauri-plugin-store 2, base64 0.22, genpdf 0.2 + pulldown-cmark 0.12 (PDF generation)
+- **Backend**: rusqlite 0.31 (bundled), reqwest 0.12, pdf-extract 0.7, image 0.24, regex 1, serde/chrono/uuid, tauri-plugin-store 2, tauri-plugin-updater 2 + tauri-plugin-process 2 (signed auto-update), base64 0.22, genpdf 0.2 + pulldown-cmark 0.12 (PDF generation)
 - **File Format**: `.cld` (SQLite, DELETE journal mode, single-file; legacy `.klv` and `.tmgx` also supported for reading)
 - **App ID**: `com.cladel.desktop`
 
@@ -33,7 +33,7 @@ Tauri v2 + React + TypeScript desktop app for researchers to organize thinking a
 | **junction** | Dark gray (#4b5563), circle, ~16x16 | Edge branching point. "Dissolve junction" merges back. |
 | **import** | Gray dashed, temp React-only | NOT a DB node_type. Temporary placeholder for file import. Auto-detects PDF vs image. |
 
-All nodes: 4-directional handles (left/right source+target), NodeResizer, **4:3 landscape defaults** (280x210). All canvas nodes show `ProcessingIndicator` (spinning SmartToy icon, amber #f59e0b) when agent is processing. Paper/Edit/Image nodes support **Color Mode** (user-based coloring by creator_user_id).
+All nodes: 4-directional handles (left/right source+target), NodeResizer, **4:3 landscape defaults** (280x210). All canvas nodes show `ProcessingIndicator` (spinning SmartToy icon, amber #f59e0b) when agent is processing. Paper/Edit/Image/NanoBanana nodes support **Color Mode** (user-based coloring by creator_user_id). Agent and Export nodes also render comment-count badges.
 
 ### Display ID System
 
@@ -51,10 +51,11 @@ Every node gets a globally unique `display_id` (across ALL layers):
 | compare | `compare_{N}` | No |
 | title | `title_{N}` | No |
 | nano_banana | `nanob_{N}` | No |
+| paper_group | `group_{N}` | No |
 
 ### Edges
 
-First-class entities with weight 1-5 (visual thickness), bezier curves, 4-directional handles. Click -> action popover (Edit Annotations / Edge Properties / Add Branch Point). Badge for comment count. Reconnectable. No self-loops or duplicates. Directional arrows via `<polygon>` triangle (not SVG markers -- WebKit breaks them).
+First-class entities with weight 1-5 (visual thickness), bezier curves, 4-directional handles. Click -> `EdgeActionMenu` (Delete Connection / Edge Properties / Add Branch Point -- there is NO "Edit Annotations" action; the old `EdgePopover` edge-comment thread UI is orphaned). Badge for comment count. Reconnectable. No self-loops; no duplicate `(layer_id, source, target)` edges, enforced both client-side (`graphStore.onConnect`) and server-side (`edges.rs::create_edge`); A->B and B->A both allowed. Directional arrows via `<polygon>` triangle (not SVG markers -- WebKit breaks them).
 
 ### Layer System
 
@@ -161,7 +162,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 - .cld stores text/metadata only, NOT binary data. PDFs/images referenced by local file path.
 - DELETE journal mode = single portable file, no -shm/-wal sidecars.
 - App starts with in-memory DB; no file created until explicit Save As.
-- `VACUUM INTO` for Save As (compacted copy), then reopen at new path.
+- **Working-copy persistence model**: every tab (file-backed or not) runs against a temp working copy at `std::env::temp_dir()/cladel-tabs/{tab_id}.cld`; the real `.cld` is treated as read-only at runtime. Opening copies file -> working copy; Save/Save As serialize the working copy back via `VACUUM INTO` to a `{path}.{uuid}.tmp` then atomic `fs::rename`. `reload_active_tab_from_disk` recreates the working copy from the real file (used after cloud-sync download). (Pre-branch behavior was in-place DELETE-journal writes.)
 - `Mutex<Connection>` for thread-safe single-user access. `Database` struct also holds `tabs: Mutex<Vec<TabInfo>>` and `active_tab_id: Mutex<String>` for multi-tab support.
 - Edges have no ON DELETE CASCADE on node references (soft-delete preserves edges).
 - `core_versions`/`note_versions` tables exist in DB but **version history UI has been removed**.
@@ -172,20 +173,21 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ### File Map
 
-**Frontend -- 82 files, ~28,926 lines**
+**Frontend -- 86 files, ~31,359 lines**
 
 | Path | Lines | Purpose |
 |------|------:|---------|
 | `src/App.tsx` | 784 | Main app shell: initialization, tab/layer/delete orchestration, layout composition, dialog state |
-| `src/main.tsx` | 20 | Entry: HashRouter with `/` and `/node-detail/:nodeId/:layerId` routes |
+| `src/main.tsx` | 24 | Entry: HashRouter with 4 routes: `/`, `/node-detail/:nodeId/:layerId`, `/agent-console`, `/manual` |
 | `src/types/index.ts` | 714 | All shared interfaces, SYSTEM_DEFAULTS, TabNodeType, ExportStyleConfig, ExportTitlePage |
-| `src/lib/tauri-commands.ts` | 744 | Typed wrappers for 108 of 110 Tauri invoke commands |
+| `src/lib/tauri-commands.ts` | 744 | Typed wrappers for ~112 of 114 Tauri invoke commands |
 | `src/lib/detached-window.ts` | 90 | Multi-window management (open/focus/closeAll) |
 | `src/lib/sync-events.ts` | 144 | Cross-window event bus (node-updated, node-deleted, comments-changed, file-changed, settings-changed) |
 | `src/lib/userColors.ts` | 21 | Deterministic 8-color palette for user-based node coloring |
-| **Stores (11)** | | |
-| `src/store/graphStore.ts` | 1,853 | Nodes, edges, selection, comment counts, CRUD, ghost nodes, junctions, groups, colorMode |
-| `src/store/agentStore.ts` | 382 | Global agent: status, suggestions, history, context building, cooldown |
+| **Stores (12)** | | |
+| `src/store/graphStore.ts` | 1,861 | Nodes, edges, selection, comment counts, CRUD, ghost nodes, junctions, groups, colorMode, undo stack |
+| `src/store/agentStore.ts` | 382 | Global agent: status, suggestions, history, context building, cooldown, Claude/Gemini provider |
+| `src/store/consoleStore.ts` | 35 | Agent Console log buffer (500 entries, fed by `agent-console-log` events) |
 | `src/store/tabStore.ts` | 200 | Tab lifecycle: new/open/switch/close, reinitialize on switch |
 | `src/store/fileStore.ts` | 163 | File ops (new/open/save/save-as), delegates to tabStore, auto-dirty |
 | `src/store/exportStore.ts` | 62 | PDF export progress, error state, cross-window coordination |
@@ -220,13 +222,13 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/GroupingButton.tsx` | 73 | "Group" button for multi-selected papers |
 | `src/components/graph/GroupNamePopover.tsx` | 115 | Popover input for group name |
 | `src/components/graph/AnnotatedEdge.tsx` | 213 | Bezier edge + weight + badge + polygon arrow |
-| `src/components/graph/TabCreatePopover.tsx` | 296 | Light-themed popover (8 options: Edit/Paper/Image/Agent/Import/Export/Compare/Title) |
+| `src/components/graph/TabCreatePopover.tsx` | 296 | Light-themed popover (9 options: Edit/Paper/Image/Agent/Import/Export/Compare/Title/NanoBanana; number keys 1-7) |
 | `src/components/graph/CanvasControls.tsx` | 124 | Zoom in/out/fit, agent panel toggle, minimap toggle |
 | `src/components/graph/CursorModeIndicator.tsx` | 196 | Upper-left bar: Move/Select pills, Color Mode toggle, shortcut help |
 | `src/components/graph/CustomMiniMap.tsx` | 256 | SVG minimap (160x120) with color-coded nodes + edges |
-| `src/components/graph/EdgePopover.tsx` | 525 | Edge annotation modal: weight slider, comment thread, delete |
+| `src/components/graph/EdgePopover.tsx` | 525 | Edge annotation modal: weight slider, comment thread, delete. **ORPHANED -- zero importers** |
 | `src/components/graph/EdgeActionMenu.tsx` | 275 | Edge context menu: Edit Annotations / Properties / Branch Point |
-| `src/components/graph/ContextMenu.tsx` | 359 | Canvas/node right-click menus (unified "Import File") |
+| `src/components/graph/ContextMenu.tsx` | 359 | Canvas/node right-click menus (unified "Import File"). **ORPHANED -- zero importers** |
 | `src/components/graph/NodeAccordionSection.tsx` | 86 | Collapsible section for node detail panel |
 | `src/components/graph/useConnectedDisplayIds.ts` | 30 | Hook: connected node display_ids |
 | **Panel Components** | | |
@@ -242,6 +244,11 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/panels/MentionPopover.tsx` | 390 | @mention autocomplete for node references |
 | `src/components/panels/DetachedNodeDetail.tsx` | 193 | Standalone node detail window (cross-window sync) |
 | `src/components/panels/MarkdownPreview.tsx` | 132 | Markdown preview with remark-gfm and rehype-raw |
+| `src/components/panels/FloatingDetailPanel.tsx` | 108 | Floating overlay that hosts the node detail panel (replaces the old fixed right column) |
+| `src/components/panels/MultiSelectPanel.tsx` | 39 | Right-panel content when >=2 nodes selected (currently a near-stub: shows count only) |
+| `src/components/panels/AgentConsole.tsx` | 237 | Standalone Agent Console window (`/agent-console`): live agent request/response/retry log |
+| `src/components/panels/ManualWindow.tsx` | 615 | Standalone manual/help window (`/manual`), renders `docs/manual.md` |
+| `src/components/panels/CoreHistoryPanel.tsx` | 384 | Core version history panel. **ORPHANED -- zero importers (deprecated)** |
 | **Dialog Components** | | |
 | `src/components/dialogs/SettingsDialog.tsx` | 2,007 | API keys (Anthropic+Gemini), capabilities, UI prefs, usage, paper prompt, sync, user identity |
 | `src/components/dialogs/PdfImportDialog.tsx` | 733 | PDF import: 6-phase state machine with error recovery |
@@ -253,19 +260,21 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/dialogs/ImageImportDialog.tsx` | 386 | Image import + validation + positionOverride |
 | `src/components/dialogs/ExportStyleConfigDialog.tsx` | 681 | PDF export style config (fonts, sizes, margins, alignment, markers, line numbers) with preview |
 | `src/components/dialogs/ConfirmDialogs.tsx` | 238 | Shared confirm dialogs (Delete, BatchDelete, EdgeDelete, UnsavedChanges) |
+| `src/components/dialogs/UpdateDialog.tsx` | 334 | Auto-update flow: check/download/install + restart (tauri-plugin-updater), `silentErrors` prop |
+| `src/components/dialogs/PdfExportProgressDialog.tsx` | 176 | PDF export progress overlay (cross-window export coordination) |
 | **Layout Components** | | |
 | `src/components/layers/LayerBar.tsx` | 313 | Left sidebar: layers (sorted), add/delete, Export BibTeX |
 | `src/components/FileTabBar.tsx` | 216 | Top tab bar: open tabs, active indicator, close/new buttons, settings |
 | `src/components/StatusBar.tsx` | 152 | Bottom status bar: node/edge counts, API status, agent status, sync |
 | `src/components/ResizeHandle.tsx` | 22 | Simple sidebar resize handle with hover state |
 
-**Backend -- 36 files, ~15,261 lines**
+**Backend -- 36 files, ~14,481 lines**
 
 | Path | Lines | Purpose |
 |------|------:|---------|
 | `src-tauri/src/main.rs` | 6 | Calls `cladel_app_lib::run()` |
-| `src-tauri/src/lib.rs` | 278 | App entry: 111 command registrations, native menu, plugins init |
-| `src-tauri/src/db.rs` | 968 | SQLite schema, SCHEMA_VERSION=19, 19 migrations, Database+TabInfo |
+| `src-tauri/src/lib.rs` | 285 | App entry: 114 command registrations, native menu, plugins init (incl. updater/process) |
+| `src-tauri/src/db.rs` | 1,017 | SQLite schema, SCHEMA_VERSION=19, 19 migrations, Database+TabInfo |
 | `src-tauri/src/commands/mod.rs` | 21 | Module declarations (22 submodules) |
 | `src-tauri/src/commands/nodes.rs` | 567 | CRUD + soft_delete + restore + update_display_id + update_paper_bibtex |
 | `src-tauri/src/commands/edges.rs` | 211 | CRUD + restore with handle persistence, weight 1-5 |
@@ -322,14 +331,14 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ---
 
-## Registered Tauri Commands (111 total)
+## Registered Tauri Commands (114 total)
 
 Counted from `generate_handler![]` in `lib.rs`:
 
 | Category | Count | Commands |
 |----------|------:|---------|
-| File | 5 | `file_new`, `file_open`, `file_save`, `file_save_as`, `file_get_current_path` |
-| Tabs | 7 | `get_tabs`, `get_active_tab_id`, `create_tab`, `open_file_in_tab`, `switch_tab`, `close_tab`, `update_tab_after_save` |
+| File | 7 | `file_new`, `file_open`, `file_save`, `file_save_as`, `file_get_current_path`, `ensure_sample_file`, `restore_sample_file` |
+| Tabs | 8 | `get_tabs`, `get_active_tab_id`, `create_tab`, `open_file_in_tab`, `switch_tab`, `close_tab`, `update_tab_after_save`, `reload_active_tab_from_disk` |
 | Nodes | 8 | `create_node`, `update_node`, `delete_node`, `soft_delete_node`, `restore_node`, `get_nodes_by_layer`, `update_display_id`, `update_paper_bibtex` |
 | Edges | 5 | `create_edge`, `update_edge`, `delete_edge`, `restore_edge`, `get_edges_by_layer` |
 | Layers/Projects | 5 | `create_project`, `create_layer`, `delete_layer`, `get_layers`, `get_projects` |
@@ -362,8 +371,8 @@ Counted from `generate_handler![]` in `lib.rs`:
 ### File Tab System
 
 Browser-style multi-file tabs (FileTabBar + tabStore + tab_commands.rs):
-- Each tab has its own SQLite connection. Switching snapshots current tab's in-memory DB to temp file (`~/.tmp/cladel-tabs/{tab_id}.cld`) via `VACUUM INTO`, then restores the target tab's connection.
-- `tabStore.ts`: `newTab()`, `switchTab()`, `openFileInTab()`, `closeTab()` -- each calls backend + reinitializes all frontend stores.
+- Each tab has its own SQLite connection backed by a working copy at `std::env::temp_dir()/cladel-tabs/{tab_id}.cld` (see Key design decisions). Switching snapshots the current tab's working copy and restores the target tab's connection.
+- `tabStore.ts`: `newTab()`, `switchTab()`, `openFileInTab()`, `closeTab()`, `reloadActiveTabFromDisk()` -- each calls backend + reinitializes all frontend stores.
 - Closing last tab creates a fresh empty tab automatically.
 - **Native menu**: Close Tab (Cmd+W).
 
@@ -371,9 +380,9 @@ Browser-style multi-file tabs (FileTabBar + tabStore + tab_commands.rs):
 
 Per-node AI assistant with persistent chat history and output node creation.
 
-**Pipeline** (agent/agent_node.rs): `invoke_agent_node` -> provider select -> capability guard -> BFS context (up to 20 nodes) -> last 10 messages -> API call (max 4096 tokens, retry 2x) -> create/update output Edit node -> return `InvokeAgentNodeResult`.
+**Pipeline** (agent/agent_node.rs): `invoke_agent_node` -> provider select (Claude or Gemini) -> capability guard -> BFS context (up to 20 nodes) -> last 10 messages -> API call (`MAX_TOKENS = 16384`, 90s timeout, retry 2x) -> create/update output Edit node -> return `InvokeAgentNodeResult`.
 
-**Output nodes**: Agent creates `user_doc` Edit nodes positioned right of agent node (+width+100, stacked by 275px). Auto-creates edge: agent -> output.
+**Output nodes**: Agent creates `user_doc` Edit nodes (260x195) positioned right of agent node (+width+100, stacked by 275px). Auto-creates edge: agent -> output.
 
 ### @Agent Comment Invocation
 
@@ -410,13 +419,13 @@ AI-assisted paper reading with full PDF context (paper_chat.rs):
 
 ### Content Pull
 
-Inline reference insertion for Edit (user_doc) and Core nodes. Press Space on empty line -> ContentPullPopover. Two-step: (1) Select connected node, (2) Choose what to pull (content, abstract, comments).
+Inline reference insertion for Edit (user_doc) and Core nodes. Type `/` on an empty line -> slash-command menu (single entry `/import`) -> ContentPullPopover. Two-step: (1) Select connected node, (2) Choose what to pull (content, abstract, comments).
 
 ### Tab-to-Create
 
-**Keyboard shortcuts**: **Tab** -> right, **Shift+Tab** -> down, **Ctrl/Cmd+Tab** -> left, **Ctrl/Cmd+Shift+Tab** -> up.
+**Keyboard shortcuts**: **Tab** -> right, **Ctrl/Cmd+Tab** -> left. (Only left/right are implemented; `TabDirection`/`TAB_HANDLE_MAP` have no up/down despite the conceptual 4-direction design.)
 
-**Popover** (TabCreatePopover.tsx): Light-themed, 8 options: 1. Edit, 2. Paper, 3. Image, 4. Agent, 5. Import File, 6. Export, 7. Compare, 8. Title. Number keys instant select.
+**Popover** (TabCreatePopover.tsx): Light-themed, 9 options: 1. Edit, 2. Paper, 3. Image, 4. Agent, 5. Import File, 6. Export, 7. Compare, 8. Title, 9. NanoBanana. Number keys 1-7 instant-select; options 8-9 are arrow+Enter.
 
 **Three creation paths**: (1) Tab during edge drag -> connected to drag-from node. (2) Tab with node selected -> connected. (3) Tab with no selection -> standalone at cursor.
 
@@ -458,7 +467,7 @@ Both: retry 2x after 2s/5s, only on transient errors. Cost estimation: Sonnet $3
 
 ### Multi-Window Node Detail
 
-HashRouter: "/" = main, "/node-detail/:nodeId/:layerId" = detached. Double-click any node (except junction/deleted) -> detached WebviewWindow (500x700). Sync events via sync-events.ts. Auto-close on file operations.
+HashRouter routes: `/` = main, `/node-detail/:nodeId/:layerId` = detached node detail, `/agent-console` = Agent Console, `/manual` = manual/help. Double-click any node (except junction/deleted) -> detached WebviewWindow (500x700). Auxiliary windows (`agent-console`, `manual`) are granted perms via `capabilities/auxiliary-windows.json`. Sync events via sync-events.ts. Auto-close on file operations.
 
 ### Cloud Sync (Supabase)
 
@@ -472,6 +481,14 @@ Optional cloud sync for .cld files via Supabase storage:
 
 `agent_usage_log` table, `get_usage_summary` (cost estimation), `get_usage_history`. Frontend: SettingsDialog "API Usage" section.
 
+### Agent Console
+
+Standalone window (`/agent-console`, opened from FileTabBar). Backend `agent/mod.rs::emit_agent_log` fires an `agent-console-log` Tauri event for every agent step (request size, tokens, retries, errors); `consoleStore.ts` buffers up to 500 entries; `AgentConsole.tsx` renders them live. Useful for debugging agent calls.
+
+### Auto-Update & Release Pipeline
+
+Signed auto-update via `tauri-plugin-updater` + `tauri-plugin-process` (production-only; gated on `window.location.protocol !== 'http:'`, so dev is skipped). `tauri.conf.json` sets `createUpdaterArtifacts: true`, a GitHub `latest.json` endpoint, and an embedded minisign public key. `UpdateDialog.tsx` drives check/download/install + restart. `scripts/check-release.mjs` (`npm run release:check`) gates releases (tri-file version parity, SemVer without `v`, tag == version, https + pubkey present, signing env vars); `.github/workflows/release.yml` runs it across macOS-universal / Windows / Ubuntu. Capability files: `default.json`, `node-detail.json`, `auxiliary-windows.json`.
+
 ---
 
 ## Settings System
@@ -480,7 +497,7 @@ Optional cloud sync for .cld files via Supabase storage:
 
 **API keys**: `anthropic_api_key`, `gemini_api_key`, `supabase_url`, `supabase_anon_key`
 **User**: `user_id` (UUID), `user_name`
-**Agent toggles** (all bool, default true): `agent_enabled`, `autonomous_enabled`, `search_papers_enabled`, `suggest_connections_enabled`, `suggest_ideas_enabled`
+**Agent toggles** (bool): `agent_enabled` defaults **false** (master switch -- agents are off until the user enables them); `autonomous_enabled`, `search_papers_enabled`, `suggest_connections_enabled`, `suggest_ideas_enabled` default true (per `AgentCapabilities::default()` in settings.rs)
 **Agent timing**: `autonomous_idle_seconds` (45), `autonomous_cooldown_seconds` (120)
 **Node sizes** (f64, default 280x210): `core_default_width/height`, `paper_default_width/height`, `user_doc_default_width/height`, `ghost_default_width/height`, `image_default_width/height`
 **Canvas**: `sidebar_default_width` (380), `canvas_background` (#f8fafc), `canvas_grid_enabled` (true), `canvas_grid_size` (20), `editor_font_size` (13)
@@ -536,7 +553,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 - **Deleted placeholder right-click**: "Remove completely"
 - **Junction right-click**: "Dissolve junction", "Remove junction"
 - **Paper Group right-click**: "Expand Group", "Collapse Group", "Ungroup Papers"
-- **Edge left-click**: popover -> Edit Annotations / Edge Properties / Add Branch Point
+- **Edge left-click**: `EdgeActionMenu` -> Delete Connection / Edge Properties / Add Branch Point (no "Edit Annotations"; `EdgePopover` is orphaned)
 
 ## IPC Conventions
 
@@ -563,8 +580,10 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 - **Semantic Scholar rate limiting**: 90 requests per 5-minute sliding window.
 - **PDF Claude fallback requires API key**: If no key and DOI lookup fails, import_pdf errors.
 - **open_file_external**: Cross-platform via `#[cfg(target_os)]` -- `open` (macOS), `cmd /c start` (Windows), `xdg-open` (Linux).
-- **Deprecated files**: GraphToolbar.tsx, CoreHistoryPanel.tsx -- safe to delete.
-- **Tab snapshots**: VACUUM INTO temp files at `~/.tmp/cladel-tabs/`. Cleaned on tab close, not on crash.
+- **Orphaned/deprecated files** (zero importers, safe to delete): GraphToolbar.tsx, CoreHistoryPanel.tsx, EdgePopover.tsx, ContextMenu.tsx. NOTE: as a result there is currently no wired right-click canvas ContextMenu and no wired edge-comment thread UI (badges still show counts).
+- **Tab working copies**: every tab runs against a working copy at `std::env::temp_dir()/cladel-tabs/{tab_id}.cld`; the real `.cld` is read-only at runtime and only written on explicit Save (VACUUM INTO + atomic rename). Working copies are NOT cleaned up on save (they accumulate in OS temp) and not cleaned on crash.
+- **soft_delete_node deletes node_comments**: `soft_delete_node` runs `DELETE FROM node_comments WHERE node_id=?` and `restore_node` does NOT restore them -- comments are silently lost across a soft delete (only edges + edge_comments survive).
+- **AGENTS.md is a near-duplicate**: `AGENTS.md` largely duplicates this file (originally a Claude->Codex find-replace; provider/model names have since been corrected). It still carries the pre-sync structural drift (old file/command counts) -- treat CLAUDE.md as the maintained copy.
 - **Large files**: NodeDetailPanel.tsx (2,533), pdf_export.rs (2,183), SettingsDialog.tsx (2,007), graphStore.ts (1,853), GraphCanvas.tsx (1,608), AgentNodeViewer.tsx (1,140) -- modify with care.
 
 ---
@@ -572,7 +591,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 ## How to Continue Development
 
 1. **Always read this CLAUDE.md first** before making changes.
-2. Project path: `/Users/kazuma/Desktop/Tsumugix`
+2. Project path: `/Users/kazuma/Desktop/Cladel`
 3. Run: `npm run tauri dev`
 4. Rust env: `source "$HOME/.cargo/env"` or `export PATH="$HOME/.cargo/bin:$PATH"`
 5. Compile check: `npx tsc --noEmit` (use instead of `npm run tauri dev` in Claude Code)
