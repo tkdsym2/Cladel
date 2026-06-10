@@ -174,18 +174,15 @@ fn collect_bibtex_by_ids(db: &Database, node_ids: &[String]) -> Result<String, S
 pub fn get_paper_nodes_by_layers(db: State<Database>) -> Result<Vec<LayerPaperGroup>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
-    // Get all layers
+    // Get all layers (the layers table has no name column; the frontend
+    // labels groups as "Layer {layer_number}" when layer_name is empty)
     let mut layer_stmt = conn
-        .prepare("SELECT id, layer_number, name FROM layers ORDER BY layer_number")
+        .prepare("SELECT id, layer_number FROM layers ORDER BY layer_number")
         .map_err(|e| e.to_string())?;
 
-    let layers: Vec<(String, i32, Option<String>)> = layer_stmt
+    let layers: Vec<(String, i32)> = layer_stmt
         .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, i32>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
+            Ok((row.get::<_, String>(0)?, row.get::<_, i32>(1)?))
         })
         .map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
@@ -195,7 +192,7 @@ pub fn get_paper_nodes_by_layers(db: State<Database>) -> Result<Vec<LayerPaperGr
 
     let mut groups = Vec::new();
 
-    for (layer_id, layer_number, layer_name) in &layers {
+    for (layer_id, layer_number) in &layers {
         let mut paper_stmt = conn
             .prepare(
                 "SELECT id, title, bibtex, metadata FROM nodes \
@@ -229,7 +226,7 @@ pub fn get_paper_nodes_by_layers(db: State<Database>) -> Result<Vec<LayerPaperGr
 
         groups.push(LayerPaperGroup {
             layer_id: layer_id.clone(),
-            layer_name: layer_name.clone().unwrap_or_default(),
+            layer_name: String::new(),
             layer_number: *layer_number,
             papers,
         });
