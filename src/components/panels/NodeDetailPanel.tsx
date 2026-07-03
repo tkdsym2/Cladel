@@ -13,6 +13,7 @@ import LayersIcon from "@mui/icons-material/Layers";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SendIcon from "@mui/icons-material/Send";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGraphStore } from "../../store/graphStore";
 import { useAgentNodeStore } from "../../store/agentNodeStore";
@@ -254,7 +255,6 @@ function CoreEditor({
             layerId={node.layer_id}
             value={content}
             onChange={handleContentChange}
-            placeholder="Write your core research question in Markdown..."
             style={editorStyle}
           />
         </div>
@@ -1644,6 +1644,12 @@ function UserDocEditor({
   const [displayIdDraft, setDisplayIdDraft] = useState(node.display_id ?? "");
   const [displayIdError, setDisplayIdError] = useState<string | null>(null);
   const displayIdInputRef = useRef<HTMLInputElement>(null);
+
+  // Help opens as its own window so it can be read while writing.
+  const handleOpenHelp = useCallback(async () => {
+    const { openNoteHelpWindow } = await import("../../lib/detached-window");
+    await openNoteHelpWindow();
+  }, []);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const toggleSection = (key: string) => setOpenSections((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
@@ -1820,6 +1826,13 @@ function UserDocEditor({
             >
               <EditIcon sx={{ fontSize: 14 }} />
             </button>
+            <button
+              onClick={handleOpenHelp}
+              title="How to write notes (Typst, references, images, tables)"
+              style={{ marginLeft: "auto", border: "none", background: "transparent", cursor: "pointer", padding: "2px", lineHeight: 1, color: "#9ca3af" }}
+            >
+              <HelpOutlineIcon sx={{ fontSize: 16 }} />
+            </button>
           </div>
         )}
       </div>
@@ -1831,7 +1844,6 @@ function UserDocEditor({
             layerId={node.layer_id}
             value={content}
             onChange={handleContentChange}
-            placeholder="Write in Typst… (e.g. = Heading, *bold*, @cite). Connect to a Render node to preview."
             format="typst"
             style={editorStyle}
           />

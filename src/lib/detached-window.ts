@@ -126,6 +126,36 @@ export async function openManualWindow(): Promise<WebviewWindow | null> {
 }
 
 /**
+ * Open the Note (Typst) help in a separate window so it can be read while
+ * writing in the main window. If already open, focus it instead.
+ */
+export async function openNoteHelpWindow(): Promise<WebviewWindow | null> {
+  const label = "note-help";
+
+  const existing = await WebviewWindow.getByLabel(label);
+  if (existing) {
+    await existing.setFocus();
+    return existing;
+  }
+
+  const webview = new WebviewWindow(label, {
+    url: "index.html#/note-help",
+    title: "Note Help",
+    width: 520,
+    height: 680,
+    minWidth: 360,
+    minHeight: 400,
+    decorations: true,
+  });
+
+  webview.once("tauri://error", (e) => {
+    console.error("Failed to create note help window:", e);
+  });
+
+  return webview;
+}
+
+/**
  * Close all detached node-detail windows.
  * Called when the .cld file changes (new/open) so stale windows don't linger.
  */
