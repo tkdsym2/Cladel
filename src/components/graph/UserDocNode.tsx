@@ -76,8 +76,7 @@ export function UserDocNode({ id, data, selected }: NodeProps<Node<UserDocNodeDa
           </div>
         )}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
-        <div style={{ fontWeight: 600, marginBottom: 2, wordBreak: "break-word" }}>{title}</div>
+        <div style={nameStyle}>{displayId ?? title}</div>
         {content && (
           <div style={contentStyle}>
             <ReactMarkdown
@@ -114,12 +113,11 @@ const handleStyle: React.CSSProperties = {
   border: "2px solid #fffbeb",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
   marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const contentStyle: React.CSSProperties = {

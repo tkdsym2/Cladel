@@ -66,10 +66,9 @@ export function CompareNode({ id, data, selected }: NodeProps<Node<CompareNodeDa
           </div>
         )}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
         <div style={headerStyle}>
           <CompareArrowsIcon sx={{ fontSize: 16, color: "#0284c7" }} />
-          <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{title}</span>
+          <span style={nameStyle}>{displayId ?? title}</span>
         </div>
         <div style={hintStyle}>
           Connect 2 Edit nodes
@@ -93,12 +92,10 @@ const handleStyle: React.CSSProperties = {
   border: "2px solid rgba(2,132,199,0.15)",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
-  marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const headerStyle: React.CSSProperties = {

@@ -15,7 +15,7 @@ export interface LayerData {
   updated_at: string;
 }
 
-export type NodeType = "core" | "paper" | "user_doc" | "agent_proposal" | "deleted" | "junction" | "image" | "agent" | "paper_group" | "export" | "compare" | "title" | "table";
+export type NodeType = "core" | "paper" | "user_doc" | "agent_proposal" | "deleted" | "junction" | "image" | "agent" | "paper_group" | "export" | "compare" | "title" | "table" | "render";
 export type NodeStatus = "active" | "ghost" | "dismissed";
 export type CreatedBy = "user" | "agent";
 
@@ -576,7 +576,7 @@ export interface PaperGroupMetadata {
 
 // ─── Tab-to-Create ───
 
-export type TabNodeType = "user_doc" | "paper" | "image" | "agent" | "import" | "export" | "compare" | "title" | "table";
+export type TabNodeType = "user_doc" | "paper" | "image" | "agent" | "import" | "export" | "compare" | "title" | "table" | "render";
 
 // ─── Table Node ───
 
@@ -604,6 +604,27 @@ export interface TableImportResult {
   filename: string;
   sheet: string | null;
   rows: string[][];
+}
+
+// ─── Render Node ───
+
+export type CitationStyle = "ieee" | "apa";
+
+/** Render node model, stored as JSON in NodeData.metadata.
+ *  A render node compiles the Typst source of its connected Note nodes and
+ *  shows a faithful PDF preview. */
+export interface RenderModel {
+  kind: "render";
+  /** Citation style for the generated bibliography (default "ieee"). */
+  citation_style?: CitationStyle;
+}
+
+/** Result of the render_typst_preview backend command. */
+export interface RenderPreviewResult {
+  /** Absolute PNG file paths for each rendered page (use convertFileSrc to display). */
+  pages: string[];
+  page_count: number;
+  note_count: number;
 }
 
 export type TabDirection = "right" | "left";

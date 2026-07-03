@@ -120,10 +120,12 @@ export function PaperNode({ id, data, selected }: NodeProps<Node<PaperNodeData>>
           </div>
         )}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
-        <div style={{ fontWeight: 600, marginBottom: 2, lineHeight: 1.3, wordBreak: "break-word" }}>
-          {title}
-        </div>
+        <div style={nameStyle}>{displayId ?? title}</div>
+        {displayId && title && (
+          <div style={paperTitleStyle}>
+            {title}
+          </div>
+        )}
         {meta.authors && meta.authors.length > 0 && (
           <div style={{ fontSize: "11px", color: "#6b7280", marginBottom: 1 }}>
             {meta.authors.slice(0, 2).join(", ")}
@@ -161,12 +163,20 @@ const handleStyle: React.CSSProperties = {
   border: "2px solid #f0fdf4",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
   marginBottom: 2,
+  wordBreak: "break-word",
+};
+
+// Bibliographic paper title (from BibTeX) — shown as metadata under the id.
+const paperTitleStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "#374151",
+  lineHeight: 1.3,
+  marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const badgeStyle: React.CSSProperties = {

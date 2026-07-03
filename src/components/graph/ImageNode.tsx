@@ -127,7 +127,7 @@ export function ImageNode({ id, data, selected }: NodeProps<Node<ImageNodeData>>
         {/* Comment count badge */}
         {count > 0 && <div style={badgeStyle}>{count}</div>}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
+        <div style={nameStyle}>{displayId ?? title}</div>
 
         {/* Image area */}
         <div
@@ -171,21 +171,6 @@ export function ImageNode({ id, data, selected }: NodeProps<Node<ImageNodeData>>
           )}
         </div>
 
-        {/* Title */}
-        <div
-          style={{
-            fontWeight: 600,
-            fontSize: 12,
-            marginTop: 4,
-            lineHeight: 1.3,
-            wordBreak: "break-word",
-            textAlign: "center",
-            flexShrink: 0,
-          }}
-        >
-          {title}
-        </div>
-
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
 
@@ -207,13 +192,13 @@ const handleStyle: React.CSSProperties = {
   border: "2px solid #f0fdfa",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
   marginBottom: 2,
+  wordBreak: "break-word",
   textAlign: "center",
+  flexShrink: 0,
 };
 
 const badgeStyle: React.CSSProperties = {

@@ -147,9 +147,16 @@ export function TitleNodeViewer({ node }: TitleNodeViewerProps) {
 
   return (
     <div style={containerStyle}>
-      {/* Title */}
+      {/* Node id */}
+      {node.display_id && (
+        <div style={{ fontSize: 13, fontFamily: "monospace", color: "#78716c" }}>
+          {node.display_id}
+        </div>
+      )}
+
+      {/* Document title (printed on the exported PDF's title page) */}
       <div style={sectionStyle}>
-        <label style={labelStyle}>Title</label>
+        <label style={labelStyle}>Document Title</label>
         <input
           type="text"
           value={title}

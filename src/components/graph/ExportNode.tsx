@@ -78,10 +78,9 @@ export function ExportNode({ id, data, selected }: NodeProps<Node<ExportNodeData
           </div>
         )}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
         <div style={headerStyle}>
           <PictureAsPdfIcon sx={{ fontSize: 16, color: "#e11d48" }} />
-          <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{title}</span>
+          <span style={nameStyle}>{displayId ?? title}</span>
         </div>
         <div style={sectionCountStyle}>
           {sectionCount > 0 ? `${sectionCount} section${sectionCount !== 1 ? "s" : ""}` : "No sections"}
@@ -105,12 +104,10 @@ const handleStyle: React.CSSProperties = {
   border: "2px solid rgba(225,29,72,0.15)",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
-  marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const headerStyle: React.CSSProperties = {

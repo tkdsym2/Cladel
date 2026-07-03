@@ -1207,7 +1207,7 @@ fn build_cited_paper(ref_node: &NodeData, display_id: &str) -> CitedPaper {
 
 /// Split a multi-citation capture into individual display_ids.
 /// E.g. "XXX; @YYY; @ZZZ" → ["XXX", "YYY", "ZZZ"]
-fn split_citation_ids(captured: &str) -> Vec<&str> {
+pub(crate) fn split_citation_ids(captured: &str) -> Vec<&str> {
     fn clean(s: &str) -> &str {
         s.trim().trim_start_matches('@')
     }
@@ -1244,7 +1244,7 @@ fn split_citation_ids(captured: &str) -> Vec<&str> {
 /// Parse a table cell reference id like `table_1[0,1]` into
 /// `(base_display_id, row, col)` with 0-based [row, col] indexing.
 /// Returns None when the id is not a table-cell reference.
-fn parse_table_cell_ref(did: &str) -> Option<(&str, usize, usize)> {
+pub(crate) fn parse_table_cell_ref(did: &str) -> Option<(&str, usize, usize)> {
     let open = did.find('[')?;
     let did = did.strip_suffix(']')?;
     let base = did[..open].trim();
@@ -1263,7 +1263,7 @@ fn parse_table_cell_ref(did: &str) -> Option<(&str, usize, usize)> {
 
 /// Look up a table node's cell value from a pre-built display_id → grid map.
 /// Out-of-range indices resolve to an empty string (the cell is "blank").
-fn resolve_table_cell(
+pub(crate) fn resolve_table_cell(
     tables: &std::collections::HashMap<String, Vec<Vec<String>>>,
     base: &str,
     row: usize,
@@ -1274,7 +1274,7 @@ fn resolve_table_cell(
 }
 
 /// Extract a display_id → row-major grid map from the layer's table nodes.
-fn build_table_map(all_nodes: &[NodeData]) -> std::collections::HashMap<String, Vec<Vec<String>>> {
+pub(crate) fn build_table_map(all_nodes: &[NodeData]) -> std::collections::HashMap<String, Vec<Vec<String>>> {
     let mut tables: std::collections::HashMap<String, Vec<Vec<String>>> =
         std::collections::HashMap::new();
     for n in all_nodes {

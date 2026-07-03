@@ -32,6 +32,7 @@ import { ExportNode } from "./ExportNode";
 import { CompareNode } from "./CompareNode";
 import { TitleNode } from "./TitleNode";
 import { TableNode } from "./TableNode";
+import { RenderNode } from "./RenderNode";
 import { PaperGroupNode } from "./PaperGroupNode";
 import { ImportNode } from "./ImportNode";
 import { AnnotatedEdge, bezierPoint, parseBezierPath } from "./AnnotatedEdge";
@@ -61,6 +62,7 @@ const nodeTypes = {
   compare: CompareNode,
   title: TitleNode,
   table: TableNode,
+  render: RenderNode,
   import: ImportNode,
 };
 
@@ -100,7 +102,7 @@ interface ClipboardData {
 
 let _clipboard: ClipboardData | null = null;
 
-const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "table"]);
+const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "table", "render"]);
 
 // ─── Edge proximity detection for drop-on-edge ───
 
@@ -437,6 +439,13 @@ export function GraphCanvas({
           // Created unconfigured — the user picks new vs. import in the detail panel.
           metadata: JSON.stringify({ kind: "table", mode: "unconfigured", rows: [], source: null }),
         };
+      case "render":
+        return {
+          width: 300,
+          height: 360,
+          title: "Render",
+          metadata: JSON.stringify({ kind: "render", citation_style: "ieee" }),
+        };
     }
   }, []);
 
@@ -686,9 +695,10 @@ export function GraphCanvas({
         return;
       }
       if (!currentLayer) return;
-      const title = (node.data as { title?: string }).title ?? "Node";
+      const d = node.data as { display_id?: string | null; title?: string };
+      const windowTitle = d.display_id ?? d.title ?? "Node";
       import("../../lib/detached-window").then(({ openNodeDetailWindow }) =>
-        openNodeDetailWindow(node.id, currentLayer.id, title),
+        openNodeDetailWindow(node.id, currentLayer.id, windowTitle),
       );
       setSelectedNodeId(null);
     },
@@ -968,7 +978,7 @@ export function GraphCanvas({
 
       // Collect deletable selected nodes (React Flow multi-select + store single-select)
       const selectedNodes = state.nodes.filter((n) => n.selected);
-      const deletableTypes = new Set(["paper", "user_doc", "image", "agent", "junction", "paper_group", "export", "table"]);
+      const deletableTypes = new Set(["paper", "user_doc", "image", "agent", "junction", "paper_group", "export", "table", "render"]);
       const toDelete = selectedNodes.filter((n) => n.type && deletableTypes.has(n.type));
 
       // Fall back to single-selection if no multi-selected nodes

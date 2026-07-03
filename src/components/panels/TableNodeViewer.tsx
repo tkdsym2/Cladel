@@ -59,22 +59,19 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
   const updateNodeContent = useGraphStore((s) => s.updateNodeContent);
   const t = useT();
 
-  const [title, setTitle] = useState(node.title);
   const [model, setModel] = useState<TableModel>(() => parseModel(node));
   const [selected, setSelected] = useState<{ r: number; c: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setTitle(node.title);
     setModel(parseModel(node));
     setSelected(null);
     setError(null);
-  }, [node.id, node.title, node.metadata]);
+  }, [node.id, node.metadata]);
 
   const mode = model.mode;
   const displayId = node.display_id ?? "table";
@@ -101,7 +98,6 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
       const fields: { metadata: string; title?: string } = { metadata: JSON.stringify(next) };
       if (newTitle !== undefined) {
         fields.title = newTitle;
-        setTitle(newTitle);
       }
       updateNodeContent(node.id, fields);
     },
@@ -115,17 +111,6 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
       saveModelDebounced(next);
     },
     [model, saveModelDebounced],
-  );
-
-  const handleTitleChange = useCallback(
-    (value: string) => {
-      setTitle(value);
-      if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
-      titleTimerRef.current = setTimeout(() => {
-        updateNodeContent(node.id, { title: value });
-      }, 800);
-    },
-    [node.id, updateNodeContent],
   );
 
   // ── Mode selection (unconfigured) ──
@@ -200,14 +185,7 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
     return (
       <div style={containerStyle}>
         <div style={sectionStyle}>
-          <label style={labelStyle}>{t("common.title")}</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            style={inputStyle}
-            placeholder="Table name"
-          />
+          <div style={displayIdLineStyle}>{displayId}</div>
         </div>
 
         <p style={chooserHintStyle}>{t("table.chooser.hint")}</p>
@@ -232,16 +210,9 @@ export function TableNodeViewer({ node }: TableNodeViewerProps) {
 
   return (
     <div style={containerStyle}>
-      {/* Title */}
+      {/* Node id */}
       <div style={sectionStyle}>
-        <label style={labelStyle}>Title</label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          style={inputStyle}
-          placeholder="Table name"
-        />
+        <div style={displayIdLineStyle}>{displayId}</div>
       </div>
 
       {/* Mode / source info */}
@@ -408,22 +379,11 @@ const sectionStyle: React.CSSProperties = {
   gap: 6,
 };
 
-const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#6b7280",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  fontSize: 14,
-  border: "1px solid #d1d5db",
-  borderRadius: 6,
-  outline: "none",
-  boxSizing: "border-box",
+// Node id — the table's name; also what {@id[r,c]} references use.
+const displayIdLineStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontFamily: "monospace",
+  color: "#0f766e",
 };
 
 const chooserHintStyle: React.CSSProperties = {

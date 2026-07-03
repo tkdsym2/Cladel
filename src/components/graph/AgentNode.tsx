@@ -69,10 +69,9 @@ export function AgentNode({ id, data, selected }: NodeProps<Node<AgentNodeData>>
           </div>
         )}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
         <div style={headerStyle}>
           <SmartToyIcon sx={{ fontSize: 16, color: "#4338ca" }} />
-          <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{title}</span>
+          <span style={nameStyle}>{displayId ?? title}</span>
         </div>
         <div style={processing ? processingStatusStyle : error ? errorStatusStyle : statusStyle}>
           {processing ? "Processing..." : error ? "Error" : "Idle"}
@@ -96,12 +95,10 @@ const handleStyle: React.CSSProperties = {
   border: "2px solid rgba(67,56,202,0.15)",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
-  marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const headerStyle: React.CSSProperties = {

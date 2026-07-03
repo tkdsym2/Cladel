@@ -40,8 +40,7 @@ export function CoreNode({ id, data, selected }: NodeProps<Node<CoreNodeData>>) 
       />
       <div style={containerStyle(selected)}>
         <ProcessingIndicator nodeId={id} />
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>
+        <div style={nameStyle}>{displayId ?? title}</div>
         {content && (
           <div style={contentStyle}>
             {content.slice(0, 120)}
@@ -81,12 +80,11 @@ function containerStyle(selected: boolean | undefined): React.CSSProperties {
   };
 }
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 700,
   fontFamily: "monospace",
-  color: "rgba(255,255,255,0.5)",
-  lineHeight: 1,
-  marginBottom: 2,
+  marginBottom: 4,
+  wordBreak: "break-word",
 };
 
 const contentStyle: React.CSSProperties = {

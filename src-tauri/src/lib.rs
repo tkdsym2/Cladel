@@ -248,6 +248,9 @@ pub fn run() {
             commands::pdf_import::extract_pdf_with_claude,
             // Table import commands
             commands::table_import::import_table_file,
+            // Typst render/export commands
+            commands::typst_render::render_typst_preview,
+            commands::typst_render::generate_typst_export_pdf,
             // Image import commands
             commands::image_import::validate_image_file,
             commands::image_import::create_image_node,

@@ -70,11 +70,15 @@ export function TitleNode({ id, data, selected }: NodeProps<Node<TitleNodeData>>
             : "0 1px 4px rgba(0,0,0,0.1)",
         }}
       >
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
         <div style={headerStyle}>
           <TitleIcon sx={{ fontSize: 16, color: "#78716c" }} />
-          <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{title}</span>
+          <span style={nameStyle}>{displayId ?? title}</span>
         </div>
+        {displayId && title && (
+          <div style={docTitleStyle}>
+            {title.length > 60 ? title.slice(0, 60) + "..." : title}
+          </div>
+        )}
         {subtitle && (
           <div style={subtitleStyle}>
             {subtitle.length > 40 ? subtitle.slice(0, 40) + "..." : subtitle}
@@ -104,12 +108,20 @@ const handleStyle: React.CSSProperties = {
   border: "2px solid rgba(120,113,108,0.15)",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
+  wordBreak: "break-word",
+};
+
+// Document title (export title page data) — shown as content under the id.
+const docTitleStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#44403c",
+  lineHeight: 1.3,
   marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const headerStyle: React.CSSProperties = {

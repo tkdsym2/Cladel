@@ -30,6 +30,8 @@ interface NoteEditorWithPullProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** Editing format. "typst" hides the Markdown preview (preview lives in the render node). */
+  format?: "markdown" | "typst";
   style?: React.CSSProperties;
 }
 
@@ -46,6 +48,7 @@ export function NoteEditorWithPull({
   value,
   onChange,
   placeholder,
+  format = "markdown",
   style,
 }: NoteEditorWithPullProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -649,20 +652,28 @@ export function NoteEditorWithPull({
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Write / Preview toggle */}
+      {/* Write / Preview toggle (Markdown) — or a Typst label (raw source) */}
       <div style={modeToggleBarStyle}>
-        <button
-          onClick={() => setEditorMode("write")}
-          style={editorMode === "write" ? modeTabActiveStyle : modeTabStyle}
-        >
-          Write
-        </button>
-        <button
-          onClick={() => setEditorMode("preview")}
-          style={editorMode === "preview" ? modeTabActiveStyle : modeTabStyle}
-        >
-          Preview
-        </button>
+        {format === "typst" ? (
+          <span style={{ fontSize: 11, color: "#9333ea", padding: "5px 8px", fontWeight: 600 }}>
+            Typst — raw source (preview in the render node)
+          </span>
+        ) : (
+          <>
+            <button
+              onClick={() => setEditorMode("write")}
+              style={editorMode === "write" ? modeTabActiveStyle : modeTabStyle}
+            >
+              Write
+            </button>
+            <button
+              onClick={() => setEditorMode("preview")}
+              style={editorMode === "preview" ? modeTabActiveStyle : modeTabStyle}
+            >
+              Preview
+            </button>
+          </>
+        )}
       </div>
 
       {editorMode === "write" && (

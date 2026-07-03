@@ -126,7 +126,7 @@ export function ContextMenu({
     onClose();
   }, [nodeId, onUngroupPapers, onClose]);
 
-  const isDeletable = nodeType === "paper" || nodeType === "user_doc" || nodeType === "image" || nodeType === "agent" || nodeType === "export" || nodeType === "compare" || nodeType === "title" || nodeType === "table";
+  const isDeletable = nodeType === "paper" || nodeType === "user_doc" || nodeType === "image" || nodeType === "agent" || nodeType === "export" || nodeType === "compare" || nodeType === "title" || nodeType === "table" || nodeType === "render";
   const isDeletedPlaceholder = nodeType === "deleted";
   const isJunction = nodeType === "junction";
 

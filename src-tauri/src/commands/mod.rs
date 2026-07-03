@@ -19,4 +19,6 @@ pub mod settings;
 pub mod sync;
 pub mod tab_commands;
 pub mod table_import;
+pub mod typst_engine;
+pub mod typst_render;
 pub mod usage;
