@@ -119,20 +119,20 @@ const contentStyle: React.CSSProperties = {
 
 const badgeStyle: React.CSSProperties = {
   position: "absolute",
-  top: -8,
-  right: -8,
-  minWidth: 18,
-  height: 18,
-  borderRadius: 9,
+  top: -12,
+  right: -12,
+  minWidth: 30,
+  height: 30,
+  borderRadius: 15,
   background: "#2563eb",
   color: "#ffffff",
-  fontSize: 10,
+  fontSize: 15,
   fontWeight: 700,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "0 4px",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+  padding: "0 8px",
+  boxShadow: "0 1px 5px rgba(0,0,0,0.3)",
   lineHeight: 1,
 };
 
