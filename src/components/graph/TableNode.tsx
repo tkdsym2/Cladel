@@ -66,7 +66,7 @@ export function TableNode({ id, data, selected }: NodeProps<Node<TableNodeData>>
       <div
         style={{
           position: "relative",
-          background: "rgba(15,118,110,0.08)",
+          background: "#ccfbf1",
           border: selected ? `3px solid ${ACCENT}` : `1px solid ${ACCENT}`,
           color: "#1f2937",
           fontSize: "13px",

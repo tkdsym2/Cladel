@@ -52,7 +52,7 @@ export function TitleNode({ id, data, selected }: NodeProps<Node<TitleNodeData>>
       <div
         style={{
           position: "relative",
-          background: "rgba(120,113,108,0.08)",
+          background: "#e7e5e4",
           border: selected ? "3px solid #78716c" : "1px solid #78716c",
           color: "#1f2937",
           fontSize: "13px",

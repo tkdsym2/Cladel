@@ -53,7 +53,7 @@ export function RenderNode({ id, data, selected }: NodeProps<Node<RenderNodeData
       <div
         style={{
           position: "relative",
-          background: "rgba(147,51,234,0.08)",
+          background: "#f3e8ff",
           border: selected ? `3px solid ${ACCENT}` : `1px solid ${ACCENT}`,
           color: "#1f2937",
           fontSize: "13px",

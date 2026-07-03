@@ -41,7 +41,7 @@ export function CompareNode({ id, data, selected }: NodeProps<Node<CompareNodeDa
       <div
         style={{
           position: "relative",
-          background: "rgba(2,132,199,0.08)",
+          background: "#e0f2fe",
           border: selected ? "3px solid #0284c7" : "1px solid #0284c7",
           color: "#1f2937",
           fontSize: "13px",

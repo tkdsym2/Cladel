@@ -44,7 +44,7 @@ export function AgentNode({ id, data, selected }: NodeProps<Node<AgentNodeData>>
       <div
         style={{
           position: "relative",
-          background: "rgba(67,56,202,0.08)",
+          background: "#e0e7ff",
           border: selected ? "3px solid #6366f1" : "1px solid #4338ca",
           color: "#1f2937",
           fontSize: "13px",

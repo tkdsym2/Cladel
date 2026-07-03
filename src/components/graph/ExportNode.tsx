@@ -53,7 +53,7 @@ export function ExportNode({ id, data, selected }: NodeProps<Node<ExportNodeData
       <div
         style={{
           position: "relative",
-          background: "rgba(225,29,72,0.08)",
+          background: "#ffe4e6",
           border: selected ? "3px solid #e11d48" : "1px solid #e11d48",
           color: "#1f2937",
           fontSize: "13px",
