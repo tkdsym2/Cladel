@@ -341,7 +341,7 @@ function PdfPreview({ config, enFontFamily, jpFontFamily, sections }: PdfPreview
             overflow: "hidden",
           }}
         >
-          {/* Document title */}
+          {/* Title page (printed only when a Title node is connected) */}
           <div
             style={{
               fontSize: titleFs,
@@ -353,7 +353,7 @@ function PdfPreview({ config, enFontFamily, jpFontFamily, sections }: PdfPreview
               textAlign: config.title_alignment === "center" ? "center" : "left",
             }}
           >
-            Document Title
+            Title (Title node)
           </div>
 
           {/* Section 1 - English */}

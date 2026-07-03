@@ -242,11 +242,10 @@ pub struct ExportMetadata {
 // ─── Title Node Helpers ───
 
 /// Look for a connected title node and build ExportTitlePage from it.
-/// Falls back to using the export node's own title if no title node is connected.
+/// Returns an empty title page when no title node is connected.
 fn find_connected_title_node(
     conn: &rusqlite::Connection,
     export_node_id: &str,
-    _export_node_title: &str,
 ) -> Result<ExportTitlePage, String> {
     let title_node: Option<NodeData> = conn
         .query_row(
@@ -329,7 +328,7 @@ pub fn get_export_sections(
     let style_config = meta.style_config.unwrap_or_default();
 
     // 2. Look for a connected title node
-    let title_page = find_connected_title_node(&conn, &export_node_id, &export_node.title)?;
+    let title_page = find_connected_title_node(&conn, &export_node_id)?;
 
     // 3. Find all connected user_doc nodes (edges in either direction)
     let connected_query = format!(
@@ -623,12 +622,107 @@ struct ExportProgress {
     message: String,
 }
 
+/// Where preview PDFs land when the caller gives no output path:
+/// `{OS temp dir}/cladel-export-preview/{export_node_id}.pdf`.
+pub(crate) fn preview_output_path(export_node_id: &str) -> Result<String, String> {
+    let dir = std::env::temp_dir().join("cladel-export-preview");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create preview dir: {e}"))?;
+    let stem: String = export_node_id
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+        .collect();
+    Ok(dir.join(format!("{stem}.pdf")).to_string_lossy().into_owned())
+}
+
+/// Render the title page block (title, subtitle, authors, affiliations) from a
+/// connected Title node.
+fn render_title_block(
+    doc: &mut genpdf::Document,
+    doc_title: &str,
+    title_page: &ExportTitlePage,
+    style_config: &ExportStyleConfig,
+    en_font_ref: genpdf::fonts::FontFamily<genpdf::fonts::Font>,
+) {
+    // Title alignment
+    let title_align = if style_config.title_alignment == "center" {
+        genpdf::Alignment::Center
+    } else {
+        genpdf::Alignment::Left
+    };
+
+    // Document title — clean invisible chars
+    let title_style = genpdf::style::Style::new().bold().with_font_size(font_size_to_u8(style_config.title_size));
+    push_mixed_paragraph_aligned(doc, &clean_for_pdf(doc_title), title_style, en_font_ref, title_align);
+
+    // Subtitle
+    if !title_page.subtitle.is_empty() {
+        doc.push(genpdf::elements::Break::new(0.3));
+        let subtitle_size = font_size_to_u8((style_config.title_size - 4.0).max(10.0));
+        let subtitle_style = genpdf::style::Style::new().with_font_size(subtitle_size);
+        push_mixed_paragraph_aligned(doc, &clean_for_pdf(&title_page.subtitle), subtitle_style, en_font_ref, title_align);
+    }
+
+    // Authors with affiliations
+    if !title_page.authors.is_empty() {
+        doc.push(genpdf::elements::Break::new(0.5));
+        let author_size = font_size_to_u8(style_config.body_size + 1.0);
+        let author_style = genpdf::style::Style::new().with_font_size(author_size);
+        let affil_size = font_size_to_u8(style_config.body_size);
+        let affil_style = genpdf::style::Style::new().italic().with_font_size(affil_size);
+        let marker_style = &style_config.affiliation_marker;
+
+        // Collect unique affiliations across all authors for numbering
+        let mut affil_list: Vec<String> = Vec::new();
+        for author in &title_page.authors {
+            for aff in &author.affiliations {
+                if !aff.is_empty() && !affil_list.contains(aff) {
+                    affil_list.push(aff.clone());
+                }
+            }
+        }
+        let use_markers = affil_list.len() > 1;
+
+        // Author names line with superscript affiliation markers (no brackets)
+        let author_names: Vec<String> = title_page.authors.iter().map(|a| {
+            if use_markers {
+                let markers: Vec<String> = a.affiliations.iter()
+                    .filter(|af| !af.is_empty())
+                    .filter_map(|af| affil_list.iter().position(|x| x == af).map(|i| {
+                        affiliation_marker(i + 1, marker_style)
+                    }))
+                    .collect();
+                if markers.is_empty() {
+                    clean_for_pdf(&a.name)
+                } else {
+                    format!("{}{}", clean_for_pdf(&a.name), markers.join(","))
+                }
+            } else {
+                clean_for_pdf(&a.name)
+            }
+        }).collect();
+        push_mixed_paragraph_aligned(doc, &author_names.join(", "), author_style, en_font_ref, title_align);
+
+        // Affiliation lines
+        if use_markers {
+            for (i, affil) in affil_list.iter().enumerate() {
+                let marker = affiliation_marker(i + 1, marker_style);
+                let text = format!("{} {}", marker, clean_for_pdf(affil));
+                push_mixed_paragraph_aligned(doc, &text, affil_style, en_font_ref, title_align);
+            }
+        } else if let Some(single_affil) = affil_list.first() {
+            push_mixed_paragraph_aligned(doc, &clean_for_pdf(single_affil), affil_style, en_font_ref, title_align);
+        }
+    }
+
+    doc.push(genpdf::elements::Break::new(1.0));
+}
+
 #[tauri::command]
 pub fn generate_export_pdf(
     db: State<Database>,
     window: tauri::Window,
     export_node_id: String,
-    output_path: String,
+    output_path: Option<String>,
 ) -> Result<String, String> {
     use tauri::Emitter;
 
@@ -641,6 +735,12 @@ pub fn generate_export_pdf(
     };
 
     emit_progress("init", 5, "Loading export data...");
+
+    // No explicit path → preview flow: write into the app temp dir.
+    let output_path = match output_path {
+        Some(p) => p,
+        None => preview_output_path(&export_node_id)?,
+    };
 
     let preview = {
         let conn = db.conn.lock().map_err(|e| e.to_string())?;
@@ -669,7 +769,7 @@ pub fn generate_export_pdf(
         let citation_style = meta.citation_style.unwrap_or_else(|| "ieee".to_string());
         let language = meta.language.unwrap_or_else(|| "en".to_string());
         let style_config = meta.style_config.unwrap_or_default();
-        let title_page = find_connected_title_node(&conn, &export_node_id, &export_node.title)?;
+        let title_page = find_connected_title_node(&conn, &export_node_id)?;
 
         // Connected user_doc nodes
         let connected_query = format!(
@@ -806,29 +906,30 @@ pub fn generate_export_pdf(
             });
         }
 
-        // Use title node's title if connected, otherwise export node's title
-        let effective_title = {
-            let title_node_title: Option<String> = conn
-                .query_row(
-                    "SELECT title FROM nodes WHERE id IN (
-                        SELECT source_node_id FROM edges WHERE target_node_id = ?1
-                        UNION
-                        SELECT target_node_id FROM edges WHERE source_node_id = ?1
-                    ) AND node_type = 'title' AND status = 'active' LIMIT 1",
-                    [&export_node_id],
-                    |row| row.get(0),
-                )
-                .ok();
-            title_node_title.unwrap_or(export_node.title)
-        };
+        // Title node title, if one is connected. The export node's own title is
+        // only used for the file name / PDF metadata — it is never printed; a
+        // title block appears in the PDF only when a Title node is connected.
+        let title_node_title: Option<String> = conn
+            .query_row(
+                "SELECT title FROM nodes WHERE id IN (
+                    SELECT source_node_id FROM edges WHERE target_node_id = ?1
+                    UNION
+                    SELECT target_node_id FROM edges WHERE source_node_id = ?1
+                ) AND node_type = 'title' AND status = 'active' LIMIT 1",
+                [&export_node_id],
+                |row| row.get(0),
+            )
+            .ok();
+        let has_title_node = title_node_title.is_some();
+        let effective_title = title_node_title.unwrap_or(export_node.title);
 
         // Pre-extract table grids so {@table_x[r,c]} cell refs can be inlined during render.
         let tables = build_table_map(&all_nodes);
 
-        (effective_title, sections, citation_style, language, all_cited, all_images, style_config, title_page, tables)
+        (effective_title, has_title_node, sections, citation_style, language, all_cited, all_images, style_config, title_page, tables)
     };
 
-    let (doc_title, sections, citation_style, language, all_cited, all_images, style_config, title_page, tables) = preview;
+    let (doc_title, has_title_node, sections, citation_style, language, all_cited, all_images, style_config, title_page, tables) = preview;
 
     // ─── Build PDF with genpdf ───
 
@@ -852,78 +953,12 @@ pub fn generate_export_pdf(
     ));
     doc.set_page_decorator(decorator);
 
-    // Title alignment
-    let title_align = if style_config.title_alignment == "center" {
-        genpdf::Alignment::Center
-    } else {
-        genpdf::Alignment::Left
-    };
-
-    // Document title — clean invisible chars
-    let title_style = genpdf::style::Style::new().bold().with_font_size(font_size_to_u8(style_config.title_size));
-    push_mixed_paragraph_aligned(&mut doc, &clean_for_pdf(&doc_title), title_style, en_font_ref, title_align);
-
-    // Subtitle
-    if !title_page.subtitle.is_empty() {
-        doc.push(genpdf::elements::Break::new(0.3));
-        let subtitle_size = font_size_to_u8((style_config.title_size - 4.0).max(10.0));
-        let subtitle_style = genpdf::style::Style::new().with_font_size(subtitle_size);
-        push_mixed_paragraph_aligned(&mut doc, &clean_for_pdf(&title_page.subtitle), subtitle_style, en_font_ref, title_align);
+    // Title page — printed only when a Title node is connected. The export
+    // node's own Document Title is used for the file name / PDF metadata, so
+    // without a Title node the document starts directly with the note content.
+    if has_title_node {
+        render_title_block(&mut doc, &doc_title, &title_page, &style_config, en_font_ref);
     }
-
-    // Authors with affiliations
-    if !title_page.authors.is_empty() {
-        doc.push(genpdf::elements::Break::new(0.5));
-        let author_size = font_size_to_u8(style_config.body_size + 1.0);
-        let author_style = genpdf::style::Style::new().with_font_size(author_size);
-        let affil_size = font_size_to_u8(style_config.body_size);
-        let affil_style = genpdf::style::Style::new().italic().with_font_size(affil_size);
-        let marker_style = &style_config.affiliation_marker;
-
-        // Collect unique affiliations across all authors for numbering
-        let mut affil_list: Vec<String> = Vec::new();
-        for author in &title_page.authors {
-            for aff in &author.affiliations {
-                if !aff.is_empty() && !affil_list.contains(aff) {
-                    affil_list.push(aff.clone());
-                }
-            }
-        }
-        let use_markers = affil_list.len() > 1;
-
-        // Author names line with superscript affiliation markers (no brackets)
-        let author_names: Vec<String> = title_page.authors.iter().map(|a| {
-            if use_markers {
-                let markers: Vec<String> = a.affiliations.iter()
-                    .filter(|af| !af.is_empty())
-                    .filter_map(|af| affil_list.iter().position(|x| x == af).map(|i| {
-                        affiliation_marker(i + 1, marker_style)
-                    }))
-                    .collect();
-                if markers.is_empty() {
-                    clean_for_pdf(&a.name)
-                } else {
-                    format!("{}{}", clean_for_pdf(&a.name), markers.join(","))
-                }
-            } else {
-                clean_for_pdf(&a.name)
-            }
-        }).collect();
-        push_mixed_paragraph_aligned(&mut doc, &author_names.join(", "), author_style, en_font_ref, title_align);
-
-        // Affiliation lines
-        if use_markers {
-            for (i, affil) in affil_list.iter().enumerate() {
-                let marker = affiliation_marker(i + 1, marker_style);
-                let text = format!("{} {}", marker, clean_for_pdf(affil));
-                push_mixed_paragraph_aligned(&mut doc, &text, affil_style, en_font_ref, title_align);
-            }
-        } else if let Some(single_affil) = affil_list.first() {
-            push_mixed_paragraph_aligned(&mut doc, &clean_for_pdf(single_affil), affil_style, en_font_ref, title_align);
-        }
-    }
-
-    doc.push(genpdf::elements::Break::new(1.0));
 
     // Build citation numbering map for IEEE — only count paper nodes
     let ref_re = Regex::new(r"\{{1,2}@([^}]+)\}{1,2}").unwrap();
