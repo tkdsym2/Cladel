@@ -277,23 +277,25 @@ export function MentionPopover({
                     {item.display_id}
                   </span>
                 </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#6b7280",
-                    marginTop: 2,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {item.title}
-                  {item.group_name && (
-                    <span style={{ color: "#9ca3af", marginLeft: 4, fontSize: 10 }}>
-                      in: {item.group_name}
-                    </span>
-                  )}
-                </div>
+                {(((item.node_type === "paper" || item.node_type === "title") && item.title) || item.group_name) && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#6b7280",
+                      marginTop: 2,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {(item.node_type === "paper" || item.node_type === "title") && item.title}
+                    {item.group_name && (
+                      <span style={{ color: "#9ca3af", marginLeft: 4, fontSize: 10 }}>
+                        in: {item.group_name}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );

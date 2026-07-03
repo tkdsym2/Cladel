@@ -264,8 +264,8 @@ export function ContentPullPopover({
         <span style={{ fontWeight: 600, fontSize: 12 }}>
           {step === 1
             ? "Import Content From"
-            : selectedNode?.title
-              ? truncate(selectedNode.title, 24)
+            : selectedNode
+              ? truncate(selectedNode.display_id ?? selectedNode.title, 24)
               : "Select Content"}
         </span>
         {step === 2 && (
@@ -329,18 +329,20 @@ export function ContentPullPopover({
                         </span>
                       )}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "#4b5563",
-                        marginTop: 2,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {node.title}
-                    </div>
+                    {(node.node_type === "paper" || node.node_type === "title") && node.title && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "#4b5563",
+                          marginTop: 2,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {node.title}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

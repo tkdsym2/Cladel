@@ -40,6 +40,7 @@ import type {
   SyncStatusResult,
   UserIdentity,
   TableImportResult,
+  RenderPreviewResult,
 } from "../types";
 
 // ─── Tab Info ───
@@ -466,6 +467,16 @@ export function extractPdfWithClaude(filePath: string): Promise<PdfMetadata> {
 
 export function importTableFile(path: string): Promise<TableImportResult> {
   return invoke("import_table_file", { path });
+}
+
+// ─── Typst Render ───
+
+export function renderTypstPreview(renderNodeId: string): Promise<RenderPreviewResult> {
+  return invoke("render_typst_preview", { renderNodeId });
+}
+
+export function generateTypstExportPdf(exportNodeId: string, outputPath: string): Promise<string> {
+  return invoke("generate_typst_export_pdf", { exportNodeId, outputPath });
 }
 
 // ─── Export ───

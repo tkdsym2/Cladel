@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Handle, Position, NodeResizer, useStore, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, useStore, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import WarningIcon from "@mui/icons-material/Warning";
 import { useGraphStore } from "../../store/graphStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
@@ -70,10 +71,7 @@ export function PaperNode({ id, data, selected }: NodeProps<Node<PaperNodeData>>
     return (
       <div style={compactStyle}>
         <div style={compactIdStyle}>{displayId ?? title}</div>
-        <Handle type="source" position={Position.Right} id="right" style={compactHandleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={compactHandleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={compactHandleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={compactHandleStyle} />
+        <NodePorts accent="#059669" compact />
       </div>
     );
   }
@@ -120,10 +118,12 @@ export function PaperNode({ id, data, selected }: NodeProps<Node<PaperNodeData>>
           </div>
         )}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
-        <div style={{ fontWeight: 600, marginBottom: 2, lineHeight: 1.3, wordBreak: "break-word" }}>
-          {title}
-        </div>
+        <div style={nameStyle}>{displayId ?? title}</div>
+        {displayId && title && (
+          <div style={paperTitleStyle}>
+            {title}
+          </div>
+        )}
         {meta.authors && meta.authors.length > 0 && (
           <div style={{ fontSize: "11px", color: "#6b7280", marginBottom: 1 }}>
             {meta.authors.slice(0, 2).join(", ")}
@@ -143,48 +143,44 @@ export function PaperNode({ id, data, selected }: NodeProps<Node<PaperNodeData>>
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#059669" />
       </div>
     </>
   );
 }
 
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#059669",
-  border: "2px solid #f0fdf4",
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
+  fontFamily: "monospace",
+  marginBottom: 2,
+  wordBreak: "break-word",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
+// Bibliographic paper title (from BibTeX) — shown as metadata under the id.
+const paperTitleStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "#374151",
+  lineHeight: 1.3,
   marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const badgeStyle: React.CSSProperties = {
   position: "absolute",
-  top: -8,
-  right: -8,
-  minWidth: 18,
-  height: 18,
-  borderRadius: 9,
+  top: -12,
+  right: -12,
+  minWidth: 30,
+  height: 30,
+  borderRadius: 15,
   background: "#2563eb",
   color: "#ffffff",
-  fontSize: 10,
+  fontSize: 15,
   fontWeight: 700,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "0 4px",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+  padding: "0 8px",
+  boxShadow: "0 1px 5px rgba(0,0,0,0.3)",
   lineHeight: 1,
 };
 
@@ -233,15 +229,6 @@ const compactIdStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
   padding: "0 4px",
   maxWidth: "100%",
-};
-
-const compactHandleStyle: React.CSSProperties = {
-  width: 6,
-  height: "40%",
-  minHeight: 10,
-  borderRadius: 3,
-  background: "#059669",
-  border: "1px solid #f0fdf4",
 };
 
 const resizerLineStyle: React.CSSProperties = {

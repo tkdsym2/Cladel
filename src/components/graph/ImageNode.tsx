@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import BrokenImageIcon from "@mui/icons-material/BrokenImage";
 import { useGraphStore } from "../../store/graphStore";
@@ -127,7 +128,7 @@ export function ImageNode({ id, data, selected }: NodeProps<Node<ImageNodeData>>
         {/* Comment count badge */}
         {count > 0 && <div style={badgeStyle}>{count}</div>}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
+        <div style={nameStyle}>{displayId ?? title}</div>
 
         {/* Image area */}
         <div
@@ -171,67 +172,40 @@ export function ImageNode({ id, data, selected }: NodeProps<Node<ImageNodeData>>
           )}
         </div>
 
-        {/* Title */}
-        <div
-          style={{
-            fontWeight: 600,
-            fontSize: 12,
-            marginTop: 4,
-            lineHeight: 1.3,
-            wordBreak: "break-word",
-            textAlign: "center",
-            flexShrink: 0,
-          }}
-        >
-          {title}
-        </div>
-
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
 
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#0891b2" />
       </div>
     </>
   );
 }
 
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#0891b2",
-  border: "2px solid #f0fdfa",
-};
-
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
   marginBottom: 2,
+  wordBreak: "break-word",
   textAlign: "center",
+  flexShrink: 0,
 };
 
 const badgeStyle: React.CSSProperties = {
   position: "absolute",
-  top: -8,
-  right: -8,
-  minWidth: 18,
-  height: 18,
-  borderRadius: 9,
+  top: -12,
+  right: -12,
+  minWidth: 30,
+  height: 30,
+  borderRadius: 15,
   background: "#2563eb",
   color: "#ffffff",
-  fontSize: 10,
+  fontSize: 15,
   fontWeight: 700,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "0 4px",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+  padding: "0 8px",
+  boxShadow: "0 1px 5px rgba(0,0,0,0.3)",
   lineHeight: 1,
   zIndex: 1,
 };

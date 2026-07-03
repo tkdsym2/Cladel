@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { useGraphStore } from "../../store/graphStore";
 import { useAgentNodeStore } from "../../store/agentNodeStore";
@@ -43,7 +44,7 @@ export function AgentNode({ id, data, selected }: NodeProps<Node<AgentNodeData>>
       <div
         style={{
           position: "relative",
-          background: "rgba(67,56,202,0.08)",
+          background: "#e0e7ff",
           border: selected ? "3px solid #6366f1" : "1px solid #4338ca",
           color: "#1f2937",
           fontSize: "13px",
@@ -69,39 +70,24 @@ export function AgentNode({ id, data, selected }: NodeProps<Node<AgentNodeData>>
           </div>
         )}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
         <div style={headerStyle}>
           <SmartToyIcon sx={{ fontSize: 16, color: "#4338ca" }} />
-          <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{title}</span>
+          <span style={nameStyle}>{displayId ?? title}</span>
         </div>
         <div style={processing ? processingStatusStyle : error ? errorStatusStyle : statusStyle}>
           {processing ? "Processing..." : error ? "Error" : "Idle"}
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#4338ca" />
       </div>
     </>
   );
 }
 
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#4338ca",
-  border: "2px solid rgba(67,56,202,0.15)",
-};
-
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
-  marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const headerStyle: React.CSSProperties = {
@@ -131,20 +117,20 @@ const errorStatusStyle: React.CSSProperties = {
 
 const badgeStyle: React.CSSProperties = {
   position: "absolute",
-  top: -8,
-  right: -8,
-  minWidth: 18,
-  height: 18,
-  borderRadius: 9,
+  top: -12,
+  right: -12,
+  minWidth: 30,
+  height: 30,
+  borderRadius: 15,
   background: "#2563eb",
   color: "#ffffff",
-  fontSize: 10,
+  fontSize: 15,
   fontWeight: 700,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "0 4px",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+  padding: "0 8px",
+  boxShadow: "0 1px 5px rgba(0,0,0,0.3)",
   lineHeight: 1,
 };
 

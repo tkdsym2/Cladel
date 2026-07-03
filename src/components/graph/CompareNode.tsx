@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import { useGraphStore } from "../../store/graphStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
@@ -40,7 +41,7 @@ export function CompareNode({ id, data, selected }: NodeProps<Node<CompareNodeDa
       <div
         style={{
           position: "relative",
-          background: "rgba(2,132,199,0.08)",
+          background: "#e0f2fe",
           border: selected ? "3px solid #0284c7" : "1px solid #0284c7",
           color: "#1f2937",
           fontSize: "13px",
@@ -66,39 +67,24 @@ export function CompareNode({ id, data, selected }: NodeProps<Node<CompareNodeDa
           </div>
         )}
 
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
         <div style={headerStyle}>
           <CompareArrowsIcon sx={{ fontSize: 16, color: "#0284c7" }} />
-          <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{title}</span>
+          <span style={nameStyle}>{displayId ?? title}</span>
         </div>
         <div style={hintStyle}>
           Connect 2 Edit nodes
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#0284c7" />
       </div>
     </>
   );
 }
 
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#0284c7",
-  border: "2px solid rgba(2,132,199,0.15)",
-};
-
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
   fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
-  marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const headerStyle: React.CSSProperties = {
@@ -116,20 +102,20 @@ const hintStyle: React.CSSProperties = {
 
 const badgeStyle: React.CSSProperties = {
   position: "absolute",
-  top: -8,
-  right: -8,
-  minWidth: 18,
-  height: 18,
-  borderRadius: 9,
+  top: -12,
+  right: -12,
+  minWidth: 30,
+  height: 30,
+  borderRadius: 15,
   background: "#2563eb",
   color: "#ffffff",
-  fontSize: 10,
+  fontSize: 15,
   fontWeight: 700,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "0 4px",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+  padding: "0 8px",
+  boxShadow: "0 1px 5px rgba(0,0,0,0.3)",
   lineHeight: 1,
 };
 

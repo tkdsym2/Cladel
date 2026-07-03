@@ -40,33 +40,76 @@ html, body, #root {
   to { transform: rotate(360deg); }
 }
 
-/* Handle direction styling: Left = Input (凹 recessed), Right = Output (凸 protruding) */
-
-/* Left handle: input socket — narrow slot, recessed/concave appearance */
-.react-flow__handle-left {
-  width: 4px !important;
-  height: 14px !important;
-  border-radius: 0 2px 2px 0 !important;
-  box-shadow: inset 2px 0 3px rgba(0,0,0,0.4) !important;
+/* ── TouchDesigner-style ports ──────────────────────────────────────
+   Left = input, Right = output. Rounded tabs that protrude from the node
+   edge like TouchDesigner operator connectors. The accent color is set
+   inline per node via <NodePorts>; everything else lives here. */
+.react-flow__handle.td-port {
+  width: 10px !important;
+  height: 22px !important;
+  border: none !important;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.28) !important;
+  transition: transform 90ms ease, box-shadow 90ms ease;
+  cursor: crosshair;
+}
+/* Center sits 2px outside the node edge → ~7px protrusion, 3px overlap */
+.react-flow__handle-left.td-port {
+  left: -2px !important;
+  border-radius: 6px 2px 2px 6px !important;
+}
+.react-flow__handle-right.td-port {
+  right: -2px !important;
+  border-radius: 2px 6px 6px 2px !important;
+}
+/* Hover / while connecting: enlarge + blue focus ring (keep RF's centering
+   translate, which differs per side) */
+.react-flow__handle-left.td-port:hover,
+.react-flow__handle-left.td-port.connectingfrom,
+.react-flow__handle-left.td-port.connectingto {
+  transform: translate(-50%, -50%) scale(1.22);
+}
+.react-flow__handle-right.td-port:hover,
+.react-flow__handle-right.td-port.connectingfrom,
+.react-flow__handle-right.td-port.connectingto {
+  transform: translate(50%, -50%) scale(1.22);
+}
+.react-flow__handle.td-port:hover,
+.react-flow__handle.td-port.connectingfrom,
+.react-flow__handle.td-port.connectingto {
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.75),
+    0 0 0 3px rgba(59, 130, 246, 0.3),
+    0 1px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Right handle: output plug — wider bump, protruding/convex appearance */
-.react-flow__handle-right {
-  width: 8px !important;
-  height: 14px !important;
-  border-radius: 0 4px 4px 0 !important;
-  box-shadow: 1px 0 4px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.15) !important;
+/* Invisible enlarged hit area — the visual tab stays small (TD-style) but
+   starting a connection drag doesn't require pixel-perfect aim */
+.react-flow__handle.td-port::after {
+  content: "";
+  position: absolute;
+  inset: -8px -6px;
 }
 
-/* Junction/Deleted nodes: keep original small circular handles */
-.react-flow__node-junction .react-flow__handle-left,
-.react-flow__node-junction .react-flow__handle-right,
-.react-flow__node-deleted .react-flow__handle-left,
-.react-flow__node-deleted .react-flow__handle-right {
-  width: 5px !important;
-  height: 5px !important;
-  border-radius: 50% !important;
-  box-shadow: none !important;
+/* Small ports: junction, deleted placeholder, collapsed-group papers */
+.react-flow__handle.td-port.td-port-sm {
+  width: 7px !important;
+  height: 14px !important;
+}
+.react-flow__handle-left.td-port.td-port-sm {
+  border-radius: 4px 1px 1px 4px !important;
+}
+.react-flow__handle-right.td-port.td-port-sm {
+  border-radius: 1px 4px 4px 1px !important;
+}
+
+/* Wire while dragging a new connection from a port */
+.react-flow__connection-path {
+  stroke: #3b82f6;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 8 5;
 }
 
 /* Agent panel suggestion fade-in */

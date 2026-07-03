@@ -1,50 +1,35 @@
 import { useCallback } from "react";
 import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
 import { NodePorts } from "./NodePorts";
-import TableChartIcon from "@mui/icons-material/TableChart";
+import PreviewIcon from "@mui/icons-material/Preview";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGraphStore } from "../../store/graphStore";
+import { useRenderStore, EMPTY_RENDER_STATE, type RenderStatus } from "../../store/renderStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
-import { useT } from "../../lib/i18n";
-import type { TableModel } from "../../types";
+import { useT, type Entry } from "../../lib/i18n";
 
-const ACCENT = "#0f766e";
+const ACCENT = "#9333ea";
 
-type TableNodeData = {
+type RenderNodeData = {
   title: string;
-  content: string | null;
   display_id?: string | null;
-  metadata?: string | null;
-  commentCount?: number;
   [key: string]: unknown;
 };
 
-function parseModel(metadata: string | null | undefined): TableModel | null {
-  if (!metadata) return null;
-  try {
-    const m = JSON.parse(metadata) as TableModel;
-    if (m && Array.isArray(m.rows)) return m;
-  } catch {
-    // ignore
-  }
-  return null;
-}
+const STATUS_LABEL: Record<RenderStatus, Entry> = {
+  idle: { en: "Not rendered", ja: "未レンダー" },
+  rendering: { en: "Rendering…", ja: "レンダー中…" },
+  ok: { en: "Ready", ja: "完了" },
+  error: { en: "Error", ja: "エラー" },
+};
 
-export function TableNode({ id, data, selected }: NodeProps<Node<TableNodeData>>) {
+export function RenderNode({ id, data, selected }: NodeProps<Node<RenderNodeData>>) {
   const title = data.title;
   const displayId = (data.display_id as string) ?? null;
   const updateNodeSize = useGraphStore((s) => s.updateNodeSize);
+  const render = useRenderStore((s) => s.byNode[id]) ?? EMPTY_RENDER_STATE;
   const connectedRefs = useConnectedDisplayIds(id);
   const t = useT();
-
-  const model = parseModel(data.metadata as string | null | undefined);
-  const rows = model?.rows ?? [];
-  const rowCount = rows.length;
-  const colCount = rows.reduce((max, r) => Math.max(max, r.length), 0);
-  const mode = model?.mode ?? "manual";
-
-  // Small preview grid: first 4 rows × 4 columns
-  const previewRows = rows.slice(0, 4);
-  const previewCols = Math.min(colCount, 4);
 
   const handleResizeEnd = useCallback(
     (_event: unknown, params: { x: number; y: number; width: number; height: number }) => {
@@ -53,11 +38,13 @@ export function TableNode({ id, data, selected }: NodeProps<Node<TableNodeData>>
     [id, updateNodeSize],
   );
 
+  const firstPage = render.pages[0];
+
   return (
     <>
       <NodeResizer
         minWidth={200}
-        minHeight={150}
+        minHeight={160}
         isVisible={selected}
         lineStyle={resizerLineStyle}
         handleStyle={resizerHandleStyle}
@@ -66,7 +53,7 @@ export function TableNode({ id, data, selected }: NodeProps<Node<TableNodeData>>
       <div
         style={{
           position: "relative",
-          background: "#ccfbf1",
+          background: "#f3e8ff",
           border: selected ? `3px solid ${ACCENT}` : `1px solid ${ACCENT}`,
           color: "#1f2937",
           fontSize: "13px",
@@ -81,47 +68,41 @@ export function TableNode({ id, data, selected }: NodeProps<Node<TableNodeData>>
           display: "flex",
           flexDirection: "column",
           boxShadow: selected
-            ? "0 0 0 3px rgba(15,118,110,0.3)"
+            ? "0 0 0 3px rgba(147,51,234,0.3)"
             : "0 1px 4px rgba(0,0,0,0.1)",
         }}
       >
         <div style={headerStyle}>
-          <TableChartIcon sx={{ fontSize: 16, color: ACCENT }} />
+          <PreviewIcon sx={{ fontSize: 16, color: ACCENT }} />
           <span style={nameStyle}>{displayId ?? title}</span>
-          <span style={modeBadgeStyle}>
-            {mode === "imported"
-              ? t("table.badge.imported")
-              : mode === "manual"
-                ? t("table.badge.manual")
-                : t("table.badge.unconfigured")}
-          </span>
+          <span style={badgeStyle}>{t(STATUS_LABEL[render.status])}</span>
         </div>
 
-        {mode === "unconfigured" ? (
-          <div style={hintStyle}>{t("table.node.unconfiguredHint")}</div>
-        ) : previewRows.length > 0 && previewCols > 0 ? (
-          <div style={previewWrapStyle}>
-            <table style={previewTableStyle}>
-              <tbody>
-                {previewRows.map((row, ri) => (
-                  <tr key={ri}>
-                    {Array.from({ length: previewCols }).map((_, ci) => (
-                      <td key={ci} style={previewCellStyle}>
-                        {(row[ci] ?? "").slice(0, 12)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div style={infoStyle}>Empty table</div>
-        )}
+        <div style={previewWrapStyle}>
+          {firstPage ? (
+            <img src={convertFileSrc(firstPage)} alt="preview" style={thumbStyle} />
+          ) : (
+            <div
+              style={{
+                ...hintStyle,
+                color: render.status === "error" ? "#dc2626" : "#6b7280",
+              }}
+            >
+              {render.status === "error"
+                ? render.error ?? t({ en: "Render failed", ja: "レンダー失敗" })
+                : render.status === "rendering"
+                  ? t({ en: "Rendering preview…", ja: "プレビュー生成中…" })
+                  : t({
+                      en: "Connect Note nodes and open this node to render a PDF preview.",
+                      ja: "ノートを接続し、このノードを開くとPDFプレビューを生成します。",
+                    })}
+            </div>
+          )}
+        </div>
 
-        {mode !== "unconfigured" && (
+        {render.pageCount > 0 && (
           <div style={infoStyle}>
-            {rowCount} × {colCount}
+            {render.pageCount} {render.pageCount === 1 ? t({ en: "page", ja: "ページ" }) : t({ en: "pages", ja: "ページ" })}
           </div>
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
@@ -146,11 +127,11 @@ const headerStyle: React.CSSProperties = {
   marginBottom: 4,
 };
 
-const modeBadgeStyle: React.CSSProperties = {
+const badgeStyle: React.CSSProperties = {
   fontSize: 9,
   fontWeight: 600,
   color: ACCENT,
-  background: "rgba(15,118,110,0.12)",
+  background: "rgba(147,51,234,0.12)",
   borderRadius: 4,
   padding: "1px 5px",
   whiteSpace: "nowrap",
@@ -158,25 +139,21 @@ const modeBadgeStyle: React.CSSProperties = {
 
 const previewWrapStyle: React.CSSProperties = {
   flex: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
   overflow: "hidden",
   marginBottom: 4,
+  background: "#fff",
+  borderRadius: 4,
+  border: "1px solid rgba(147,51,234,0.18)",
 };
 
-const previewTableStyle: React.CSSProperties = {
-  borderCollapse: "collapse",
-  width: "100%",
-  tableLayout: "fixed",
-};
-
-const previewCellStyle: React.CSSProperties = {
-  border: "1px solid rgba(15,118,110,0.25)",
-  fontSize: 9,
-  padding: "1px 3px",
-  color: "#374151",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-  maxWidth: 0,
+const thumbStyle: React.CSSProperties = {
+  maxWidth: "100%",
+  maxHeight: "100%",
+  objectFit: "contain",
+  display: "block",
 };
 
 const infoStyle: React.CSSProperties = {
@@ -186,11 +163,9 @@ const infoStyle: React.CSSProperties = {
 };
 
 const hintStyle: React.CSSProperties = {
-  flex: 1,
-  display: "flex",
-  alignItems: "center",
+  padding: "0 6px",
+  textAlign: "center",
   fontSize: 11,
-  color: "#6b7280",
   lineHeight: 1.4,
 };
 
@@ -207,7 +182,7 @@ const connectedRefsStyle: React.CSSProperties = {
 };
 
 const resizerLineStyle: React.CSSProperties = {
-  borderColor: "rgba(15,118,110,0.4)",
+  borderColor: "rgba(147,51,234,0.4)",
 };
 
 const resizerHandleStyle: React.CSSProperties = {
@@ -215,5 +190,5 @@ const resizerHandleStyle: React.CSSProperties = {
   height: 8,
   borderRadius: 2,
   backgroundColor: ACCENT,
-  border: "1px solid #115e59",
+  border: "1px solid #6b21a8",
 };

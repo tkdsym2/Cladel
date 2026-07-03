@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
@@ -8,6 +8,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import TuneIcon from "@mui/icons-material/Tune";
 import TitleIcon from "@mui/icons-material/Title";
+import PreviewIcon from "@mui/icons-material/Preview";
 import type { NodeData, ExportPreview, ExportStyleConfig } from "../../types";
 import { DEFAULT_EXPORT_STYLE } from "../../types";
 import { useGraphStore } from "../../store/graphStore";
@@ -24,6 +25,19 @@ interface ExportNodeViewerProps {
 
 export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
   const updateNodeContent = useGraphStore((s) => s.updateNodeContent);
+  const dbNodes = useGraphStore((s) => s.dbNodes);
+  const dbEdges = useGraphStore((s) => s.dbEdges);
+
+  // Typst mode: this export node is connected to one or more render nodes.
+  const connectedRenderCount = useMemo(() => {
+    const neighborIds = new Set<string>();
+    for (const e of dbEdges) {
+      if (e.source_node_id === node.id) neighborIds.add(e.target_node_id);
+      else if (e.target_node_id === node.id) neighborIds.add(e.source_node_id);
+    }
+    return dbNodes.filter((n) => neighborIds.has(n.id) && n.node_type === "render").length;
+  }, [dbNodes, dbEdges, node.id]);
+  const isTypstMode = connectedRenderCount > 0;
 
   const [title, setTitle] = useState(node.title);
   const [preview, setPreview] = useState<ExportPreview | null>(null);
@@ -174,6 +188,45 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
     }
   }, [node.id, title]);
 
+  // Generate PDF via the Typst pipeline (export node connected to render nodes).
+  const handleGenerateTypstPdf = useCallback(async () => {
+    setError(null);
+    try {
+      const path = await save({
+        title: "Export PDF",
+        defaultPath: `${title || "export"}.pdf`,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (!path) return;
+
+      setGenerating(true);
+      useExportStore.getState().startSelfExport();
+      emitExportStarted();
+
+      const progressUnlistenRef: { current: (() => void) | null } = { current: null };
+      listen<ExportProgress>("export-progress", (event) => {
+        useExportStore.getState().setProgress(event.payload);
+      }).then((fn) => { progressUnlistenRef.current = fn; });
+
+      let exportErr: string | null = null;
+      try {
+        const result = await cmd.generateTypstExportPdf(node.id, path);
+        setLastExportPath(result);
+        useExportStore.getState().finishSelfExport(null);
+      } catch (err) {
+        exportErr = String(err);
+        setError(exportErr);
+        useExportStore.getState().finishSelfExport(exportErr);
+      } finally {
+        if (progressUnlistenRef.current) progressUnlistenRef.current();
+        emitExportFinished(exportErr);
+        setGenerating(false);
+      }
+    } catch (err) {
+      setError(String(err));
+    }
+  }, [node.id, title]);
+
   const handleOpenExported = useCallback(async () => {
     if (lastExportPath) {
       try {
@@ -186,9 +239,17 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
 
   return (
     <div style={containerStyle}>
-      {/* Title editor */}
+      {/* Node id + document title (export data, not the node name) */}
       <div style={sectionStyle}>
-        <label style={labelStyle}>Title</label>
+        {node.display_id && (
+          <div style={{ fontSize: 13, fontFamily: "monospace", color: "#be123c", marginBottom: 8 }}>
+            {node.display_id}
+          </div>
+        )}
+        <label style={labelStyle}>Document Title</label>
+        <div style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0 4px" }}>
+          Printed on the exported PDF (a connected Title node takes precedence).
+        </div>
         <input
           type="text"
           value={title}
@@ -300,7 +361,7 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
                 <div style={sectionItemHeaderStyle}>
                   <span style={sectionNumStyle}>{idx + 1}.</span>
                   <div style={sectionInfoStyle}>
-                    <span style={sectionTitleStyle}>{section.title}</span>
+                    <span style={sectionTitleStyle}>{section.display_id ?? section.title}</span>
                     {section.display_id && (
                       <span style={sectionIdStyle}>{section.display_id}</span>
                     )}
@@ -379,6 +440,35 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
       {/* Error display */}
       {error && (
         <div style={errorStyle}>{error}</div>
+      )}
+
+      {/* Typst export (export node connected to render nodes) */}
+      {isTypstMode && (
+        <div style={sectionStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <PreviewIcon sx={{ fontSize: 16, color: "#9333ea" }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              Typst export · {connectedRenderCount} render node{connectedRenderCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}>
+            Generate a PDF from the connected render node{connectedRenderCount === 1 ? "" : "s"} (Typst pipeline). The output matches the render preview.
+          </p>
+          <button
+            onClick={handleGenerateTypstPdf}
+            disabled={generating}
+            style={{ ...generateBtnStyle, background: "#9333ea" }}
+          >
+            {generating ? (
+              "Generating..."
+            ) : (
+              <>
+                <PictureAsPdfIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                Generate PDF (Typst)
+              </>
+            )}
+          </button>
+        </div>
       )}
 
       {/* Generate PDF button */}

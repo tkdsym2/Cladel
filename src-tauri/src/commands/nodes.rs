@@ -105,6 +105,32 @@ pub fn get_next_display_id(conn: &Connection, prefix: &str) -> Result<String, St
     Ok(format!("{prefix}_{}", max_n + 1))
 }
 
+/// Return `base` if no node uses it as display_id yet; otherwise append
+/// `_2`, `_3`, ... until a free id is found. Keeps display_ids globally
+/// unique even when e.g. the same paper (same citation key) is imported twice.
+pub fn unique_display_id(conn: &Connection, base: &str) -> Result<String, String> {
+    let taken = |candidate: &str| -> Result<bool, String> {
+        conn.query_row(
+            "SELECT COUNT(*) > 0 FROM nodes WHERE display_id = ?1",
+            [candidate],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to check display_id uniqueness: {e}"))
+    };
+
+    if !taken(base)? {
+        return Ok(base.to_string());
+    }
+    let mut n: u32 = 2;
+    loop {
+        let candidate = format!("{base}_{n}");
+        if !taken(&candidate)? {
+            return Ok(candidate);
+        }
+        n += 1;
+    }
+}
+
 /// Extract BibTeX citation key from a bibtex string.
 /// E.g. "@article{grunbaum2020, ...}" → Some("grunbaum2020")
 pub fn extract_bibtex_key(bibtex: &str) -> Option<String> {
@@ -131,9 +157,13 @@ pub fn create_node(db: State<Database>, input: CreateNodeInput) -> Result<NodeDa
     let display_id: Option<String> = match input.node_type.as_str() {
         "user_doc" => Some(get_next_display_id(&conn, "note")?),
         "paper" => {
-            // Try to extract BibTeX citation key
+            // Try to extract BibTeX citation key; dedupe so importing the same
+            // paper twice never yields two nodes with the same display_id.
             let key = input.bibtex.as_deref().and_then(extract_bibtex_key);
-            Some(key.unwrap_or_else(|| get_next_display_id(&conn, "paper").unwrap_or_else(|_| "paper_1".to_string())))
+            Some(match key {
+                Some(k) => unique_display_id(&conn, &k)?,
+                None => get_next_display_id(&conn, "paper")?,
+            })
         }
         "agent_proposal" => Some(get_next_display_id(&conn, "agent")?),
         "agent" => Some(get_next_display_id(&conn, "agent_node")?),
@@ -143,6 +173,7 @@ pub fn create_node(db: State<Database>, input: CreateNodeInput) -> Result<NodeDa
         "title" => Some(get_next_display_id(&conn, "title")?),
         "nano_banana" => Some(get_next_display_id(&conn, "nanob")?),
         "table" => Some(get_next_display_id(&conn, "table")?),
+        "render" => Some(get_next_display_id(&conn, "render")?),
         "junction" | "deleted" => None,
         _ => None,
     };
