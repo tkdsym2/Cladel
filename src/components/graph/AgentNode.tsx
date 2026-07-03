@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { useGraphStore } from "../../store/graphStore";
 import { useAgentNodeStore } from "../../store/agentNodeStore";
@@ -77,23 +78,11 @@ export function AgentNode({ id, data, selected }: NodeProps<Node<AgentNodeData>>
           {processing ? "Processing..." : error ? "Error" : "Idle"}
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#4338ca" />
       </div>
     </>
   );
 }
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#4338ca",
-  border: "2px solid rgba(67,56,202,0.15)",
-};
 
 const nameStyle: React.CSSProperties = {
   fontWeight: 600,

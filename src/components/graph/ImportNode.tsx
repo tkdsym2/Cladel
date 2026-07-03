@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 
 type ImportNodeData = {
@@ -64,10 +65,7 @@ export function ImportNode({ id, selected }: NodeProps<Node<ImportNodeData>>) {
           </button>
           <span style={hintStyle}>or drag &amp; drop a PDF / Image</span>
         </div>
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#9ca3af" />
       </div>
     </>
   );
@@ -120,15 +118,6 @@ const buttonStyle: React.CSSProperties = {
 const hintStyle: React.CSSProperties = {
   fontSize: 10,
   color: "#9ca3af",
-};
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#9ca3af",
-  border: "2px solid rgba(156,163,175,0.15)",
 };
 
 const resizerLineStyle: React.CSSProperties = {

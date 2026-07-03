@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import LayersIcon from "@mui/icons-material/Layers";
 import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
 import { useGraphStore } from "../../store/graphStore";
@@ -89,10 +90,7 @@ export function PaperGroupNode({ id, data, selected }: NodeProps<Node<PaperGroup
             </button>
           </div>
 
-          <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-          <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-          <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-          <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+          <NodePorts accent="#059669" />
         </div>
       </>
     );
@@ -156,23 +154,11 @@ export function PaperGroupNode({ id, data, selected }: NodeProps<Node<PaperGroup
         </div>
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
 
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#059669" />
       </div>
     </>
   );
 }
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#059669",
-  border: "2px solid rgba(5,150,105,0.15)",
-};
 
 const displayIdLabelStyle: React.CSSProperties = {
   fontSize: 10,

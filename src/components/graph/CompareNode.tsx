@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import { useGraphStore } from "../../store/graphStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
@@ -74,23 +75,11 @@ export function CompareNode({ id, data, selected }: NodeProps<Node<CompareNodeDa
           Connect 2 Edit nodes
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#0284c7" />
       </div>
     </>
   );
 }
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#0284c7",
-  border: "2px solid rgba(2,132,199,0.15)",
-};
 
 const nameStyle: React.CSSProperties = {
   fontWeight: 600,

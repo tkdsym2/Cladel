@@ -35,7 +35,7 @@ import { TableNode } from "./TableNode";
 import { RenderNode } from "./RenderNode";
 import { PaperGroupNode } from "./PaperGroupNode";
 import { ImportNode } from "./ImportNode";
-import { AnnotatedEdge, bezierPoint, parseBezierPath } from "./AnnotatedEdge";
+import { AnnotatedEdge, bezierPoint, parseBezierPath, EDGE_CURVATURE } from "./AnnotatedEdge";
 import { EdgeActionMenu } from "./EdgeActionMenu";
 import { TabCreatePopover } from "./TabCreatePopover";
 import { GroupingButton } from "./GroupingButton";
@@ -147,6 +147,7 @@ function findEdgeNearPoint(
       targetX: tgt.x,
       targetY: tgt.y,
       targetPosition: tgt.position,
+      curvature: EDGE_CURVATURE,
     });
 
     const parsed = parseBezierPath(pathD);
@@ -1500,6 +1501,7 @@ export function GraphCanvas({
           targetY: screenEnd.y,
           targetPosition:
             handlePos.position === Position.Left ? Position.Right : Position.Left,
+          curvature: EDGE_CURVATURE,
         });
         return (
           <svg

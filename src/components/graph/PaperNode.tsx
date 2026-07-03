@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Handle, Position, NodeResizer, useStore, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, useStore, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import WarningIcon from "@mui/icons-material/Warning";
 import { useGraphStore } from "../../store/graphStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
@@ -70,10 +71,7 @@ export function PaperNode({ id, data, selected }: NodeProps<Node<PaperNodeData>>
     return (
       <div style={compactStyle}>
         <div style={compactIdStyle}>{displayId ?? title}</div>
-        <Handle type="source" position={Position.Right} id="right" style={compactHandleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={compactHandleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={compactHandleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={compactHandleStyle} />
+        <NodePorts accent="#059669" compact />
       </div>
     );
   }
@@ -145,23 +143,11 @@ export function PaperNode({ id, data, selected }: NodeProps<Node<PaperNodeData>>
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#059669" />
       </div>
     </>
   );
 }
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#059669",
-  border: "2px solid #f0fdf4",
-};
 
 const nameStyle: React.CSSProperties = {
   fontWeight: 600,
@@ -243,15 +229,6 @@ const compactIdStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
   padding: "0 4px",
   maxWidth: "100%",
-};
-
-const compactHandleStyle: React.CSSProperties = {
-  width: 6,
-  height: "40%",
-  minHeight: 10,
-  borderRadius: 3,
-  background: "#059669",
-  border: "1px solid #f0fdf4",
 };
 
 const resizerLineStyle: React.CSSProperties = {

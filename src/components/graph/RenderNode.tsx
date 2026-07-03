@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import PreviewIcon from "@mui/icons-material/Preview";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGraphStore } from "../../store/graphStore";
@@ -106,23 +107,11 @@ export function RenderNode({ id, data, selected }: NodeProps<Node<RenderNodeData
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
 
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent={ACCENT} />
       </div>
     </>
   );
 }
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: ACCENT,
-  border: "2px solid rgba(147,51,234,0.15)",
-};
 
 const nameStyle: React.CSSProperties = {
   fontWeight: 600,

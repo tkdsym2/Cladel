@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import { useGraphStore } from "../../store/graphStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
 import { ProcessingIndicator } from "./ProcessingIndicator";
@@ -48,10 +49,7 @@ export function CoreNode({ id, data, selected }: NodeProps<Node<CoreNodeData>>) 
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} dark />
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#60a5fa" />
       </div>
     </>
   );
@@ -93,15 +91,6 @@ const contentStyle: React.CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
   wordBreak: "break-word",
-};
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#60a5fa",
-  border: "2px solid #1e3a5f",
 };
 
 const connectedRefsStyle: React.CSSProperties = {

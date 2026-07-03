@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import BrokenImageIcon from "@mui/icons-material/BrokenImage";
 import { useGraphStore } from "../../store/graphStore";
@@ -174,23 +175,11 @@ export function ImageNode({ id, data, selected }: NodeProps<Node<ImageNodeData>>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
 
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#0891b2" />
       </div>
     </>
   );
 }
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#0891b2",
-  border: "2px solid #f0fdfa",
-};
 
 const nameStyle: React.CSSProperties = {
   fontWeight: 600,
