@@ -238,7 +238,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/ContextMenu.tsx` | 359 | Canvas/node right-click menus (unified "Import File", Add Agent) |
 | `src/components/graph/NodeAccordionSection.tsx` | 86 | Collapsible section for node detail panel |
 | `src/components/graph/useConnectedDisplayIds.ts` | 30 | Hook: connected node display_ids |
-| `src/components/graph/NodePorts.tsx` | 33 | Shared TouchDesigner-style port tabs (4 handles, ids/order preserved; geometry in index.css) |
+| `src/components/graph/NodePorts.tsx` | 102 | Shared connector ports: SVG arrow-pentagon tab (right, 凸, accent) + recessed rectangular slot carved into the node (left, 凹, darkened accent); 4 handles, ids/order preserved; geometry in index.css |
 | **Panel Components** | | |
 | `src/components/panels/NodeDetailPanel.tsx` | 2,685 | Right sidebar: polymorphic viewer + CommentSection with @Agent |
 | `src/components/panels/AgentNodeViewer.tsx` | 1,101 | Agent node chat interface (messages, send, output tracking) |
@@ -583,7 +583,7 @@ User Color Mode palette (8 colors, deterministic hash):
   unknown: bg #f3f4f6, border #9ca3af, glow #d1d5db
 
 Edge colors: default #94a3b8, hover #2563eb, selected #3b82f6 (+glow halo), agent-created #7c3aed (dashed), deleted #9ca3af. Wires: round caps, width = 1 + weight*0.6 (1.6-4.0px), curvature EDGE_CURVATURE=0.32 (exported from AnnotatedEdge; GraphCanvas hit-test/preview must reuse it), slim polygon arrowhead.
-Ports (TouchDesigner-style): shared <NodePorts accent> component — rounded tabs 10x22 (7x14 compact) protruding from left(input)/right(output) edges, geometry+hover/connecting effects in index.css (.td-port), accent color per node type, enlarged invisible hit area via ::after
+Ports (connector style): shared <NodePorts accent> component — custom SVG shapes inside 10x22 handles (7x14 compact), both in the node's accent color. Right(output)=angular arrow-pentagon tab 凸 pointing in the flow direction (accent fill + inset white rim via clipPath trick, center 2px outside edge). Left(input)=rectangular slot 凹 carved INTO the node (handle center 2px INSIDE the edge; cavity = accent darkened by rgba(0,0,0,.42) overlay, covers the border at the mouth, accent-stroked walls, edge arrowheads land inside). Handle ids/order unchanged; hover/connecting glow via CSS drop-shadow filter in index.css (.td-port), enlarged invisible hit area via ::after. Paper/Edit/Image pass userColor.border as accent in User Color Mode (ports follow the node color)
 ProcessingIndicator: amber #f59e0b icon, rgba(245,158,11,0.15) bg circle, spinning 1.2s
 Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode.Partial)
 ```
