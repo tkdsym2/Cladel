@@ -40,31 +40,43 @@ html, body, #root {
   to { transform: rotate(360deg); }
 }
 
-/* ── TouchDesigner-style ports ──────────────────────────────────────
-   Left = input, Right = output. Rounded tabs that protrude from the node
-   edge like TouchDesigner operator connectors. The accent color is set
-   inline per node via <NodePorts>; everything else lives here. */
+/* ── Connector-style ports (male/female plugs) ──────────────────────
+   Right = output: angular chamfered tang (凸) protruding from the edge.
+   Left = input: the same silhouette sunk INTO the node as a dark recessed
+   slot (凹) — the handle sits inside the edge and the cavity covers the
+   node border at the mouth, so the node itself looks carved open.
+   Shapes are custom SVG paths inside each handle (see NodePorts.tsx); the
+   handle div is an invisible geometry/hit container. */
 .react-flow__handle.td-port {
   width: 10px !important;
   height: 22px !important;
   border: none !important;
-  box-shadow:
-    inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
-    0 1px 3px rgba(0, 0, 0, 0.28) !important;
-  transition: transform 90ms ease, box-shadow 90ms ease;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.28));
+  transition: transform 90ms ease, filter 90ms ease;
   cursor: crosshair;
 }
-/* Center sits 2px outside the node edge → ~7px protrusion, 3px overlap */
-.react-flow__handle-left.td-port {
-  left: -2px !important;
-  border-radius: 6px 2px 2px 6px !important;
+/* The SVG is purely visual; pointer events must hit the handle div */
+.react-flow__handle.td-port > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
+/* Input: center 2px INSIDE the edge → box spans -3..+7px, so the slot
+   mouth (svg x=3) opens exactly on the node border and the cavity is
+   carved into the node. Edge arrowheads land inside the cavity. */
+.react-flow__handle-left.td-port {
+  left: 2px !important;
+}
+/* Output: center 2px outside the edge → ~7px tang protrusion, 3px overlap */
 .react-flow__handle-right.td-port {
   right: -2px !important;
-  border-radius: 2px 6px 6px 2px !important;
 }
-/* Hover / while connecting: enlarge + blue focus ring (keep RF's centering
-   translate, which differs per side) */
+/* Hover / while connecting: enlarge + blue glow that follows the SVG shape
+   (keep RF's centering translate, which differs per side) */
 .react-flow__handle-left.td-port:hover,
 .react-flow__handle-left.td-port.connectingfrom,
 .react-flow__handle-left.td-port.connectingto {
@@ -78,30 +90,23 @@ html, body, #root {
 .react-flow__handle.td-port:hover,
 .react-flow__handle.td-port.connectingfrom,
 .react-flow__handle.td-port.connectingto {
-  box-shadow:
-    inset 0 0 0 1.5px rgba(255, 255, 255, 0.75),
-    0 0 0 3px rgba(59, 130, 246, 0.3),
-    0 1px 4px rgba(0, 0, 0, 0.3) !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))
+    drop-shadow(0 0 3px rgba(59, 130, 246, 0.6));
 }
 
-/* Invisible enlarged hit area — the visual tab stays small (TD-style) but
-   starting a connection drag doesn't require pixel-perfect aim */
+/* Invisible enlarged hit area — the visual shape stays small but starting
+   a connection drag doesn't require pixel-perfect aim */
 .react-flow__handle.td-port::after {
   content: "";
   position: absolute;
   inset: -8px -6px;
 }
 
-/* Small ports: junction, deleted placeholder, collapsed-group papers */
+/* Small ports: junction, deleted placeholder, collapsed-group papers
+   (the SVG shapes scale with the box via their viewBox) */
 .react-flow__handle.td-port.td-port-sm {
   width: 7px !important;
   height: 14px !important;
-}
-.react-flow__handle-left.td-port.td-port-sm {
-  border-radius: 4px 1px 1px 4px !important;
-}
-.react-flow__handle-right.td-port.td-port-sm {
-  border-radius: 1px 4px 4px 1px !important;
 }
 
 /* Wire while dragging a new connection from a port */

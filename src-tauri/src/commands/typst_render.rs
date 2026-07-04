@@ -16,7 +16,7 @@ use tauri::State;
 
 use crate::db::Database;
 use super::nodes::{node_from_row, NodeData, NODE_COLUMNS};
-use super::pdf_export::{build_table_map, parse_table_cell_ref, resolve_table_cell, split_citation_ids};
+use super::pdf_export::{build_table_map, parse_table_cell_ref, preview_output_path, resolve_table_cell, split_citation_ids};
 use super::typst_engine;
 
 /// Preview resolution (points-per-pixel). 2.0 ≈ 144 dpi — crisp on-screen.
@@ -272,7 +272,7 @@ pub fn generate_typst_export_pdf(
     db: State<Database>,
     window: tauri::Window,
     export_node_id: String,
-    output_path: String,
+    output_path: Option<String>,
 ) -> Result<String, String> {
     use tauri::Emitter;
     let emit = |stage: &str, percent: u8, message: &str| {
@@ -283,6 +283,12 @@ pub fn generate_typst_export_pdf(
     };
 
     emit("init", 5, "Loading render nodes...");
+
+    // No explicit path → preview flow: write into the app temp dir.
+    let output_path = match output_path {
+        Some(p) => p,
+        None => preview_output_path(&export_node_id)?,
+    };
 
     // Assemble the Typst source while holding the DB lock, then release it
     // before the (heavier) compile + file write.

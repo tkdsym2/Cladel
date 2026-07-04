@@ -38,7 +38,7 @@ All nodes: 4-directional handles (left/right source+target), NodeResizer, **4:3 
 
 ### Display ID System
 
-Every node gets a globally unique `display_id` (across ALL layers). **The display_id IS the node's visible name**: canvas cards and detail panels show it as the header (monospace); the separate "Title" edit UI was removed. Numbering is MAX+1 per prefix across all layers; paper citation keys are deduped with `_2`, `_3`... suffixes on import (`unique_display_id` in nodes.rs). The DB `title` column remains as *data*, surfaced only where it means something: paper bibliographic title (card metadata line, from BibTeX), image figure caption ("Caption" field in panel, printed via `{{@image_id}}`), title node's Document Title, export node's Document Title (PDF fallback when no Title node), agent-output note descriptions.
+Every node gets a globally unique `display_id` (across ALL layers). **The display_id IS the node's visible name**: canvas cards and detail panels show it as the header (monospace); the separate "Title" edit UI was removed. Numbering is MAX+1 per prefix across all layers; paper citation keys are deduped with `_2`, `_3`... suffixes on import (`unique_display_id` in nodes.rs). The DB `title` column remains as *data*, surfaced only where it means something: paper bibliographic title (card metadata line, from BibTeX), image figure caption ("Caption" field in panel, printed via `{{@image_id}}`), title node's Document Title, export node's Document Title (exported PDF's suggested file name + PDF metadata; never printed in the document), agent-output note descriptions.
 
 | Node Type | Prefix | Editable |
 |-----------|--------|----------|
@@ -177,7 +177,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ### File Map
 
-**Frontend -- 93 files, ~32,600 lines**
+**Frontend -- 94 files, ~32,900 lines**
 
 | Path | Lines | Purpose |
 |------|------:|---------|
@@ -238,12 +238,12 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/ContextMenu.tsx` | 359 | Canvas/node right-click menus (unified "Import File", Add Agent) |
 | `src/components/graph/NodeAccordionSection.tsx` | 86 | Collapsible section for node detail panel |
 | `src/components/graph/useConnectedDisplayIds.ts` | 30 | Hook: connected node display_ids |
-| `src/components/graph/NodePorts.tsx` | 33 | Shared TouchDesigner-style port tabs (4 handles, ids/order preserved; geometry in index.css) |
+| `src/components/graph/NodePorts.tsx` | 102 | Shared connector ports: SVG arrow-pentagon tab (right, 凸, accent) + recessed rectangular slot carved into the node (left, 凹, darkened accent); 4 handles, ids/order preserved; geometry in index.css |
 | **Panel Components** | | |
 | `src/components/panels/NodeDetailPanel.tsx` | 2,685 | Right sidebar: polymorphic viewer + CommentSection with @Agent |
 | `src/components/panels/AgentNodeViewer.tsx` | 1,101 | Agent node chat interface (messages, send, output tracking) |
 | `src/components/panels/AgentPanel.tsx` | 984 | Global agent: queries, suggestions, history, status |
-| `src/components/panels/ExportNodeViewer.tsx` | 754 | Export node: display_id + Document Title, sections, citations, reorder, style config, generate PDF (Markdown genpdf or Typst mode when render nodes connected) |
+| `src/components/panels/ExportNodeViewer.tsx` | 812 | Export node: display_id + Document Title (= file name), sections, citations, reorder, style config, PDF preview + generate (Markdown genpdf or Typst mode when render nodes connected) |
 | `src/components/panels/TitleNodeViewer.tsx` | 381 | Title node editor: title, subtitle, authors with affiliations |
 | `src/components/panels/CompareNodeViewer.tsx` | 484 | Compare node: word-level diff of 2 connected Edit nodes (LCS algorithm) |
 | `src/components/panels/TableNodeViewer.tsx` | 600 | Table node editor: manual grid edit + CSV/XLSX/ODS import (import_table_file), cell selection copies {@id[r,c]} ref |
@@ -271,6 +271,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/dialogs/ConfirmDialogs.tsx` | 238 | Shared confirm dialogs (Delete, BatchDelete, EdgeDelete, UnsavedChanges) |
 | `src/components/dialogs/UpdateDialog.tsx` | 334 | Auto-update dialog: available version, download + install progress, relaunch |
 | `src/components/dialogs/PdfExportProgressDialog.tsx` | 176 | PDF export progress bar (self-initiated exports) |
+| `src/components/dialogs/ExportPreviewDialog.tsx` | 181 | Modal PDF preview before saving (WebView-native `<embed>`, Save PDF / Open externally) |
 | **Layout Components** | | |
 | `src/components/layers/LayerBar.tsx` | 313 | Left sidebar: layers (sorted), add/delete, Export BibTeX |
 | `src/components/FileTabBar.tsx` | 250 | Top tab bar: open tabs, active indicator, close/new buttons, settings |
@@ -301,8 +302,8 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src-tauri/src/commands/pdf_import.rs` | 638 | import_pdf (DOI->S2/CrossRef->Claude), extract_pdf_with_claude |
 | `src-tauri/src/commands/table_import.rs` | 142 | import_table_file (CSV/TSV/XLSX/XLS/ODS -> rows[][]) |
 | `src-tauri/src/commands/typst_engine.rs` | 150 | In-process Typst engine (typst-as-lib): compile source -> PDF / per-page PNG, bundled fonts |
-| `src-tauri/src/commands/typst_render.rs` | 357 | render_typst_preview + generate_typst_export_pdf: gather Notes, translate {@..} refs to Typst, compile |
-| `src-tauri/src/commands/pdf_export.rs` | 2,183 | Export node -> PDF (genpdf + pulldown-cmark), IEEE/APA citations, style config, title page, line numbers |
+| `src-tauri/src/commands/typst_render.rs` | 363 | render_typst_preview + generate_typst_export_pdf: gather Notes, translate {@..} refs to Typst, compile |
+| `src-tauri/src/commands/pdf_export.rs` | 2,322 | Export node -> PDF (genpdf + pulldown-cmark), IEEE/APA citations, style config, title page (Title node only), preview temp path, line numbers |
 | `src-tauri/src/commands/image_import.rs` | 315 | validate, create, check, re-link, open_external, paper PDF path |
 | `src-tauri/src/commands/export.rs` | 283 | BibTeX export by layer/selection, native save dialog |
 | `src-tauri/src/commands/settings.rs` | 686 | API keys (Anthropic+Gemini), AgentCapabilities, UIPreferences, recent files, paper prompt, Supabase config, user identity |
@@ -415,11 +416,15 @@ AI-assisted paper reading with full PDF context (paper_chat.rs):
 
 `node_type='export'` -- connects to Edit nodes (sections) and optionally a Title node (title page with authors/affiliations).
 
-**Backend** (pdf_export.rs, 2,183 lines): Renders PDF via genpdf + pulldown-cmark. Bundled LiberationSerif fonts at `src-tauri/fonts/`. Mixed EN/JP font rendering.
+**Backend** (pdf_export.rs, 2,322 lines): Renders PDF via genpdf + pulldown-cmark. Bundled LiberationSerif fonts at `src-tauri/fonts/`. Mixed EN/JP font rendering.
+
+**Document Title vs Title node**: The export node's Document Title is ONLY the suggested file name (save dialog) + PDF metadata -- it is never printed in the document. A title block (title/subtitle/authors, `render_title_block()`) is rendered only when a Title node is connected. Headings inside the PDF come solely from note content (Markdown `#`/`##`/`###`).
+
+**PDF preview**: `generate_export_pdf` and `generate_typst_export_pdf` take `output_path: Option<String>`. When omitted, the PDF is written to `{OS temp dir}/cladel-export-preview/{export_node_id}.pdf` (`preview_output_path()`) and the path is returned. ExportNodeViewer's "Preview" buttons (both pipelines) use this and show the result in `ExportPreviewDialog` (WebView-native PDF `<embed>` via convertFileSrc, cache-busted; "Save PDF..." regenerates to a user-chosen path; "Open externally" as fallback).
 
 **ExportStyleConfig** (JSON in export node metadata): `en_font_preset`, `jp_font_preset`, `title_size`, `section_heading_size`, `subsection_heading_size`, `body_size`, `line_spacing`, margins (top/bottom/left/right mm), `section_numbering`, `title_alignment` ("left"/"center"), `affiliation_marker` ("number"/"dagger"), `show_line_numbers`. Configured via ExportStyleConfigDialog.tsx.
 
-**Title page**: Title node metadata stores `ExportTitlePage { subtitle, authors: ExportAuthor[] }`. Authors display superscript affiliation indices (Unicode ¹²³) or dagger symbols (†‡§) based on `affiliation_marker` setting.
+**Title page**: Title node metadata stores `ExportTitlePage { subtitle, authors: ExportAuthor[] }`. Authors display superscript affiliation indices (Unicode ¹²³) or dagger symbols (†‡§) based on `affiliation_marker` setting. Rendered only when a Title node is connected (see above).
 
 **Citation syntax in Edit nodes**: `{@cite_key}` for papers, `{@A; @B; @C}` for multi-citation, `{{@image_id}}` for images, `{@table_id[row,col]}` for a single table cell value.
 
@@ -449,7 +454,7 @@ A second authoring pipeline (parallel to Markdown/genpdf) for writing in **Typst
 
 **Reference translation** (`typst_render.rs::assemble_typst_source`, reuses `split_citation_ids` / `parse_table_cell_ref` / `build_table_map` from pdf_export): `{@cite}` → Typst `@cite` (plus a `#bibliography("refs.bib", style:"ieee"|"apa")` generated from cited papers' BibTeX, entry key rewritten to the display_id); `{{@image_id}}` → `#figure(image(...), caption:[title])` (image copied into the work dir); `{@table_id[r,c]}` → the cell value. Data-derived text is Typst-escaped.
 
-**Commands:** `render_typst_preview(render_node_id)` → `{ pages, page_count, note_count }`; `generate_typst_export_pdf(export_node_id, output_path)` (emits `export-progress`, reuses the export overlay). Frontend preview state lives in `renderStore` (transient — never dirties the file).
+**Commands:** `render_typst_preview(render_node_id)` → `{ pages, page_count, note_count }`; `generate_typst_export_pdf(export_node_id, output_path?)` (emits `export-progress`, reuses the export overlay; `output_path` omitted → preview PDF in temp dir, see Export Node section). Frontend preview state lives in `renderStore` (transient — never dirties the file).
 
 ### Content Pull
 
@@ -578,7 +583,7 @@ User Color Mode palette (8 colors, deterministic hash):
   unknown: bg #f3f4f6, border #9ca3af, glow #d1d5db
 
 Edge colors: default #94a3b8, hover #2563eb, selected #3b82f6 (+glow halo), agent-created #7c3aed (dashed), deleted #9ca3af. Wires: round caps, width = 1 + weight*0.6 (1.6-4.0px), curvature EDGE_CURVATURE=0.32 (exported from AnnotatedEdge; GraphCanvas hit-test/preview must reuse it), slim polygon arrowhead.
-Ports (TouchDesigner-style): shared <NodePorts accent> component — rounded tabs 10x22 (7x14 compact) protruding from left(input)/right(output) edges, geometry+hover/connecting effects in index.css (.td-port), accent color per node type, enlarged invisible hit area via ::after
+Ports (connector style): shared <NodePorts accent> component — custom SVG shapes inside 10x22 handles (7x14 compact), both in the node's accent color. Right(output)=angular arrow-pentagon tab 凸 pointing in the flow direction (accent fill + inset white rim via clipPath trick, center 2px outside edge). Left(input)=rectangular slot 凹 carved INTO the node (handle center 2px INSIDE the edge; cavity = accent darkened by rgba(0,0,0,.42) overlay, covers the border at the mouth, accent-stroked walls, edge arrowheads land inside). Handle ids/order unchanged; hover/connecting glow via CSS drop-shadow filter in index.css (.td-port), enlarged invisible hit area via ::after. Paper/Edit/Image pass userColor.border as accent in User Color Mode (ports follow the node color)
 ProcessingIndicator: amber #f59e0b icon, rgba(245,158,11,0.15) bg circle, spinning 1.2s
 Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode.Partial)
 ```
@@ -627,7 +632,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 - **open_file_external**: Cross-platform via `#[cfg(target_os)]` -- `open` (macOS), `cmd /c start` (Windows), `xdg-open` (Linux).
 - **Deprecated files**: `src/components/graph/GraphToolbar.tsx` (199), `src/components/panels/CoreHistoryPanel.tsx` (383) -- still present, safe to delete.
 - **Tab snapshots**: VACUUM INTO temp files at `{OS temp dir}/cladel-tabs/` (`std::env::temp_dir()`, e.g. `$TMPDIR` on macOS). Cleaned on tab close, not on crash.
-- **Large files**: NodeDetailPanel.tsx (2,694), pdf_export.rs (2,183), SettingsDialog.tsx (2,071), graphStore.ts (1,862), GraphCanvas.tsx (1,612), AgentNodeViewer.tsx (1,140), db.rs (1,017) -- modify with care.
+- **Large files**: NodeDetailPanel.tsx (2,694), pdf_export.rs (2,322), SettingsDialog.tsx (2,071), graphStore.ts (1,862), GraphCanvas.tsx (1,612), AgentNodeViewer.tsx (1,140), db.rs (1,017) -- modify with care.
 
 ---
 

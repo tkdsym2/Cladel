@@ -475,8 +475,9 @@ export function renderTypstPreview(renderNodeId: string): Promise<RenderPreviewR
   return invoke("render_typst_preview", { renderNodeId });
 }
 
-export function generateTypstExportPdf(exportNodeId: string, outputPath: string): Promise<string> {
-  return invoke("generate_typst_export_pdf", { exportNodeId, outputPath });
+/** Omit `outputPath` to generate a preview PDF in the app temp dir (path is returned). */
+export function generateTypstExportPdf(exportNodeId: string, outputPath?: string): Promise<string> {
+  return invoke("generate_typst_export_pdf", { exportNodeId, outputPath: outputPath ?? null });
 }
 
 // ─── Export ───
@@ -709,11 +710,12 @@ export function updateExportStyleConfig(
   return invoke("update_export_style_config", { exportNodeId, styleConfig });
 }
 
+/** Omit `outputPath` to generate a preview PDF in the app temp dir (path is returned). */
 export function generateExportPdf(
   exportNodeId: string,
-  outputPath: string,
+  outputPath?: string,
 ): Promise<string> {
-  return invoke("generate_export_pdf", { exportNodeId, outputPath });
+  return invoke("generate_export_pdf", { exportNodeId, outputPath: outputPath ?? null });
 }
 
 // ─── Supabase Config ───
