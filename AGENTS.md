@@ -1,6 +1,6 @@
 # Cladel -- Research Thought-Mapping Application (Tauri v2)
 
-Tauri v2 + React + TypeScript desktop app for researchers to organize thinking as a knowledge graph. Combines literature management (PDF import), personal thought mapping, and AI agents (Codex/Gemini APIs) as collaborative research partners. Single `.cld` file format (SQLite, DELETE journal mode; legacy `.klv` and `.tmgx` also supported for reading).
+Tauri v2 + React + TypeScript desktop app for researchers to organize thinking as a knowledge graph. Combines literature management (PDF import), personal thought mapping, and AI agents (Claude/Gemini APIs) as collaborative research partners. Single `.cld` file format (SQLite, DELETE journal mode; legacy `.klv` and `.tmgx` also supported for reading).
 
 ## Tech Stack
 
@@ -280,7 +280,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src-tauri/src/commands/junctions.rs` | 321 | split_edge_at_junction, dissolve_junction |
 | `src-tauri/src/commands/bibtex.rs` | 409 | Hand-written BibTeX parser + entry generator (no external crate) |
 | `src-tauri/src/commands/literature.rs` | 406 | Semantic Scholar API (rate-limited: 90/5min sliding window) |
-| `src-tauri/src/commands/pdf_import.rs` | 638 | import_pdf (DOI->S2/CrossRef->Codex), extract_pdf_with_claude |
+| `src-tauri/src/commands/pdf_import.rs` | 638 | import_pdf (DOI->S2/CrossRef->Claude), extract_pdf_with_claude |
 | `src-tauri/src/commands/pdf_export.rs` | 2,183 | Export node -> PDF (genpdf + pulldown-cmark), IEEE/APA citations, style config, title page, line numbers |
 | `src-tauri/src/commands/image_import.rs` | 315 | validate, create, check, re-link, open_external, paper PDF path |
 | `src-tauri/src/commands/export.rs` | 283 | BibTeX export by layer/selection, native save dialog |
@@ -316,7 +316,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | Export |  PDF/Image drag-and-drop     |  Double-click -> detach    |
 | BibTeX |                              |                            |
 +--------+------------------------------+----------------------------+
-|  Nodes: 5  Edges: 3   Codex API: *   Agent: On / Auto *          |
+|  Nodes: 5  Edges: 3   Claude API: *   Agent: On / Auto *          |
 +-------------------------------------------------------------------+
 ```
 
@@ -426,7 +426,7 @@ Temporary React-only node. NOT a DB node_type. Created via Tab-to-Create or cont
 
 ### PDF Import Pipeline
 
-**Backend** (`import_pdf`): extract text via pdf-extract (~10K chars) -> find DOI via regex -> Semantic Scholar/CrossRef lookup -> Codex fallback -> generate_bibtex -> PdfMetadata.
+**Backend** (`import_pdf`): extract text via pdf-extract (~10K chars) -> find DOI via regex -> Semantic Scholar/CrossRef lookup -> Claude fallback -> generate_bibtex -> PdfMetadata.
 
 **Frontend** (PdfImportDialog.tsx) -- 6 phases: idle -> extracting -> preview -> success, with error recovery. Supports `positionOverride`.
 
@@ -438,7 +438,7 @@ Select 2+ papers -> "Group" button -> enter name -> creates `paper_group` node w
 
 **Capability guards**: agent_enabled (master), autonomous_enabled, search_papers_enabled, suggest_connections_enabled, suggest_ideas_enabled, autonomous_idle_seconds (45), autonomous_cooldown_seconds (120).
 
-**Pipeline**: Frontend buildContext -> Backend `invoke_agent` -> capability guard -> BFS -> relevance scoring -> 4-tier token budget -> Codex API -> 4-tier JSON extraction -> AgentResponse.
+**Pipeline**: Frontend buildContext -> Backend `invoke_agent` -> capability guard -> BFS -> relevance scoring -> 4-tier token budget -> Claude API -> 4-tier JSON extraction -> AgentResponse.
 
 **Token budget**: Core 2,000 | Full content 4,400 | Title-only 1,800 | Edges 1,600 | Edge comments 3,200 chars.
 
@@ -450,7 +450,7 @@ Select 2+ papers -> "Group" button -> enter name -> creates `paper_group` node w
 
 | Provider | Model | Used By | API |
 |----------|-------|---------|-----|
-| Codex (Anthropic) | `Codex-sonnet-4-20250514` | Global agent, Agent node, Comment agent | `api.anthropic.com/v1/messages` |
+| Claude (Anthropic) | `claude-sonnet-4-20250514` | Global agent, Agent node, Comment agent | `api.anthropic.com/v1/messages` |
 | Gemini (Google) | `gemini-2.5-flash` | Paper summarize/chat, Agent node (optional), Comment agent (optional) | `generativelanguage.googleapis.com/v1beta/...` |
 | Gemini (Google) | `gemini-2.5-flash-image` | NanoBanana image generation | `generativelanguage.googleapis.com/v1beta/...` |
 
@@ -561,7 +561,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 - **Handle overlap causes edge direction swap**: Each node side has overlapping source + target handles. Always use `connectingFrom` state to detect and normalize swaps.
 - **Arrow rendering**: Use `bezierPoint(t~0.92)` for accurate tangent, not control points. Must use `<polygon>`, not SVG markers (WebKit breaks them).
 - **Semantic Scholar rate limiting**: 90 requests per 5-minute sliding window.
-- **PDF Codex fallback requires API key**: If no key and DOI lookup fails, import_pdf errors.
+- **PDF Claude fallback requires API key**: If no key and DOI lookup fails, import_pdf errors.
 - **open_file_external**: Cross-platform via `#[cfg(target_os)]` -- `open` (macOS), `cmd /c start` (Windows), `xdg-open` (Linux).
 - **Deprecated files**: GraphToolbar.tsx, CoreHistoryPanel.tsx -- safe to delete.
 - **Tab snapshots**: VACUUM INTO temp files at `~/.tmp/cladel-tabs/`. Cleaned on tab close, not on crash.
@@ -572,8 +572,8 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 ## How to Continue Development
 
 1. **Always read this AGENTS.md first** before making changes.
-2. Project path: `/Users/kazuma/Desktop/Tsumugix`
+2. Project path: `/Users/kazuma/Desktop/Cladel`
 3. Run: `npm run tauri dev`
 4. Rust env: `source "$HOME/.cargo/env"` or `export PATH="$HOME/.cargo/bin:$PATH"`
-5. Compile check: `npx tsc --noEmit` (use instead of `npm run tauri dev` in Codex)
+5. Compile check: `npx tsc --noEmit` (use instead of `npm run tauri dev` in an automated/CLI agent environment)
 6. Handoff docs: see `docs/handoff.md` for comprehensive codebase reference
