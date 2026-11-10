@@ -1,14 +1,14 @@
-# Cladel -- Research Thought-Mapping Application (Tauri v2)
+# Filonex -- Research Thought-Mapping Application (Tauri v2)
 
-Tauri v2 + React + TypeScript desktop app for researchers to organize thinking as a knowledge graph. Combines literature management (PDF import), personal thought mapping, and AI agents (Claude/Gemini APIs) as collaborative research partners. Single `.cld` file format (SQLite, DELETE journal mode; legacy `.klv` and `.tmgx` also supported for reading).
+Tauri v2 + React + TypeScript desktop app for researchers to organize thinking as a knowledge graph. Combines literature management (PDF import), personal thought mapping, and AI agents (Claude/Gemini APIs) as collaborative research partners. Single `.flnx` file format (SQLite, DELETE journal mode).
 
 ## Tech Stack
 
 - **Framework**: Tauri v2 (Rust backend + WebView frontend)
 - **Frontend**: React 19.2 / TypeScript 5.9, Vite 7.3, react-router-dom 7.13 (HashRouter), @xyflow/react 12.10 (React Flow), Zustand 5.0, @mui/icons-material 7.3, Tailwind CSS 4.2 + @mui/material 7.3 + @emotion, react-markdown 10, rehype-raw 7, remark-gfm 4
 - **Backend**: rusqlite 0.31 (bundled), reqwest 0.12, pdf-extract 0.7, image 0.24, regex 1, serde/chrono/uuid, tauri-plugin-store 2, tauri-plugin-updater 2 + tauri-plugin-process 2 (auto-update), tauri-plugin-shell 2 + tauri-plugin-dialog 2, base64 0.22, genpdf 0.2 + pulldown-cmark 0.12 (Markdown->PDF), typst 0.14 + typst-as-lib 0.15 + typst-pdf 0.14 + typst-render 0.14 (Typst typesetting + preview)
-- **File Format**: `.cld` (SQLite, DELETE journal mode, single-file; legacy `.klv` and `.tmgx` also supported for reading)
-- **App ID**: `com.cladel.desktop`
+- **File Format**: `.flnx` (SQLite, DELETE journal mode, single-file)
+- **App ID**: `com.filonex.desktop`
 
 ---
 
@@ -163,10 +163,10 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | 21 | 'render' node_type CHECK (column-aware table rebuild with all columns) |
 
 **Key design decisions**:
-- .cld stores text/metadata only, NOT binary data. PDFs/images referenced by local file path.
+- .flnx stores text/metadata only, NOT binary data. PDFs/images referenced by local file path.
 - DELETE journal mode = single portable file, no -shm/-wal sidecars.
 - App starts with in-memory DB; no file created until explicit Save As.
-- **Working-copy persistence model**: every tab (file-backed or not) runs against a temp working copy at `std::env::temp_dir()/cladel-tabs/{tab_id}.cld`; the real `.cld` is treated as read-only at runtime. Opening copies file -> working copy. Saving is atomic (`file_commands::save_connection_to_path`): `VACUUM INTO` a `{target}.{uuid}.tmp` sidecar, then `std::fs::rename` over the target (crash-safe). Save As reopens the new path as the working copy; `reload_active_tab_from_disk` discards the working copy and re-reads from disk (Revert; also used after cloud-sync download).
+- **Working-copy persistence model**: every tab (file-backed or not) runs against a temp working copy at `std::env::temp_dir()/filonex-tabs/{tab_id}.flnx`; the real `.flnx` is treated as read-only at runtime. Opening copies file -> working copy. Saving is atomic (`file_commands::save_connection_to_path`): `VACUUM INTO` a `{target}.{uuid}.tmp` sidecar, then `std::fs::rename` over the target (crash-safe). Save As reopens the new path as the working copy; `reload_active_tab_from_disk` discards the working copy and re-reads from disk (Revert; currently no UI caller).
 - `Mutex<Connection>` for thread-safe single-user access. `Database` struct also holds `tabs: Mutex<Vec<TabInfo>>` and `active_tab_id: Mutex<String>` for multi-tab support.
 - Edges have no ON DELETE CASCADE on node references (soft-delete preserves edges).
 - `core_versions`/`note_versions` tables exist in DB but **version history UI has been removed**.
@@ -178,19 +178,19 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ### File Map
 
-**Frontend -- 94 files, ~32,900 lines**
+**Frontend -- 91 files, ~32,900 lines**
 
 | Path | Lines | Purpose |
 |------|------:|---------|
 | `src/App.tsx` | 830 | Main app shell: initialization, tab/layer/delete orchestration, layout composition, dialog state, startup update check |
 | `src/main.tsx` | 26 | Entry: HashRouter with 5 routes: `/`, `/node-detail/:nodeId/:layerId`, `/agent-console`, `/manual`, `/note-help` |
 | `src/types/index.ts` | 760 | All shared interfaces, SYSTEM_DEFAULTS, TabNodeType, TableModel/TableSource, RenderModel, ExportStyleConfig, ExportTitlePage |
-| `src/lib/tauri-commands.ts` | 768 | Typed wrappers for 113 of 115 Tauri invoke commands (all except backend-only get_api_key/get_gemini_api_key) |
+| `src/lib/tauri-commands.ts` | 768 | Typed wrappers for 104 of 106 Tauri invoke commands (all except backend-only get_api_key/get_gemini_api_key) |
 | `src/lib/detached-window.ts` | 180 | Multi-window management (open/focus/closeAll); spawns node-detail, agent-console, manual, note-help windows |
 | `src/lib/sync-events.ts` | 183 | Cross-window event bus (node-updated, node-deleted, comments-changed, file-changed, graph-changed, settings-changed, export-started, export-finished) |
 | `src/lib/userColors.ts` | 21 | Deterministic 8-color palette for user-based node coloring |
 | `src/lib/i18n.ts` | 103 | Bilingual EN/JP translation table + `useT()` hook (active language from UI preferences) |
-| **Stores (13)** | | |
+| **Stores (12)** | | |
 | `src/store/graphStore.ts` | 1,862 | Nodes, edges, selection, comment counts, CRUD, ghost nodes, junctions, groups, colorMode |
 | `src/store/agentStore.ts` | 382 | Global agent: status, suggestions, history, context building, cooldown |
 | `src/store/tabStore.ts` | 223 | Tab lifecycle: new/open/switch/close/reload-from-disk, reinitialize on switch |
@@ -198,7 +198,6 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/store/exportStore.ts` | 62 | PDF export progress, error state, cross-window coordination |
 | `src/store/renderStore.ts` | 50 | Transient render-node preview state (status/pages/error), keyed by node id |
 | `src/store/settingsStore.ts` | 98 | API key status, AgentCapabilities, UIPreferences |
-| `src/store/syncStore.ts` | 96 | Cloud sync state (Supabase) |
 | `src/store/layerStore.ts` | 58 | Layer list, current layer, smart switch on delete |
 | `src/store/agentNodeStore.ts` | 44 | Per-agent-node processing state (Set + Map) |
 | `src/store/userStore.ts` | 44 | User identity (userId, userName, isRegistered) |
@@ -261,12 +260,10 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/panels/MultiSelectPanel.tsx` | 39 | Right-panel content when >=2 nodes selected (currently a near-stub: shows count only) |
 | `src/components/panels/CoreHistoryPanel.tsx` | 384 | Core version history panel. **ORPHANED -- zero importers (deprecated)** |
 | **Dialog Components** | | |
-| `src/components/dialogs/SettingsDialog.tsx` | 2,071 | API keys (Anthropic+Gemini), capabilities, UI prefs, usage, paper prompt, sync, user identity |
+| `src/components/dialogs/SettingsDialog.tsx` | 2,071 | API keys (Anthropic+Gemini), capabilities, UI prefs, usage, paper prompt, user identity |
 | `src/components/dialogs/PdfImportDialog.tsx` | 733 | PDF import: 6-phase state machine with error recovery |
 | `src/components/dialogs/WelcomeDialog.tsx` | 610 | Launch dialog: recent files, create new, open existing |
-| `src/components/dialogs/CloudOpenDialog.tsx` | 575 | Cloud file browser (Supabase sync) |
 | `src/components/dialogs/ExportBibtexDialog.tsx` | 471 | Tri-state checkbox tree export to .bib |
-| `src/components/dialogs/SyncDialog.tsx` | 440 | Cloud sync management dialog |
 | `src/components/dialogs/NewLayerDialog.tsx` | 389 | Layer creation with optional source node |
 | `src/components/dialogs/ImageImportDialog.tsx` | 386 | Image import + validation + positionOverride |
 | `src/components/dialogs/ExportStyleConfigDialog.tsx` | 681 | PDF export style config (fonts, sizes, margins, alignment, markers, line numbers) with preview |
@@ -277,17 +274,17 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | **Layout Components** | | |
 | `src/components/layers/LayerBar.tsx` | 313 | Left sidebar: layers (sorted), add/delete, Export BibTeX |
 | `src/components/FileTabBar.tsx` | 250 | Top tab bar: open tabs, active indicator, close/new buttons, settings |
-| `src/components/StatusBar.tsx` | 152 | Bottom status bar: node/edge counts, API status, agent status, sync |
+| `src/components/StatusBar.tsx` | 152 | Bottom status bar: node/edge counts, API status, agent status |
 | `src/components/ResizeHandle.tsx` | 22 | Simple sidebar resize handle with hover state |
 
-**Backend -- 38 files, ~15,070 lines**
+**Backend -- 37 files, ~15,070 lines**
 
 | Path | Lines | Purpose |
 |------|------:|---------|
-| `src-tauri/src/main.rs` | 6 | Calls `cladel_app_lib::run()` |
-| `src-tauri/src/lib.rs` | 299 | App entry: 115 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
+| `src-tauri/src/main.rs` | 6 | Calls `filonex_app_lib::run()` |
+| `src-tauri/src/lib.rs` | 299 | App entry: 106 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
 | `src-tauri/src/db.rs` | 1,116 | SQLite schema, SCHEMA_VERSION=21, 21 migrations, Database+TabInfo |
-| `src-tauri/src/commands/mod.rs` | 24 | Module declarations (24 submodules) |
+| `src-tauri/src/commands/mod.rs` | 24 | Module declarations (23 submodules) |
 | `src-tauri/src/commands/nodes.rs` | 600 | CRUD + soft_delete + restore + update_display_id + update_paper_bibtex |
 | `src-tauri/src/commands/edges.rs` | 225 | CRUD (rejects self-loops + duplicates) + restore with handle persistence, weight 1-5 |
 | `src-tauri/src/commands/layers.rs` | 279 | CRUD + Core node creation per layer + source node inheritance |
@@ -308,9 +305,8 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src-tauri/src/commands/pdf_export.rs` | 2,322 | Export node -> PDF (genpdf + pulldown-cmark), IEEE/APA citations, style config, title page (Title node only), preview temp path, line numbers |
 | `src-tauri/src/commands/image_import.rs` | 315 | validate, create, check, re-link, open_external, paper PDF path |
 | `src-tauri/src/commands/export.rs` | 283 | BibTeX export by layer/selection, native save dialog |
-| `src-tauri/src/commands/settings.rs` | 686 | API keys (Anthropic+Gemini), AgentCapabilities, UIPreferences, recent files, paper prompt, Supabase config, user identity |
+| `src-tauri/src/commands/settings.rs` | 686 | API keys (Anthropic+Gemini), AgentCapabilities, UIPreferences, recent files, paper prompt, user identity |
 | `src-tauri/src/commands/usage.rs` | 223 | Usage summary, history, clear, cost estimation |
-| `src-tauri/src/commands/sync.rs` | 445 | Cloud sync via Supabase (upload/download/status/list/stats) |
 | **Agent subsystem** | | |
 | `src-tauri/src/commands/agent/mod.rs` | 475 | Public API, types (AgentError, AgentService trait), invoke_agent, capability guards |
 | `src-tauri/src/commands/agent/agent_node.rs` | 634 | invoke_agent_node: BFS context, chat, output node creation, provider selection |
@@ -328,7 +324,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ```
 +--------+------------------------------+----------------------------+
-|  File Tab Bar (Untitled* | paper.cld | +)              [Settings] |
+|  File Tab Bar (Untitled* | paper.flnx | +)              [Settings] |
 +--------+------------------------------+----------------------------+
 | Layers |  [< Move | Select] [Color]  |  Node Detail Panel         |
 | (160px)|       Graph Canvas           |  (Core/Paper/Edit/Image/   |
@@ -345,7 +341,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ---
 
-## Registered Tauri Commands (115 total)
+## Registered Tauri Commands (106 total)
 
 Counted from `generate_handler![]` in `lib.rs`:
 
@@ -365,7 +361,7 @@ Counted from `generate_handler![]` in `lib.rs`:
 | Junctions | 2 | `split_edge_at_junction`, `dissolve_junction` |
 | Agent | 5 | `invoke_agent`, `invoke_agent_node`, `invoke_agent_comment`, `invoke_paper_summarize`, `invoke_paper_chat` |
 | Settings (Keys) | 8 | `save_api_key`, `get_api_key_status`, `get_api_key`*, `delete_api_key`, `save_gemini_api_key`, `get_gemini_api_key_status`, `get_gemini_api_key`*, `delete_gemini_api_key` |
-| Settings (Other) | 14 | `save_agent_capabilities`, `get_agent_capabilities`, `get_ui_preferences`, `save_ui_preferences`, `get_recent_files`, `add_recent_file`, `remove_recent_file`, `get_paper_summary_prompt`, `save_paper_summary_prompt`, `reset_paper_summary_prompt`, `save_supabase_config`, `get_supabase_config`, `get_supabase_config_status`, `delete_supabase_config` |
+| Settings (Other) | 10 | `save_agent_capabilities`, `get_agent_capabilities`, `get_ui_preferences`, `save_ui_preferences`, `get_recent_files`, `add_recent_file`, `remove_recent_file`, `get_paper_summary_prompt`, `save_paper_summary_prompt`, `reset_paper_summary_prompt` |
 | User Identity | 3 | `get_user_identity`, `register_user`, `update_user_name` |
 | PDF Import | 2 | `import_pdf`, `extract_pdf_with_claude` |
 | Table Import | 1 | `import_table_file` |
@@ -375,7 +371,6 @@ Counted from `generate_handler![]` in `lib.rs`:
 | Typst Render | 2 | `render_typst_preview`, `generate_typst_export_pdf` |
 | Usage | 3 | `get_usage_summary`, `get_usage_history`, `clear_usage_log` |
 | Agent Messages | 3 | `add_agent_node_message`, `get_agent_node_messages`, `delete_agent_node_message` |
-| Sync | 5 | `sync_list_remote`, `sync_check_status`, `sync_upload`, `sync_download`, `sync_get_remote_stats` |
 
 *`get_api_key` and `get_gemini_api_key` are **backend-only** -- registered in generate_handler but intentionally have no frontend wrapper (raw keys used only server-side for API calls).
 
@@ -386,7 +381,7 @@ Counted from `generate_handler![]` in `lib.rs`:
 ### File Tab System
 
 Browser-style multi-file tabs (FileTabBar + tabStore + tab_commands.rs):
-- Each tab has its own SQLite connection backed by a working copy at `std::env::temp_dir()/cladel-tabs/{tab_id}.cld` (see Key design decisions). Switching snapshots the current tab's working copy and restores the target tab's connection.
+- Each tab has its own SQLite connection backed by a working copy at `std::env::temp_dir()/filonex-tabs/{tab_id}.flnx` (see Key design decisions). Switching snapshots the current tab's working copy and restores the target tab's connection.
 - `tabStore.ts`: `newTab()`, `switchTab()`, `openFileInTab()`, `closeTab()`, `reloadActiveTabFromDisk()` -- each calls backend + reinitializes all frontend stores.
 - Closing last tab creates a fresh empty tab automatically.
 - **Native menu**: Close Tab (Cmd+W).
@@ -422,7 +417,7 @@ AI-assisted paper reading with full PDF context (paper_chat.rs):
 
 **Document Title vs Title node**: The export node's Document Title is ONLY the suggested file name (save dialog) + PDF metadata -- it is never printed in the document. A title block (title/subtitle/authors, `render_title_block()`) is rendered only when a Title node is connected. Headings inside the PDF come solely from note content (Markdown `#`/`##`/`###`).
 
-**PDF preview**: `generate_export_pdf` and `generate_typst_export_pdf` take `output_path: Option<String>`. When omitted, the PDF is written to `{OS temp dir}/cladel-export-preview/{export_node_id}.pdf` (`preview_output_path()`) and the path is returned. ExportNodeViewer's "Preview" buttons (both pipelines) use this and show the result in `ExportPreviewDialog` (WebView-native PDF `<embed>` via convertFileSrc, cache-busted; "Save PDF..." regenerates to a user-chosen path; "Open externally" as fallback).
+**PDF preview**: `generate_export_pdf` and `generate_typst_export_pdf` take `output_path: Option<String>`. When omitted, the PDF is written to `{OS temp dir}/filonex-export-preview/{export_node_id}.pdf` (`preview_output_path()`) and the path is returned. ExportNodeViewer's "Preview" buttons (both pipelines) use this and show the result in `ExportPreviewDialog` (WebView-native PDF `<embed>` via convertFileSrc, cache-busted; "Save PDF..." regenerates to a user-chosen path; "Open externally" as fallback).
 
 **ExportStyleConfig** (JSON in export node metadata): `en_font_preset`, `jp_font_preset`, `title_size`, `section_heading_size`, `subsection_heading_size`, `body_size`, `line_spacing`, margins (top/bottom/left/right mm), `section_numbering`, `title_alignment` ("left"/"center"), `affiliation_marker` ("number"/"dagger"), `show_line_numbers`. Configured via ExportStyleConfigDialog.tsx.
 
@@ -509,14 +504,6 @@ Both: retry 2x after 2s/5s, only on transient errors. Cost estimation: Sonnet $3
 
 HashRouter: "/" = main, "/node-detail/:nodeId/:layerId" = detached. Double-click any node (except junction/deleted) -> detached WebviewWindow (500x700). Sync events via sync-events.ts. Auto-close on file operations. Three additional standalone windows: `/agent-console` (live agent log stream), `/manual` (in-app help), and `/note-help` (Note/Typst writing help, openable from the note editor's ? button — also from detached node windows via `core:webview:allow-create-webview-window` in node-detail.json), spawned via detached-window.ts and granted permissions by `capabilities/auxiliary-windows.json`.
 
-### Cloud Sync (Supabase)
-
-Optional cloud sync for .cld files via Supabase storage:
-- **Backend** (sync.rs): `sync_list_remote`, `sync_check_status`, `sync_upload`, `sync_download`, `sync_get_remote_stats`
-- **Frontend**: SyncDialog (management), CloudOpenDialog (browse remote files), syncStore (state)
-- **Settings**: Supabase URL + anon key configured in SettingsDialog
-- **StatusBar**: Shows sync status indicator (in sync / not uploaded / out of sync)
-
 ### Agent API Usage Monitor
 
 `agent_usage_log` table, `get_usage_summary` (cost estimation), `get_usage_history`. Frontend: SettingsDialog "API Usage" section.
@@ -524,7 +511,7 @@ Optional cloud sync for .cld files via Supabase storage:
 ### Auto-Update & Release Pipeline
 
 GitHub-Releases-based signed auto-update (tauri-plugin-updater + tauri-plugin-process):
-- **Config** (tauri.conf.json): `createUpdaterArtifacts: true`; `plugins.updater.endpoints` -> `https://github.com/tkdsym2/Cladel/releases/latest/download/latest.json`; embedded minisign `pubkey`.
+- **Config** (tauri.conf.json): `createUpdaterArtifacts: true`; `plugins.updater.endpoints` -> `https://github.com/tkdsym2/Filonex/releases/latest/download/latest.json`; embedded minisign `pubkey`.
 - **Frontend**: `UpdateDialog.tsx` checks for updates on startup (production only -- App.tsx skips when `window.location.protocol === 'http:'`, i.e. dev) -> shows available version + download/install progress -> relaunch via plugin-process. `silentErrors` prop for the startup check.
 - **CI/Release**: `.github/workflows/release.yml` builds + signs artifacts (macOS-universal / Windows / Ubuntu) and publishes `latest.json`. `scripts/check-release.mjs` (`npm run release:check`) is a pre-release guard (tri-file version parity, SemVer without `v`, tag == version, https endpoint + pubkey present, signing env vars).
 - Capability files: `default.json`, `node-detail.json`, `auxiliary-windows.json`.
@@ -542,9 +529,9 @@ GitHub-Releases-based signed auto-update (tauri-plugin-updater + tauri-plugin-pr
 
 ## Settings System
 
-**Storage**: `~/Library/Application Support/com.cladel.desktop/settings.json` (tauri-plugin-store)
+**Storage**: `~/Library/Application Support/com.filonex.desktop/settings.json` (tauri-plugin-store)
 
-**API keys**: `anthropic_api_key`, `gemini_api_key`, `supabase_url`, `supabase_anon_key`
+**API keys**: `anthropic_api_key`, `gemini_api_key`
 **User**: `user_id` (UUID), `user_name`
 **Agent toggles** (bool): `agent_enabled` defaults **false** (master switch -- agents are off until the user enables them); `autonomous_enabled`, `search_papers_enabled`, `suggest_connections_enabled`, `suggest_ideas_enabled` default true (per `AgentCapabilities::default()` in settings.rs)
 **Agent timing**: `autonomous_idle_seconds` (45), `autonomous_cooldown_seconds` (120)
@@ -593,7 +580,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 
 ## Native Menu Bar
 
-- **Cladel**: About, Settings (Cmd+,), Hide, Hide Others, Show All, Quit
+- **Filonex**: About, Settings (Cmd+,), Hide, Hide Others, Show All, Quit
 - **File**: New (Cmd+N), Open (Cmd+O), Save (Cmd+S), Save As (Cmd+Shift+S), Close Tab (Cmd+W)
 - **Edit**: Undo, Redo, Cut, Copy, Paste, Select All
 - **Window**: Minimize, Close
@@ -634,7 +621,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 - **PDF Claude fallback requires API key**: If no key and DOI lookup fails, import_pdf errors.
 - **open_file_external**: Cross-platform via `#[cfg(target_os)]` -- `open` (macOS), `cmd /c start` (Windows), `xdg-open` (Linux).
 - **Orphaned/deprecated files** (zero importers, safe to delete): GraphToolbar.tsx, CoreHistoryPanel.tsx, EdgePopover.tsx, ContextMenu.tsx. NOTE: as a result there is currently no wired right-click canvas ContextMenu and no wired edge-comment thread UI (badges still show counts).
-- **Tab working copies**: every tab runs against a working copy at `std::env::temp_dir()/cladel-tabs/{tab_id}.cld` (e.g. `$TMPDIR` on macOS); the real `.cld` is read-only at runtime and only written on explicit Save (VACUUM INTO + atomic rename). Working copies are cleaned up on tab close, but NOT on save and not on crash.
+- **Tab working copies**: every tab runs against a working copy at `std::env::temp_dir()/filonex-tabs/{tab_id}.flnx` (e.g. `$TMPDIR` on macOS); the real `.flnx` is read-only at runtime and only written on explicit Save (VACUUM INTO + atomic rename). Working copies are cleaned up on tab close, but NOT on save and not on crash.
 - **soft_delete_node deletes node_comments**: `soft_delete_node` runs `DELETE FROM node_comments WHERE node_id=?` and `restore_node` does NOT restore them -- comments are silently lost across a soft delete (only edges + edge_comments survive).
 - **AGENTS.md is a near-duplicate**: `AGENTS.md` largely duplicates this file (originally a Claude->Codex find-replace; provider/model names have since been corrected). It still carries the pre-sync structural drift (old file/command counts) -- treat CLAUDE.md as the maintained copy.
 - **Large files**: NodeDetailPanel.tsx (2,694), pdf_export.rs (2,322), SettingsDialog.tsx (2,071), graphStore.ts (1,862), GraphCanvas.tsx (1,612), AgentNodeViewer.tsx (1,140), db.rs (1,017) -- modify with care.
@@ -644,7 +631,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 ## How to Continue Development
 
 1. **Always read this CLAUDE.md first** before making changes.
-2. Project path: `/Users/kazuma/Desktop/Cladel`
+2. Project path: `/Users/kazuma/Desktop/Filonex`
 3. Run: `npm run tauri dev`
 4. Rust env: `source "$HOME/.cargo/env"` or `export PATH="$HOME/.cargo/bin:$PATH"`
 5. Compile check: `npx tsc --noEmit` (use instead of `npm run tauri dev` in Claude Code)

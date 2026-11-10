@@ -35,9 +35,6 @@ import type {
   CreateEdgeInput,
   UpdateEdgeInput,
   RecentFile,
-  RemoteFileInfo,
-  RemoteFileStats,
-  SyncStatusResult,
   UserIdentity,
   TableImportResult,
   RenderPreviewResult,
@@ -716,46 +713,6 @@ export function generateExportPdf(
   outputPath?: string,
 ): Promise<string> {
   return invoke("generate_export_pdf", { exportNodeId, outputPath: outputPath ?? null });
-}
-
-// ─── Supabase Config ───
-
-export function saveSupabaseConfig(url: string, anonKey: string): Promise<void> {
-  return invoke("save_supabase_config", { url, anonKey });
-}
-
-export function getSupabaseConfig(): Promise<[string, string]> {
-  return invoke("get_supabase_config");
-}
-
-export function getSupabaseConfigStatus(): Promise<boolean> {
-  return invoke("get_supabase_config_status");
-}
-
-export function deleteSupabaseConfig(): Promise<void> {
-  return invoke("delete_supabase_config");
-}
-
-// ─── Cloud Sync ───
-
-export function syncListRemote(): Promise<RemoteFileInfo[]> {
-  return invoke("sync_list_remote");
-}
-
-export function syncCheckStatus(localPath: string): Promise<SyncStatusResult> {
-  return invoke("sync_check_status", { localPath });
-}
-
-export function syncUpload(localPath: string): Promise<void> {
-  return invoke("sync_upload", { localPath });
-}
-
-export function syncDownload(remoteName: string, localPath: string): Promise<void> {
-  return invoke("sync_download", { remoteName, localPath });
-}
-
-export function syncGetRemoteStats(remoteName: string): Promise<RemoteFileStats> {
-  return invoke("sync_get_remote_stats", { remoteName });
 }
 
 // ─── User Identity ───

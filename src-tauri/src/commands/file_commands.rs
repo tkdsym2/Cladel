@@ -4,14 +4,14 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager, State};
 
 fn tab_snapshot_dir() -> PathBuf {
-    std::env::temp_dir().join("cladel-tabs")
+    std::env::temp_dir().join("filonex-tabs")
 }
 
 fn active_tab_snapshot_path(db: &Database) -> Result<PathBuf, String> {
     let active_id = db.active_tab_id.lock().map_err(|e| e.to_string())?.clone();
     let snap_dir = tab_snapshot_dir();
     std::fs::create_dir_all(&snap_dir).map_err(|e| format!("Cannot create snapshot dir: {e}"))?;
-    Ok(snap_dir.join(format!("{active_id}.cld")))
+    Ok(snap_dir.join(format!("{active_id}.flnx")))
 }
 
 fn vacuum_into(conn: &Connection, target_path: &PathBuf) -> Result<(), String> {
@@ -52,7 +52,7 @@ fn open_working_copy_for_path(
     let conn = Connection::open(snapshot_path)
         .map_err(|e| format!("Cannot open working copy as database: {e}"))?;
     validate_and_initialize(&conn)
-        .map_err(|e| format!("File is not a valid Cladel document: {e}"))?;
+        .map_err(|e| format!("File is not a valid Filonex document: {e}"))?;
     Ok(conn)
 }
 
@@ -73,7 +73,7 @@ fn validate_and_initialize(conn: &Connection) -> Result<(), String> {
     initialize_schema(conn).map_err(|e| format!("Schema migration failed: {e}"))
 }
 
-/// Create a new empty .cld document.
+/// Create a new empty .flnx document.
 /// Swaps to a fresh in-memory DB with full schema applied.
 #[tauri::command]
 pub fn file_new(db: State<Database>) -> Result<(), String> {
@@ -83,7 +83,7 @@ pub fn file_new(db: State<Database>) -> Result<(), String> {
     Ok(())
 }
 
-/// Open an existing .cld, .klv, or .tmgx file into a temp working copy.
+/// Open an existing .flnx file into a temp working copy.
 /// The original file is not modified until Save/Save As.
 #[tauri::command]
 pub fn file_open(db: State<Database>, path: String) -> Result<(), String> {
@@ -150,20 +150,20 @@ pub fn file_get_current_path(db: State<Database>) -> Result<Option<String>, Stri
     Ok(path.map(|p| p.to_string_lossy().to_string()))
 }
 
-/// Locate the bundled sample.cld file.
+/// Locate the bundled sample.flnx file.
 /// Checks the Tauri resource dir (production) first, then falls back to the
 /// source tree relative to CARGO_MANIFEST_DIR (dev mode).
 pub(crate) fn find_bundled_sample(app: &AppHandle) -> Result<PathBuf, String> {
     // Production: bundled resource
     if let Ok(resource_dir) = app.path().resource_dir() {
-        let path = resource_dir.join("sample.cld");
+        let path = resource_dir.join("sample.flnx");
         if path.exists() {
             return Ok(path);
         }
     }
 
     // Dev mode: relative to src-tauri/
-    let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample/sample.cld");
+    let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample/sample.flnx");
     if dev_path.exists() {
         return Ok(dev_path);
     }

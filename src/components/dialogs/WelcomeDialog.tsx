@@ -140,7 +140,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
       >
         {/* Header */}
         <div style={{ ...headerStyle, position: "relative" }}>
-          <span style={logoStyle}>Cladel</span>
+          <span style={logoStyle}>Filonex</span>
           <span style={subtitleStyle}>
             {t({ en: "Research Thought-Mapping", ja: "研究思考マッピング" })}
           </span>
@@ -178,7 +178,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
           <div style={registrationStyle}>
             <PersonOutlineIcon sx={{ fontSize: 36, color: "#1e40af", mb: "4px" }} />
             <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 4 }}>
-              {t({ en: "Welcome to Cladel!", ja: "Cladelへようこそ!" })}
+              {t({ en: "Welcome to Filonex!", ja: "Filonexへようこそ!" })}
             </div>
             <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>
               {t({ en: "Please enter your name to get started.", ja: "名前を入力して始めましょう。" })}

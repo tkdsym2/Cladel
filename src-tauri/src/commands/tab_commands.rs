@@ -5,13 +5,13 @@ use tauri::{AppHandle, State};
 
 /// Get the temp directory for tab snapshots.
 fn tab_snapshot_dir() -> PathBuf {
-    std::env::temp_dir().join("cladel-tabs")
+    std::env::temp_dir().join("filonex-tabs")
 }
 
 fn tab_snapshot_path(tab_id: &str) -> Result<PathBuf, String> {
     let snap_dir = tab_snapshot_dir();
     std::fs::create_dir_all(&snap_dir).map_err(|e| format!("Cannot create snapshot dir: {e}"))?;
-    Ok(snap_dir.join(format!("{tab_id}.cld")))
+    Ok(snap_dir.join(format!("{tab_id}.flnx")))
 }
 
 fn validate_and_initialize(conn: &Connection) -> Result<(), String> {
@@ -22,9 +22,9 @@ fn validate_and_initialize(conn: &Connection) -> Result<(), String> {
             |row| row.get::<_, i32>(0),
         )
         .map(|count| count > 0)
-        .map_err(|e| format!("File is not a valid Cladel document: {e}"))?;
+        .map_err(|e| format!("File is not a valid Filonex document: {e}"))?;
     if !has_projects {
-        return Err("File is not a valid Cladel document (missing schema).".to_string());
+        return Err("File is not a valid Filonex document (missing schema).".to_string());
     }
     initialize_schema(conn).map_err(|e| format!("Schema migration failed: {e}"))
 }

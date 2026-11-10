@@ -167,7 +167,7 @@ export function ManualWindow() {
         }}
       >
         <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>
-          Cladel Manual
+          Filonex Manual
         </div>
         <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 2 }}>
           Research Thought-Mapping Application
@@ -179,12 +179,12 @@ export function ManualWindow() {
         {/* ─── Getting Started ─── */}
         <Section title="Getting Started" defaultOpen={true}>
           <p>
-            Cladel is a desktop application for researchers to organize thinking as a knowledge graph.
+            Filonex is a desktop application for researchers to organize thinking as a knowledge graph.
             It combines literature management (PDF import), personal thought mapping, and AI agents
             as collaborative research partners.
           </p>
           <p style={{ marginTop: 6 }}>
-            Your work is saved in a single <b>.cld</b> file (SQLite-based). The app starts with an
+            Your work is saved in a single <b>.flnx</b> file (SQLite-based). The app starts with an
             in-memory database; use <Kbd>Cmd+S</Kbd> to save to disk.
           </p>
 
@@ -541,19 +541,6 @@ export function ManualWindow() {
           </p>
         </Section>
 
-        {/* ─── Cloud Sync ─── */}
-        <Section title="Cloud Sync (Optional)">
-          <p>
-            Cladel supports optional cloud sync for .cld files via Supabase storage.
-            Configure your Supabase URL and anonymous key in Settings.
-          </p>
-          <ul style={{ margin: "4px 0", paddingLeft: 20 }}>
-            <li>Upload your .cld file to the cloud</li>
-            <li>Download .cld files from cloud storage</li>
-            <li>Status bar shows sync state (in sync / not uploaded / out of sync)</li>
-          </ul>
-        </Section>
-
         {/* ─── Settings ─── */}
         <Section title="Settings">
           <p>
@@ -567,7 +554,6 @@ export function ManualWindow() {
             <li><b>Paper Summary Prompt</b> -- customize the template used for paper summarization</li>
             <li><b>User Identity</b> -- register your name (shown on nodes and comments)</li>
             <li><b>API Usage</b> -- view token usage and estimated costs</li>
-            <li><b>Cloud Sync</b> -- Supabase configuration</li>
           </ul>
         </Section>
 
@@ -596,7 +582,7 @@ export function ManualWindow() {
             borderTop: "1px solid #e5e7eb",
           }}
         >
-          Cladel -- Research Thought-Mapping Application
+          Filonex -- Research Thought-Mapping Application
         </div>
       </div>
     </div>

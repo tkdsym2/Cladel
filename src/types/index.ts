@@ -736,33 +736,3 @@ export interface RecentFile {
   last_opened: string;
 }
 
-// ─── Cloud Sync ───
-
-export interface RemoteFileInfo {
-  name: string;
-  updated_at: string;
-  size: number;
-}
-
-export interface LocalFileStats {
-  path: string;
-  updated_at: string;
-  size: number;
-  node_count: number;
-  edge_count: number;
-}
-
-export interface RemoteFileStats {
-  name: string;
-  updated_at: string;
-  size: number;
-  node_count: number;
-  edge_count: number;
-}
-
-export interface SyncStatusResult {
-  has_remote: boolean;
-  local?: LocalFileStats;
-  remote?: RemoteFileStats;
-  is_in_sync: boolean;
-}

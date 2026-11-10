@@ -315,7 +315,7 @@ fn get_recent_node_comments(
 // ─── Prompt building ───
 
 fn build_comment_system_prompt() -> String {
-    r#"You are a research assistant responding to a comment thread on a node in Cladel, a knowledge graph application.
+    r#"You are a research assistant responding to a comment thread on a node in Filonex, a knowledge graph application.
 
 ## Your Role
 You provide helpful, concise responses as comments. You can see the node's connected context and the recent comment history on this node.

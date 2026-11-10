@@ -22,12 +22,12 @@ pub struct Database {
     pub active_tab_id: Mutex<String>,
 }
 
-/// Initialize the Cladel schema on the given connection.
+/// Initialize the Filonex schema on the given connection.
 /// Safe to call on both fresh and existing databases (uses IF NOT EXISTS
 /// and conditional migrations).
 pub fn initialize_schema(conn: &Connection) -> Result<()> {
     // DELETE journal mode: no -shm/-wal sidecar files, suitable for a
-    // single-user desktop app where the .cld file must be portable.
+    // single-user desktop app where the .flnx file must be portable.
     // (Silently ignored for in-memory databases, which is fine.)
     conn.execute_batch("PRAGMA journal_mode=DELETE;")?;
     conn.execute_batch("PRAGMA foreign_keys=ON;")?;

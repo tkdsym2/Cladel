@@ -1,10 +1,10 @@
-# Tsumugix User Manual
+# Filonex User Manual
 
-Tsumugix is a desktop application for researchers to organize thinking as a knowledge graph. It combines literature management (PDF import), personal thought mapping, and AI agents (Claude / Gemini) as collaborative research partners.
+Filonex is a desktop application for researchers to organize thinking as a knowledge graph. It combines literature management (PDF import), personal thought mapping, and AI agents (Claude / Gemini) as collaborative research partners.
 
 The name comes from the Japanese verb 「紡ぐ」(tsumugu) — to spin or weave threads together.
 
-**File format:** `.tmgx` (single portable SQLite file). PDFs and images are referenced by file path, not embedded.
+**File format:** `.flnx` (single portable SQLite file). PDFs and images are referenced by file path, not embedded.
 
 ---
 
@@ -15,14 +15,14 @@ The name comes from the Japanese verb 「紡ぐ」(tsumugu) — to spin or weave
 On launch, the Welcome Dialog provides three options:
 
 - **Create New** — Start a fresh research project (in-memory until first Save)
-- **Open File** — Browse for an existing `.tmgx` file
+- **Open File** — Browse for an existing `.flnx` file
 - **Recent Files** — Quick access to previously opened projects
 
 ### 1.2 Application Layout
 
 ```
 +--------+------------------------------+----------------------------+
-|  File Tab Bar (file1.tmgx | file2.tmgx | +)            [Settings] |
+|  File Tab Bar (file1.flnx | file2.flnx | +)            [Settings] |
 +--------+------------------------------+----------------------------+
 | Layers |                              |  Node Detail Panel         |
 | (left) |       Graph Canvas           |  (right sidebar,           |
@@ -262,7 +262,7 @@ The Export node interprets these references based on node type:
 
 ## 7. AI Agent Features
 
-Tsumugix supports two AI providers:
+Filonex supports two AI providers:
 
 | Provider | Model | Used For |
 |----------|-------|----------|
@@ -348,7 +348,7 @@ Import a research paper PDF to create a Paper node with extracted metadata.
 - Right-click canvas → Import File → select image
 - Drag-and-drop an image onto the canvas
 
-Images are referenced by file path (not embedded in the `.tmgx` file). If the file is moved or deleted, the node shows an error state with a re-link option.
+Images are referenced by file path (not embedded in the `.flnx` file). If the file is moved or deleted, the node shows an error state with a re-link option.
 
 ---
 
