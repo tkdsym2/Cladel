@@ -20,7 +20,6 @@ import * as cmd from "../../lib/tauri-commands";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useSyncStore } from "../../store/syncStore";
 import { useUserStore } from "../../store/userStore";
-import { useTabStore } from "../../store/tabStore";
 import { useFileStore } from "../../store/fileStore";
 import type { AgentCapabilities, UIPreferences, UsageSummary, UsageLogEntry } from "../../types";
 import { SYSTEM_DEFAULTS } from "../../types";
@@ -618,11 +617,11 @@ export function SettingsDialog() {
               </div>
             </div>
 
-            {/* Restore Sample File */}
+            {/* Open Sample File (read-only template) */}
             <div style={sectionStyle}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Sample File</div>
               <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>
-                Restore the built-in sample file to its initial state. This will overwrite any changes you made to the sample.
+                Open the built-in sample as a new untitled document. Saving prompts for a new location — the built-in sample is never overwritten.
               </div>
               <button
                 disabled={restoringSample}
@@ -630,22 +629,10 @@ export function SettingsDialog() {
                   setRestoringSample(true);
                   setRestoreSampleMsg(null);
                   try {
-                    // Close tabs that have the sample file open
-                    const tabs = useTabStore.getState().tabs;
-                    const samplePath = await cmd.ensureSampleFile();
-                    for (const tab of tabs) {
-                      if (tab.file_path === samplePath) {
-                        await useTabStore.getState().closeTab(tab.id);
-                      }
-                    }
-                    // Restore the sample file
-                    const restoredPath = await cmd.restoreSampleFile();
-                    // Re-open the restored sample
-                    await useFileStore.getState().openFilePath(restoredPath);
-                    setRestoreSampleMsg("Sample file restored successfully");
-                    setTimeout(() => setRestoreSampleMsg(null), 3000);
+                    await useFileStore.getState().openSample();
+                    closeSettings();
                   } catch (err) {
-                    setRestoreSampleMsg("Failed to restore: " + String(err));
+                    setRestoreSampleMsg("Failed to open sample: " + String(err));
                   } finally {
                     setRestoringSample(false);
                   }
@@ -663,7 +650,7 @@ export function SettingsDialog() {
                   transition: "opacity 0.15s",
                 }}
               >
-                {restoringSample ? "Restoring..." : "Restore Sample File"}
+                {restoringSample ? "Opening..." : "Open Sample"}
               </button>
               {restoreSampleMsg && (
                 <div style={{
@@ -1014,6 +1001,36 @@ export function SettingsDialog() {
         {/* ── UI Layout Tab ── */}
         {activeTab === "ui_layout" && (
           <div style={sectionStyle}>
+            <div style={subHeadingStyle}>Language</div>
+            <div style={uiRowStyle}>
+              <span style={uiFieldLabelStyle}>Display language</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                {(["en", "ja"] as const).map((lng) => {
+                  const active = localUiPrefs.language === lng;
+                  return (
+                    <button
+                      key={lng}
+                      onClick={() => handleUiPrefsChange({ language: lng })}
+                      style={{
+                        padding: "5px 14px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        border: active ? "1px solid #2563eb" : "1px solid #d1d5db",
+                        background: active ? "#2563eb" : "#fff",
+                        color: active ? "#fff" : "#374151",
+                      }}
+                    >
+                      {lng === "en" ? "English" : "日本語"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={dividerStyle} />
+
             <div style={subHeadingStyle}>Default Node Sizes</div>
             <div style={uiGridStyle}>
               <NodeSizeRow label="Core" color="#1e40af"
@@ -1382,8 +1399,8 @@ const dialogStyle: React.CSSProperties = {
   background: "#fff",
   borderRadius: 12,
   padding: 24,
-  width: 480,
-  maxWidth: "90vw",
+  width: 600,
+  maxWidth: "92vw",
   maxHeight: "85vh",
   overflow: "hidden",
   boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
@@ -1405,6 +1422,10 @@ const tabBarStyle: React.CSSProperties = {
   marginBottom: 16,
   marginTop: 4,
   flexShrink: 0,
+  // Tabs keep their full size and scroll horizontally instead of being clipped.
+  overflowX: "auto",
+  overflowY: "hidden",
+  scrollbarWidth: "thin",
 };
 
 const tabButtonStyle: React.CSSProperties = {
@@ -1421,6 +1442,8 @@ const tabButtonStyle: React.CSSProperties = {
   cursor: "pointer",
   transition: "color 100ms ease, border-color 100ms ease",
   whiteSpace: "nowrap",
+  // Don't shrink — overflow scrolls in the tab bar rather than clipping labels.
+  flexShrink: 0,
 };
 
 const tabButtonActiveStyle: React.CSSProperties = {

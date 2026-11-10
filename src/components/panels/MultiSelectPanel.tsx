@@ -1,14 +1,16 @@
 import SelectAllIcon from "@mui/icons-material/SelectAll";
+import { useT } from "../../lib/i18n";
 
 export function MultiSelectPanel({ count }: { count: number }) {
+  const t = useT();
   return (
     <div style={containerStyle}>
       <div style={headerStyle}>
         <SelectAllIcon sx={{ fontSize: 20, color: "#3b82f6" }} />
-        <span>{count} nodes selected</span>
+        <span>{t({ en: "{count} nodes selected", ja: "{count}件のノードを選択中" }, { count })}</span>
       </div>
       <div style={hintStyle}>
-        Multi-selection actions will appear here.
+        {t({ en: "Multi-selection actions will appear here.", ja: "複数選択時の操作はここに表示されます。" })}
       </div>
     </div>
   );

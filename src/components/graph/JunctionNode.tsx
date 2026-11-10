@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import { useGraphStore } from "../../store/graphStore";
 
 type JunctionNodeData = {
@@ -28,11 +29,8 @@ export function JunctionNode({ id, selected }: NodeProps<Node<JunctionNodeData>>
         onResizeEnd={handleResizeEnd}
       />
       <div style={{ ...containerStyle, width: "100%", height: "100%" }}>
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#6b7280" compact />
         <div style={dotStyle} />
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
       </div>
     </>
   );
@@ -56,15 +54,6 @@ const dotStyle: React.CSSProperties = {
   borderRadius: "50%",
   background: "#4b5563",
   border: "2px solid #374151",
-};
-
-const handleStyle: React.CSSProperties = {
-  width: 6,
-  height: "40%",
-  minHeight: 8,
-  borderRadius: 3,
-  background: "#6b7280",
-  border: "1px solid #9ca3af",
 };
 
 const resizerLineStyle: React.CSSProperties = {

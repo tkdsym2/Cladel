@@ -168,6 +168,79 @@ npm run tauri build
 
 Output binaries are placed in `src-tauri/target/release/bundle/`.
 
+## リリース手順(自動アップデートの配信)
+
+Cladel には GitHub Releases を利用した自動アップデート機能(`tauri-plugin-updater`)が組み込まれています。新しいバージョンを公開すると、インストール済みのアプリは次回起動時に自動で更新を検知し、確認ダイアログ(「Update Now」)を表示します。
+
+### 仕組み
+
+- アプリは起動時に `https://github.com/tkdsym2/Cladel/releases/latest/download/latest.json` を自動チェックします(開発モード `npm run tauri dev` ではスキップされます)。
+- インストール済みバージョンより新しいリリースがあればダイアログを表示し、ユーザーが「Update Now」を押すとダウンロード → 署名検証 → インストール → 再起動が行われます。
+- ビルドと署名はすべて GitHub Actions(`.github/workflows/release.yml`)が実行します。**ローカル PC でのビルドは不要です。**
+
+### 事前条件(設定済み)
+
+| 項目 | 場所 |
+|------|------|
+| 公開鍵 | `src-tauri/tauri.conf.json` の `plugins.updater.pubkey`(コミット済み・公開して問題ない) |
+| 秘密鍵とパスワード | GitHub リポジトリ → Settings → Secrets and variables → Actions の `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` |
+
+> ⚠️ **秘密鍵のバックアップ**: GitHub Secrets は書き込み専用で、後から取り出すことはできません。秘密鍵を紛失すると既存インストールへのアップデート配信ができなくなります。鍵を生成したマシンの `~/.tauri/` にある鍵ファイルとパスワードを必ず安全な場所にバックアップしてください。秘密鍵をリポジトリにコミットしてはいけません。
+
+### 手順
+
+💻 = ローカル PC で実行 / ☁️ = GitHub 上で実行
+
+1. 💻 フィーチャーブランチ上で変更を行う
+2. 💻 バージョン番号を 3 つのファイルで上げる(**すべて一致させること**)
+   - `package.json`
+   - `src-tauri/tauri.conf.json`
+   - `src-tauri/Cargo.toml`
+   - 併せて `cargo check` を一度実行し `Cargo.lock` も更新しておく
+3. 💻 設定を検証する
+
+   ```bash
+   npm run release:check
+   ```
+
+4. 💻 コミットしてブランチを push する
+
+   ```bash
+   git add -A
+   git commit -m "chore: bump version to 0.1.1"
+   git push origin <ブランチ名>
+   ```
+
+5. ☁️ GitHub 上で PR を作成し、`main` にマージする
+6. 💻 ローカルの `main` を最新化する
+
+   ```bash
+   git checkout main
+   git pull
+   ```
+
+7. 💻 `main` 上でタグを作成して push する(**この push がリリースビルドのトリガー**)
+
+   ```bash
+   git tag v0.1.1
+   git push origin v0.1.1
+   ```
+
+8. ☁️ GitHub Actions が 3 プラットフォーム(macOS / Windows / Linux)を自動でビルド・署名し、Release と `latest.json` を公開する(約 20〜40 分)。進行状況はリポジトリの **Actions** タブで確認できます。
+
+### 動作確認
+
+1. リリース完了後、旧バージョンのインストール済みアプリを起動する
+2. 「Update Available v0.1.1」ダイアログが自動で表示される
+3. 「Update Now」→ ダウンロード進捗バー → 「Restart Now」で新バージョンが起動する
+
+### 注意点
+
+- タグ名(例: `v0.1.1`)と 3 ファイルのバージョン番号が一致しないと、CI の `release:check` が失敗してリリースされません。
+- アップデートダイアログは「インストール済みより新しいバージョン」が公開されたときのみ表示されます。同じバージョンでは何も起こりません。
+- 配信は常に**最新の Release**(`/releases/latest`)から行われます。draft / prerelease は配信対象になりません。
+- タグはマージ後の `main` に対して打つこと。タグが指すコミットがそのままリリースされるため、ブランチに直接タグを打つと `main` とリリース内容がずれます。
+
 ## Reference
 
 See [`CLAUDE.md`](./CLAUDE.md) for comprehensive codebase documentation including:

@@ -4,7 +4,8 @@
   "description": "Capability for auxiliary app windows",
   "windows": [
     "agent-console",
-    "manual"
+    "manual",
+    "note-help"
   ],
   "permissions": [
     "core:default",

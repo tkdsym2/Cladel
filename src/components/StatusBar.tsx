@@ -1,4 +1,5 @@
 import type { AgentCapabilities, SyncStatusResult } from "../types";
+import { useT } from "../lib/i18n";
 import CloudDoneIcon from "@mui/icons-material/CloudDone";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
@@ -56,17 +57,22 @@ export function StatusBar({
   onOpenSettings: () => void;
   onOpenSyncDialog: () => void;
 }) {
+  const t = useT();
   return (
     <div style={statusBarStyle}>
       <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-        <span>Nodes: {nodeCount}</span>
-        <span>Edges: {edgeCount}</span>
+        <span>{t({ en: "Nodes: {n}", ja: "ノード: {n}" }, { n: nodeCount })}</span>
+        <span>{t({ en: "Edges: {n}", ja: "エッジ: {n}" }, { n: edgeCount })}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <button
           onClick={onOpenSettings}
           style={apiStatusBtnStyle}
-          title={apiKeyStatus ? "Claude API key configured" : "Click to set up API key"}
+          title={
+            apiKeyStatus
+              ? t({ en: "Claude API key configured", ja: "Claude APIキーが設定済み" })
+              : t({ en: "Click to set up API key", ja: "クリックしてAPIキーを設定" })
+          }
         >
           <span
             style={{
@@ -75,7 +81,9 @@ export function StatusBar({
             }}
           />
           <span>
-            Claude API: {apiKeyStatus ? "Connected" : "Not configured"}
+            {apiKeyStatus
+              ? t({ en: "Claude API: Connected", ja: "Claude API: 接続済み" })
+              : t({ en: "Claude API: Not configured", ja: "Claude API: 未設定" })}
           </span>
         </button>
         <button
@@ -83,10 +91,10 @@ export function StatusBar({
           style={apiStatusBtnStyle}
           title={
             !agentCapabilities.agent_enabled
-              ? "Agent is off — click to configure"
+              ? t({ en: "Agent is off — click to configure", ja: "エージェントはオフ — クリックして設定" })
               : agentCapabilities.autonomous_enabled
-                ? "Agent on with auto-suggest"
-                : "Agent on, auto-suggest off — click to configure"
+                ? t({ en: "Agent on with auto-suggest", ja: "エージェントはオン・自動提案あり" })
+                : t({ en: "Agent on, auto-suggest off — click to configure", ja: "エージェントはオン・自動提案オフ — クリックして設定" })
           }
         >
           <span
@@ -101,10 +109,10 @@ export function StatusBar({
           />
           <span>
             {!agentCapabilities.agent_enabled
-              ? "Agent: Off"
+              ? t({ en: "Agent: Off", ja: "\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8: \u30aa\u30d5" })
               : agentCapabilities.autonomous_enabled
-                ? "Agent: On \u00b7 Auto"
-                : "Agent: On"}
+                ? t({ en: "Agent: On \u00b7 Auto", ja: "\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8: \u30aa\u30f3 \u00b7 \u81ea\u52d5" })
+                : t({ en: "Agent: On", ja: "\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8: \u30aa\u30f3" })}
           </span>
         </button>
         {/* Cloud sync indicator */}
@@ -112,27 +120,27 @@ export function StatusBar({
           <button
             onClick={onOpenSyncDialog}
             style={apiStatusBtnStyle}
-            title="Cloud sync status — click to manage"
+            title={t({ en: "Cloud sync status — click to manage", ja: "クラウド同期の状態 — クリックして管理" })}
           >
             {!syncStatus ? (
               <>
                 <CloudSyncIcon sx={{ fontSize: 14, color: "#9ca3af" }} />
-                <span>Checking...</span>
+                <span>{t({ en: "Checking...", ja: "確認中..." })}</span>
               </>
             ) : syncStatus.is_in_sync ? (
               <>
                 <CloudDoneIcon sx={{ fontSize: 14, color: "#059669" }} />
-                <span style={{ color: "#059669" }}>In sync</span>
+                <span style={{ color: "#059669" }}>{t({ en: "In sync", ja: "同期済み" })}</span>
               </>
             ) : !syncStatus.has_remote ? (
               <>
                 <CloudUploadIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                <span style={{ color: "#d97706" }}>Not uploaded</span>
+                <span style={{ color: "#d97706" }}>{t({ en: "Not uploaded", ja: "未アップロード" })}</span>
               </>
             ) : (
               <>
                 <CloudSyncIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                <span style={{ color: "#d97706" }}>Out of sync</span>
+                <span style={{ color: "#d97706" }}>{t({ en: "Out of sync", ja: "未同期" })}</span>
               </>
             )}
           </button>
@@ -141,7 +149,7 @@ export function StatusBar({
           <button
             onClick={onOpenSettings}
             style={apiStatusBtnStyle}
-            title="Cloud sync not configured"
+            title={t({ en: "Cloud sync not configured", ja: "クラウド同期が未設定" })}
           >
             <CloudOffIcon sx={{ fontSize: 14, color: "#d1d5db" }} />
           </button>

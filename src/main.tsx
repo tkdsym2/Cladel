@@ -5,6 +5,7 @@ import App from "./App";
 import { DetachedNodeDetail } from "./components/panels/DetachedNodeDetail";
 import { AgentConsole } from "./components/panels/AgentConsole";
 import { ManualWindow } from "./components/panels/ManualWindow";
+import { NoteHelpWindow } from "./components/panels/NoteHelpWindow";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         />
         <Route path="/agent-console" element={<AgentConsole />} />
         <Route path="/manual" element={<ManualWindow />} />
+        <Route path="/note-help" element={<NoteHelpWindow />} />
       </Routes>
     </HashRouter>
   </React.StrictMode>,

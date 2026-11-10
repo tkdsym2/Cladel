@@ -39,6 +39,8 @@ import type {
   RemoteFileStats,
   SyncStatusResult,
   UserIdentity,
+  TableImportResult,
+  RenderPreviewResult,
 } from "../types";
 
 // ─── Tab Info ───
@@ -111,12 +113,9 @@ export function fileGetCurrentPath(): Promise<string | null> {
   return invoke("file_get_current_path");
 }
 
-export function ensureSampleFile(): Promise<string> {
-  return invoke("ensure_sample_file");
-}
-
-export function restoreSampleFile(): Promise<string> {
-  return invoke("restore_sample_file");
+/** Open the built-in sample as a new untitled tab (read-only template). */
+export function openSampleAsNew(): Promise<TabInfo> {
+  return invoke("open_sample_as_new");
 }
 
 // ─── Projects ───
@@ -464,6 +463,23 @@ export function extractPdfWithClaude(filePath: string): Promise<PdfMetadata> {
   return invoke("extract_pdf_with_claude", { filePath });
 }
 
+// ─── Table Import ───
+
+export function importTableFile(path: string): Promise<TableImportResult> {
+  return invoke("import_table_file", { path });
+}
+
+// ─── Typst Render ───
+
+export function renderTypstPreview(renderNodeId: string): Promise<RenderPreviewResult> {
+  return invoke("render_typst_preview", { renderNodeId });
+}
+
+/** Omit `outputPath` to generate a preview PDF in the app temp dir (path is returned). */
+export function generateTypstExportPdf(exportNodeId: string, outputPath?: string): Promise<string> {
+  return invoke("generate_typst_export_pdf", { exportNodeId, outputPath: outputPath ?? null });
+}
+
 // ─── Export ───
 
 export function getPaperNodesByLayers(): Promise<LayerPaperGroup[]> {
@@ -694,11 +710,12 @@ export function updateExportStyleConfig(
   return invoke("update_export_style_config", { exportNodeId, styleConfig });
 }
 
+/** Omit `outputPath` to generate a preview PDF in the app temp dir (path is returned). */
 export function generateExportPdf(
   exportNodeId: string,
-  outputPath: string,
+  outputPath?: string,
 ): Promise<string> {
-  return invoke("generate_export_pdf", { exportNodeId, outputPath });
+  return invoke("generate_export_pdf", { exportNodeId, outputPath: outputPath ?? null });
 }
 
 // ─── Supabase Config ───
@@ -717,23 +734,6 @@ export function getSupabaseConfigStatus(): Promise<boolean> {
 
 export function deleteSupabaseConfig(): Promise<void> {
   return invoke("delete_supabase_config");
-}
-
-// ─── Nano Banana ───
-
-export interface NanoBananaResult {
-  file_path: string;
-  mime_type: string;
-  description: string | null;
-}
-
-export function generateNanoBananaImage(
-  nodeId: string,
-  layerId: string,
-  prompt: string,
-  aspectRatio?: string,
-): Promise<NanoBananaResult> {
-  return invoke("generate_nano_banana_image", { nodeId, layerId, prompt, aspectRatio });
 }
 
 // ─── Cloud Sync ───

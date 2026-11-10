@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback, type MouseEvent } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
+import { useT } from "../../lib/i18n";
 import type { LayerData } from "../../types";
 
 interface Props {
@@ -22,6 +23,7 @@ export function LayerBar({
   onExportBibtex,
   onClose,
 }: Props) {
+  const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
   const [confirmLayerId, setConfirmLayerId] = useState<string | null>(null);
@@ -62,7 +64,7 @@ export function LayerBar({
       <div style={panelStyle}>
         {/* Header */}
         <div style={{ ...headerStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={headerLabelStyle}>Layers</span>
+          <span style={headerLabelStyle}>{t({ en: "Layers", ja: "レイヤー" })}</span>
           {onClose && (
             <button
               onClick={onClose}
@@ -76,7 +78,7 @@ export function LayerBar({
                 display: "flex",
                 alignItems: "center",
               }}
-              title="Hide layers"
+              title={t({ en: "Hide layers", ja: "レイヤーを隠す" })}
             >
               <CloseIcon sx={{ fontSize: 14 }} />
             </button>
@@ -84,8 +86,8 @@ export function LayerBar({
         </div>
 
         {/* Add Layer button */}
-        <button onClick={onNewLayer} style={addLayerBtnStyle} title="Create new layer">
-          <AddIcon sx={{ fontSize: 14, mr: "2px" }} /> Add Layer
+        <button onClick={onNewLayer} style={addLayerBtnStyle} title={t({ en: "Create new layer", ja: "新しいレイヤーを作成" })}>
+          <AddIcon sx={{ fontSize: 14, mr: "2px" }} /> {t({ en: "Add Layer", ja: "レイヤーを追加" })}
         </button>
 
         {/* Scrollable layer list */}
@@ -101,14 +103,17 @@ export function LayerBar({
                   ...cardStyle,
                   ...(isActive ? activeCardStyle : inactiveCardStyle),
                 }}
-                title={`Layer ${layer.layer_number} — created ${new Date(layer.created_at).toLocaleDateString()}`}
+                title={t(
+                  { en: "Layer {n} — created {date}", ja: "レイヤー {n} — 作成日 {date}" },
+                  { n: layer.layer_number, date: new Date(layer.created_at).toLocaleDateString() },
+                )}
               >
-                <span style={cardLabelStyle}>Layer {layer.layer_number}</span>
+                <span style={cardLabelStyle}>{t({ en: "Layer {n}", ja: "レイヤー {n}" }, { n: layer.layer_number })}</span>
                 {layer.layer_number !== 1 && (
                   <span
                     onClick={(e) => handleDeleteClick(e, layer.id)}
                     style={deleteIconStyle}
-                    title="Delete layer"
+                    title={t({ en: "Delete layer", ja: "レイヤーを削除" })}
                   >
                     <CloseIcon sx={{ fontSize: 14 }} />
                   </span>
@@ -121,8 +126,8 @@ export function LayerBar({
         {/* Divider + Export */}
         <div style={exportSectionStyle}>
           <div style={dividerStyle} />
-          <button onClick={onExportBibtex} style={exportBtnStyle} title="Export BibTeX references">
-            Export .bib
+          <button onClick={onExportBibtex} style={exportBtnStyle} title={t({ en: "Export BibTeX references", ja: "BibTeX文献をエクスポート" })}>
+            {t({ en: "Export .bib", ja: ".bibをエクスポート" })}
           </button>
         </div>
       </div>
@@ -132,23 +137,26 @@ export function LayerBar({
         <div style={overlayStyle} onClick={() => setConfirmLayerId(null)}>
           <div style={dialogStyle} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>
-              Delete Layer {confirmLayer.layer_number}?
+              {t({ en: "Delete Layer {n}?", ja: "レイヤー {n} を削除しますか?" }, { n: confirmLayer.layer_number })}
             </div>
             <div style={{ fontSize: 13, color: "#4b5563", lineHeight: 1.5, marginBottom: 16 }}>
-              All nodes and edges in this layer will be permanently deleted. This cannot be undone.
+              {t({
+                en: "All nodes and edges in this layer will be permanently deleted. This cannot be undone.",
+                ja: "このレイヤー内のすべてのノードとエッジが完全に削除されます。この操作は取り消せません。",
+              })}
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button
                 onClick={() => setConfirmLayerId(null)}
                 style={cancelBtnStyle}
               >
-                Cancel
+                {t({ en: "Cancel", ja: "キャンセル" })}
               </button>
               <button
                 onClick={handleConfirmDelete}
                 style={deleteBtnStyle}
               >
-                Delete
+                {t({ en: "Delete", ja: "削除" })}
               </button>
             </div>
           </div>

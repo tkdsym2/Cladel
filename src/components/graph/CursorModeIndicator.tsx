@@ -5,12 +5,14 @@ import PaletteIcon from "@mui/icons-material/Palette";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import { useGraphStore } from "../../store/graphStore";
+import { useT } from "../../lib/i18n";
 
 export type CursorMode = "normal" | "select";
 
 const BAR_H = 28;
 
 export function CursorModeIndicator({ mode }: { mode: CursorMode }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
 
   const isSelect = mode === "select";
@@ -36,7 +38,9 @@ export function CursorModeIndicator({ mode }: { mode: CursorMode }) {
       {/* Toggle arrow */}
       <button
         onClick={() => setExpanded((v) => !v)}
-        title={expanded ? "Hide shortcut help" : "Show shortcut help"}
+        title={expanded
+          ? t({ en: "Hide shortcut help", ja: "ショートカットヘルプを隠す" })
+          : t({ en: "Show shortcut help", ja: "ショートカットヘルプを表示" })}
         style={{
           width: 20,
           display: "flex",
@@ -94,7 +98,7 @@ export function CursorModeIndicator({ mode }: { mode: CursorMode }) {
               transform: "scaleX(-1)",
             }}
           />
-          <span>Move</span>
+          <span>{t({ en: "Move", ja: "移動" })}</span>
         </div>
 
         {/* Divider */}
@@ -115,14 +119,16 @@ export function CursorModeIndicator({ mode }: { mode: CursorMode }) {
           }}
         >
           <HighlightAltIcon sx={{ fontSize: 13 }} />
-          <span>Select</span>
+          <span>{t({ en: "Select", ja: "選択" })}</span>
         </div>
       </div>
 
       {/* Color mode toggle */}
       <button
         onClick={toggleColorMode}
-        title={isUserColor ? "Color: User (press C to toggle)" : "Color: Type (press C to toggle)"}
+        title={isUserColor
+          ? t({ en: "Color: User (press C to toggle)", ja: "カラー: ユーザー (Cキーで切替)" })
+          : t({ en: "Color: Type (press C to toggle)", ja: "カラー: タイプ (Cキーで切替)" })}
         style={{
           display: "flex",
           alignItems: "center",
@@ -145,7 +151,7 @@ export function CursorModeIndicator({ mode }: { mode: CursorMode }) {
         ) : (
           <PaletteOutlinedIcon sx={{ fontSize: 13 }} />
         )}
-        <span>{isUserColor ? "User" : "Type"}</span>
+        <span>{isUserColor ? t({ en: "User", ja: "ユーザー" }) : t({ en: "Type", ja: "タイプ" })}</span>
       </button>
 
       {/* Expanded help panel */}
@@ -167,13 +173,13 @@ export function CursorModeIndicator({ mode }: { mode: CursorMode }) {
           }}
         >
           <span>
-            <kbd style={kbdStyle}>V</kbd> Move
+            <kbd style={kbdStyle}>V</kbd> {t({ en: "Move", ja: "移動" })}
           </span>
           <span>
-            <kbd style={kbdStyle}>G</kbd> Select
+            <kbd style={kbdStyle}>G</kbd> {t({ en: "Select", ja: "選択" })}
           </span>
           <span>
-            <kbd style={kbdStyle}>C</kbd> Color
+            <kbd style={kbdStyle}>C</kbd> {t({ en: "Color", ja: "カラー" })}
           </span>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import { useGraphStore } from "../../store/graphStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
 import { ProcessingIndicator } from "./ProcessingIndicator";
@@ -40,8 +41,7 @@ export function CoreNode({ id, data, selected }: NodeProps<Node<CoreNodeData>>) 
       />
       <div style={containerStyle(selected)}>
         <ProcessingIndicator nodeId={id} />
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>
+        <div style={nameStyle}>{displayId ?? title}</div>
         {content && (
           <div style={contentStyle}>
             {content.slice(0, 120)}
@@ -49,10 +49,7 @@ export function CoreNode({ id, data, selected }: NodeProps<Node<CoreNodeData>>) 
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} dark />
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#60a5fa" />
       </div>
     </>
   );
@@ -81,12 +78,11 @@ function containerStyle(selected: boolean | undefined): React.CSSProperties {
   };
 }
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
+const nameStyle: React.CSSProperties = {
+  fontWeight: 700,
   fontFamily: "monospace",
-  color: "rgba(255,255,255,0.5)",
-  lineHeight: 1,
-  marginBottom: 2,
+  marginBottom: 4,
+  wordBreak: "break-word",
 };
 
 const contentStyle: React.CSSProperties = {
@@ -95,15 +91,6 @@ const contentStyle: React.CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
   wordBreak: "break-word",
-};
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#60a5fa",
-  border: "2px solid #1e3a5f",
 };
 
 const connectedRefsStyle: React.CSSProperties = {

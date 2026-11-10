@@ -1,5 +1,6 @@
 import { useCallback, type MouseEvent } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import { useGraphStore } from "../../store/graphStore";
@@ -151,23 +152,11 @@ export function GhostNode({
 
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
 
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#7c3aed" />
       </div>
     </>
   );
 }
-
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#7c3aed",
-  border: "2px solid rgba(124, 58, 237, 0.15)",
-};
 
 const displayIdLabelStyle: React.CSSProperties = {
   fontSize: 10,

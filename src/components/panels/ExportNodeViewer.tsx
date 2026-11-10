@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
@@ -8,6 +8,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import TuneIcon from "@mui/icons-material/Tune";
 import TitleIcon from "@mui/icons-material/Title";
+import PreviewIcon from "@mui/icons-material/Preview";
 import type { NodeData, ExportPreview, ExportStyleConfig } from "../../types";
 import { DEFAULT_EXPORT_STYLE } from "../../types";
 import { useGraphStore } from "../../store/graphStore";
@@ -16,14 +17,35 @@ import * as cmd from "../../lib/tauri-commands";
 import { save } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { ExportStyleConfigDialog } from "../dialogs/ExportStyleConfigDialog";
+import { ExportPreviewDialog } from "../dialogs/ExportPreviewDialog";
 import { emitExportStarted, emitExportFinished } from "../../lib/sync-events";
 
 interface ExportNodeViewerProps {
   node: NodeData;
 }
 
+type ExportPipeline = "markdown" | "typst";
+
+// The Document Title doubles as the suggested file name — strip path-hostile chars.
+function sanitizeFilename(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, "_").trim();
+}
+
 export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
   const updateNodeContent = useGraphStore((s) => s.updateNodeContent);
+  const dbNodes = useGraphStore((s) => s.dbNodes);
+  const dbEdges = useGraphStore((s) => s.dbEdges);
+
+  // Typst mode: this export node is connected to one or more render nodes.
+  const connectedRenderCount = useMemo(() => {
+    const neighborIds = new Set<string>();
+    for (const e of dbEdges) {
+      if (e.source_node_id === node.id) neighborIds.add(e.target_node_id);
+      else if (e.target_node_id === node.id) neighborIds.add(e.source_node_id);
+    }
+    return dbNodes.filter((n) => neighborIds.has(n.id) && n.node_type === "render").length;
+  }, [dbNodes, dbEdges, node.id]);
+  const isTypstMode = connectedRenderCount > 0;
 
   const [title, setTitle] = useState(node.title);
   const [preview, setPreview] = useState<ExportPreview | null>(null);
@@ -35,6 +57,8 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
   const [lastExportPath, setLastExportPath] = useState<string | null>(null);
   const [styleDialogOpen, setStyleDialogOpen] = useState(false);
   const [styleConfig, setStyleConfig] = useState<ExportStyleConfig>(DEFAULT_EXPORT_STYLE);
+  const [previewPdf, setPreviewPdf] = useState<{ path: string; pipeline: ExportPipeline; version: number } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -125,17 +149,12 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
     [node.id, preview],
   );
 
-  // Generate PDF
-  const handleGeneratePdf = useCallback(async () => {
-    setError(null);
-    try {
-      const path = await save({
-        title: "Export PDF",
-        defaultPath: `${title || "export"}.pdf`,
-        filters: [{ name: "PDF", extensions: ["pdf"] }],
-      });
-      if (!path) return;
-
+  // Run a PDF generation on either pipeline. With `outputPath` this is a real
+  // export; without it the backend writes a preview PDF into the app temp dir.
+  // Returns the written path, or null on failure.
+  const runPdfGeneration = useCallback(
+    async (pipeline: ExportPipeline, outputPath?: string): Promise<string | null> => {
+      setError(null);
       setGenerating(true);
 
       // 1. Show overlay IMMEDIATELY via synchronous Zustand update (same window)
@@ -145,7 +164,7 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
       emitExportStarted();
 
       // 3. Register progress listener (fire-and-forget, no await)
-      //    The listener IPC registers faster than generateExportPdf's
+      //    The listener IPC registers faster than the generate command's
       //    IPC round-trip, so no progress events are missed.
       const progressUnlistenRef: { current: (() => void) | null } = { current: null };
       listen<ExportProgress>("export-progress", (event) => {
@@ -155,24 +174,63 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
       // 4. Start generation — first await point, React renders overlay here
       let exportErr: string | null = null;
       try {
-        const result = await cmd.generateExportPdf(node.id, path);
-        setLastExportPath(result);
+        const result =
+          pipeline === "typst"
+            ? await cmd.generateTypstExportPdf(node.id, outputPath)
+            : await cmd.generateExportPdf(node.id, outputPath);
         // Ensure progress shows done even if the event arrived before listener
         useExportStore.getState().finishSelfExport(null);
+        return result;
       } catch (err) {
         exportErr = String(err);
         setError(exportErr);
         useExportStore.getState().finishSelfExport(exportErr);
+        return null;
       } finally {
         if (progressUnlistenRef.current) progressUnlistenRef.current();
         emitExportFinished(exportErr);
         setGenerating(false);
       }
-    } catch (err) {
-      // save dialog error (unlikely)
-      setError(String(err));
-    }
-  }, [node.id, title]);
+    },
+    [node.id],
+  );
+
+  // Full export: pick a destination (Document Title = suggested file name),
+  // then generate.
+  const handleGeneratePdf = useCallback(
+    async (pipeline: ExportPipeline) => {
+      setError(null);
+      try {
+        const path = await save({
+          title: "Export PDF",
+          defaultPath: `${sanitizeFilename(title) || "export"}.pdf`,
+          filters: [{ name: "PDF", extensions: ["pdf"] }],
+        });
+        if (!path) return;
+        const result = await runPdfGeneration(pipeline, path);
+        if (result) {
+          setLastExportPath(result);
+          setPreviewOpen(false);
+        }
+      } catch (err) {
+        // save dialog error (unlikely)
+        setError(String(err));
+      }
+    },
+    [title, runPdfGeneration],
+  );
+
+  // Preview: generate into the temp dir and show the result in a dialog.
+  const handlePreviewPdf = useCallback(
+    async (pipeline: ExportPipeline) => {
+      const result = await runPdfGeneration(pipeline);
+      if (result) {
+        setPreviewPdf({ path: result, pipeline, version: Date.now() });
+        setPreviewOpen(true);
+      }
+    },
+    [runPdfGeneration],
+  );
 
   const handleOpenExported = useCallback(async () => {
     if (lastExportPath) {
@@ -186,9 +244,18 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
 
   return (
     <div style={containerStyle}>
-      {/* Title editor */}
+      {/* Node id + document title (export data, not the node name) */}
       <div style={sectionStyle}>
-        <label style={labelStyle}>Title</label>
+        {node.display_id && (
+          <div style={{ fontSize: 13, fontFamily: "monospace", color: "#be123c", marginBottom: 8 }}>
+            {node.display_id}
+          </div>
+        )}
+        <label style={labelStyle}>Document Title</label>
+        <div style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0 4px" }}>
+          Used as the file name of the exported PDF. It is not printed in the
+          document — connect a Title node to add a title page.
+        </div>
         <input
           type="text"
           value={title}
@@ -300,7 +367,7 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
                 <div style={sectionItemHeaderStyle}>
                   <span style={sectionNumStyle}>{idx + 1}.</span>
                   <div style={sectionInfoStyle}>
-                    <span style={sectionTitleStyle}>{section.title}</span>
+                    <span style={sectionTitleStyle}>{section.display_id ?? section.title}</span>
                     {section.display_id && (
                       <span style={sectionIdStyle}>{section.display_id}</span>
                     )}
@@ -381,22 +448,71 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
         <div style={errorStyle}>{error}</div>
       )}
 
-      {/* Generate PDF button */}
+      {/* Typst export (export node connected to render nodes) */}
+      {isTypstMode && (
+        <div style={sectionStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <PreviewIcon sx={{ fontSize: 16, color: "#9333ea" }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              Typst export · {connectedRenderCount} render node{connectedRenderCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}>
+            Generate a PDF from the connected render node{connectedRenderCount === 1 ? "" : "s"} (Typst pipeline). The output matches the render preview.
+          </p>
+          <div style={btnRowStyle}>
+            <button
+              onClick={() => void handlePreviewPdf("typst")}
+              disabled={generating}
+              style={{ ...previewBtnStyle, borderColor: "#9333ea", color: "#9333ea" }}
+            >
+              <PreviewIcon sx={{ fontSize: 16, mr: 0.5 }} />
+              Preview
+            </button>
+            <button
+              onClick={() => void handleGeneratePdf("typst")}
+              disabled={generating}
+              style={{ ...generateBtnStyle, flex: 1, background: "#9333ea" }}
+            >
+              {generating ? (
+                "Generating..."
+              ) : (
+                <>
+                  <PictureAsPdfIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                  Generate PDF (Typst)
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Preview & Generate PDF buttons (Markdown pipeline) */}
       <div style={sectionStyle}>
-        <button
-          onClick={handleGeneratePdf}
-          disabled={generating || !preview || preview.sections.length === 0}
-          style={generateBtnStyle}
-        >
-          {generating ? (
-            "Generating..."
-          ) : (
-            <>
-              <PictureAsPdfIcon sx={{ fontSize: 16, mr: 0.5 }} />
-              Generate PDF
-            </>
-          )}
-        </button>
+        <div style={btnRowStyle}>
+          <button
+            onClick={() => void handlePreviewPdf("markdown")}
+            disabled={generating || !preview || preview.sections.length === 0}
+            style={previewBtnStyle}
+          >
+            <PreviewIcon sx={{ fontSize: 16, mr: 0.5 }} />
+            Preview
+          </button>
+          <button
+            onClick={() => void handleGeneratePdf("markdown")}
+            disabled={generating || !preview || preview.sections.length === 0}
+            style={{ ...generateBtnStyle, flex: 1 }}
+          >
+            {generating ? (
+              "Generating..."
+            ) : (
+              <>
+                <PictureAsPdfIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                Generate PDF
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Last export path */}
@@ -418,6 +534,18 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
         preview={preview}
         styleConfig={styleConfig}
         onStyleChange={setStyleConfig}
+      />
+
+      {/* PDF Preview Dialog (both pipelines) */}
+      <ExportPreviewDialog
+        open={previewOpen}
+        pdfPath={previewPdf?.path ?? null}
+        version={previewPdf?.version ?? 0}
+        saving={generating}
+        onClose={() => setPreviewOpen(false)}
+        onSave={() => {
+          if (previewPdf) void handleGeneratePdf(previewPdf.pipeline);
+        }}
       />
     </div>
   );
@@ -598,6 +726,26 @@ const generateBtnStyle: React.CSSProperties = {
   background: "#e11d48",
   color: "#ffffff",
   border: "none",
+  borderRadius: 6,
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const btnRowStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+};
+
+const previewBtnStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 4,
+  padding: "10px 14px",
+  background: "#ffffff",
+  color: "#e11d48",
+  border: "1px solid #e11d48",
   borderRadius: 6,
   fontSize: 13,
   fontWeight: 600,

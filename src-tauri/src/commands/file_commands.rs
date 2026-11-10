@@ -153,7 +153,7 @@ pub fn file_get_current_path(db: State<Database>) -> Result<Option<String>, Stri
 /// Locate the bundled sample.cld file.
 /// Checks the Tauri resource dir (production) first, then falls back to the
 /// source tree relative to CARGO_MANIFEST_DIR (dev mode).
-fn find_bundled_sample(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn find_bundled_sample(app: &AppHandle) -> Result<PathBuf, String> {
     // Production: bundled resource
     if let Ok(resource_dir) = app.path().resource_dir() {
         let path = resource_dir.join("sample.cld");
@@ -171,45 +171,8 @@ fn find_bundled_sample(app: &AppHandle) -> Result<PathBuf, String> {
     Err("Bundled sample file not found".to_string())
 }
 
-/// Ensure the sample file exists in the app data directory.
-/// Copies the bundled sample.cld to the user's data dir if it doesn't exist yet.
-/// Returns the path to the working copy.
-#[tauri::command]
-pub fn ensure_sample_file(app: AppHandle) -> Result<String, String> {
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {e}"))?;
-    std::fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create data dir: {e}"))?;
-
-    let sample_path = data_dir.join("sample.cld");
-
-    if !sample_path.exists() {
-        let resource_path = find_bundled_sample(&app)?;
-        std::fs::copy(&resource_path, &sample_path)
-            .map_err(|e| format!("Failed to copy sample file: {e}"))?;
-    }
-
-    Ok(sample_path.to_string_lossy().to_string())
-}
-
-/// Restore the sample file to its initial state.
-/// Overwrites the user's working copy with the bundled original.
-/// The caller must ensure the file is not currently open (close the tab first).
-/// Returns the path to the restored file.
-#[tauri::command]
-pub fn restore_sample_file(app: AppHandle) -> Result<String, String> {
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {e}"))?;
-    std::fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create data dir: {e}"))?;
-
-    let sample_path = data_dir.join("sample.cld");
-    let resource_path = find_bundled_sample(&app)?;
-
-    std::fs::copy(&resource_path, &sample_path)
-        .map_err(|e| format!("Failed to restore sample file: {e}"))?;
-
-    Ok(sample_path.to_string_lossy().to_string())
-}
+// NOTE: The sample is now opened as a read-only TEMPLATE (see
+// `tab_commands::open_sample_as_new`): its content is loaded into a new untitled
+// tab so the first save becomes "Save As". The built-in sample is never
+// overwritten, so the old writable app-data cache (ensure/restore_sample_file)
+// has been removed.

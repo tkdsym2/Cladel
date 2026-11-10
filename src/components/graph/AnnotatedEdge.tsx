@@ -7,6 +7,13 @@ import {
 import { useGraphStore } from "../../store/graphStore";
 
 /**
+ * Bezier curvature used for ALL edge paths. GraphCanvas recomputes edge
+ * geometry (drop-on-edge hit test, Tab-create preview wire) and must use the
+ * same value, or the math drifts from what is rendered.
+ */
+export const EDGE_CURVATURE = 0.32;
+
+/**
  * Evaluate a cubic bezier curve at parameter t (0..1).
  * Returns [x, y] at that point on the curve.
  */
@@ -66,7 +73,8 @@ function computeArrowPoints(
   const py = nx;
   const baseX = tipX - nx * arrowSize;
   const baseY = tipY - ny * arrowSize;
-  const halfW = arrowSize * 0.5;
+  // Slim arrowhead (narrower than equilateral) for a sleeker wire look.
+  const halfW = arrowSize * 0.42;
   return `${tipX},${tipY} ${baseX + px * halfW},${baseY + py * halfW} ${baseX - px * halfW},${baseY - py * halfW}`;
 }
 
@@ -100,7 +108,8 @@ export function AnnotatedEdge({
   const targetNode = useGraphStore((s) => s.dbNodes.find((n) => n.id === target));
   const sourceNode = useGraphStore((s) => s.dbNodes.find((n) => n.id === source));
 
-  const strokeWidth = weight + 1; // thicker for easier selection
+  // Weight 1..5 → 1.6..4.0px: thinner wires than before, still distinct steps.
+  const strokeWidth = 1 + weight * 0.6;
   const isAgent = createdBy === "agent";
 
   const [edgePath] = getBezierPath({
@@ -110,6 +119,7 @@ export function AnnotatedEdge({
     targetY,
     sourcePosition,
     targetPosition,
+    curvature: EDGE_CURVATURE, // slightly stronger S-curve, TouchDesigner-style wires
   });
 
   const baseColor = hasDeletedEndpoint
@@ -120,10 +130,10 @@ export function AnnotatedEdge({
         ? "#2563eb"
         : isAgent
           ? "#7c3aed"
-          : "#6b7280";
+          : "#94a3b8";
   const edgeOpacity = hasDeletedEndpoint ? 0.5 : 1;
 
-  const arrowSize = Math.max(10, strokeWidth * 2.5);
+  const arrowSize = Math.max(9, strokeWidth * 2.7);
   const arrowPoints = useMemo(() => {
     if (!targetNode || !sourceNode) return "0,0 0,0 0,0";
 
@@ -176,14 +186,15 @@ export function AnnotatedEdge({
         onMouseLeave={handleMouseLeave}
         style={{ pointerEvents: "stroke" }}
       />
-      {/* Hover highlight glow */}
-      {hovered && !selected && !hasDeletedEndpoint && (
+      {/* Hover / selection glow halo */}
+      {(hovered || selected) && !hasDeletedEndpoint && (
         <path
           d={edgePath}
           fill="none"
-          stroke="#2563eb"
-          strokeWidth={strokeWidth + 6}
-          opacity={0.12}
+          stroke={selected ? "#3b82f6" : "#2563eb"}
+          strokeWidth={strokeWidth + 5}
+          strokeLinecap="round"
+          opacity={selected ? 0.18 : 0.12}
           style={{ pointerEvents: "none" }}
         />
       )}
@@ -194,8 +205,10 @@ export function AnnotatedEdge({
         style={{
           stroke: baseColor,
           strokeWidth,
-          strokeDasharray: isAgent ? "6 3" : undefined,
+          strokeLinecap: "round",
+          strokeDasharray: isAgent ? "7 4" : undefined,
           opacity: edgeOpacity,
+          transition: "stroke 90ms ease",
         }}
       />
       {/* Manual arrowhead at TARGET endpoint */}

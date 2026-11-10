@@ -3,13 +3,13 @@ import AddIcon from "@mui/icons-material/Add";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import SaveAltIcon from "@mui/icons-material/SaveAlt";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import CloseIcon from "@mui/icons-material/Close";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
+import { useT } from "../../lib/i18n";
 
 interface ContextMenuProps {
   x: number;
@@ -20,7 +20,6 @@ interface ContextMenuProps {
   onAddNoteNode: (x: number, y: number) => void;
   onAddAgentNode: (x: number, y: number) => void;
   onAddExportNode: (x: number, y: number) => void;
-  onAddNanoBananaNode: (x: number, y: number) => void;
   onImportFile: (x: number, y: number) => void;
   /** If set, the context menu was opened on a specific node */
   nodeId?: string | null;
@@ -49,7 +48,6 @@ export function ContextMenu({
   onAddNoteNode,
   onAddAgentNode,
   onAddExportNode,
-  onAddNanoBananaNode,
   onImportFile,
   nodeId,
   nodeType,
@@ -63,6 +61,8 @@ export function ContextMenu({
   onCollapseGroup,
   onUngroupPapers,
 }: ContextMenuProps) {
+  const t = useT();
+
   const handleAddNote = useCallback(() => {
     onAddNoteNode(flowX, flowY);
     onClose();
@@ -77,11 +77,6 @@ export function ContextMenu({
     onAddExportNode(flowX, flowY);
     onClose();
   }, [flowX, flowY, onAddExportNode, onClose]);
-
-  const handleAddNanoBananaNode = useCallback(() => {
-    onAddNanoBananaNode(flowX, flowY);
-    onClose();
-  }, [flowX, flowY, onAddNanoBananaNode, onClose]);
 
   const handleImportFile = useCallback(() => {
     onImportFile(flowX, flowY);
@@ -131,7 +126,7 @@ export function ContextMenu({
     onClose();
   }, [nodeId, onUngroupPapers, onClose]);
 
-  const isDeletable = nodeType === "paper" || nodeType === "user_doc" || nodeType === "image" || nodeType === "agent" || nodeType === "export" || nodeType === "compare" || nodeType === "title" || nodeType === "nano_banana";
+  const isDeletable = nodeType === "paper" || nodeType === "user_doc" || nodeType === "image" || nodeType === "agent" || nodeType === "export" || nodeType === "compare" || nodeType === "title" || nodeType === "table" || nodeType === "render";
   const isDeletedPlaceholder = nodeType === "deleted";
   const isJunction = nodeType === "junction";
 
@@ -162,7 +157,7 @@ export function ContextMenu({
         }
       >
         <AddIcon sx={{ fontSize: 16, mr: 1 }} />
-        Add Edit Node
+        {t({ en: "Add Edit Node", ja: "編集ノードを追加" })}
       </button>
       <button
         onClick={handleImportFile}
@@ -175,7 +170,7 @@ export function ContextMenu({
         }
       >
         <FileUploadIcon sx={{ fontSize: 16, mr: 1 }} />
-        Import File
+        {t({ en: "Import File", ja: "ファイルをインポート" })}
       </button>
       <button
         onClick={handleAddAgentNode}
@@ -188,7 +183,7 @@ export function ContextMenu({
         }
       >
         <SmartToyIcon sx={{ fontSize: 16, mr: 1 }} />
-        Add Agent Node
+        {t({ en: "Add Agent Node", ja: "エージェントノードを追加" })}
       </button>
       <button
         onClick={handleAddExportNode}
@@ -201,20 +196,7 @@ export function ContextMenu({
         }
       >
         <SaveAltIcon sx={{ fontSize: 16, mr: 1 }} />
-        Add Export Node
-      </button>
-      <button
-        onClick={handleAddNanoBananaNode}
-        style={itemStyle}
-        onMouseEnter={(e) =>
-          Object.assign(e.currentTarget.style, itemHoverStyle)
-        }
-        onMouseLeave={(e) =>
-          Object.assign(e.currentTarget.style, itemStyle)
-        }
-      >
-        <AutoAwesomeIcon sx={{ fontSize: 16, mr: 1 }} />
-        Add NanoBanana Node
+        {t({ en: "Add Export Node", ja: "エクスポートノードを追加" })}
       </button>
       {isDeletable && (
         <>
@@ -230,7 +212,7 @@ export function ContextMenu({
             }
           >
             <DeleteIcon sx={{ fontSize: 16, mr: 1 }} />
-            Delete Node
+            {t({ en: "Delete Node", ja: "ノードを削除" })}
           </button>
         </>
       )}
@@ -248,7 +230,7 @@ export function ContextMenu({
             }
           >
             <DeleteIcon sx={{ fontSize: 16, mr: 1 }} />
-            Remove Completely
+            {t({ en: "Remove Completely", ja: "完全に削除" })}
           </button>
         </>
       )}
@@ -266,7 +248,7 @@ export function ContextMenu({
             }
           >
             <FiberManualRecordIcon sx={{ fontSize: 16, mr: 1 }} />
-            Add branch point
+            {t({ en: "Add branch point", ja: "分岐点を追加" })}
           </button>
         </>
       )}
@@ -284,7 +266,7 @@ export function ContextMenu({
             }
           >
             <CloseIcon sx={{ fontSize: 16, mr: 1 }} />
-            Dissolve junction
+            {t({ en: "Dissolve junction", ja: "分岐点を解除" })}
           </button>
         </>
       )}
@@ -300,7 +282,7 @@ export function ContextMenu({
           }
         >
           <DeleteIcon sx={{ fontSize: 16, mr: 1 }} />
-          Remove junction
+          {t({ en: "Remove junction", ja: "分岐点を削除" })}
         </button>
       )}
       {nodeType === "paper_group" && nodeId && (
@@ -314,7 +296,7 @@ export function ContextMenu({
               onMouseLeave={(e) => Object.assign(e.currentTarget.style, itemStyle)}
             >
               <UnfoldMoreIcon sx={{ fontSize: 16, mr: 1 }} />
-              Expand Group
+              {t({ en: "Expand Group", ja: "グループを展開" })}
             </button>
           )}
           {isGroupExpanded && onCollapseGroup && (
@@ -325,7 +307,7 @@ export function ContextMenu({
               onMouseLeave={(e) => Object.assign(e.currentTarget.style, itemStyle)}
             >
               <UnfoldLessIcon sx={{ fontSize: 16, mr: 1 }} />
-              Collapse Group
+              {t({ en: "Collapse Group", ja: "グループを折りたたむ" })}
             </button>
           )}
           {onUngroupPapers && (
@@ -336,7 +318,7 @@ export function ContextMenu({
               onMouseLeave={(e) => Object.assign(e.currentTarget.style, itemStyle)}
             >
               <LayersClearIcon sx={{ fontSize: 16, mr: 1 }} />
-              Ungroup Papers
+              {t({ en: "Ungroup Papers", ja: "グループを解除" })}
             </button>
           )}
         </>

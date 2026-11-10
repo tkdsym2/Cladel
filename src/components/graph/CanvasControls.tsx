@@ -9,6 +9,7 @@ import FitScreenIcon from "@mui/icons-material/FitScreen";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import MapIcon from "@mui/icons-material/Map";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
+import { useT } from "../../lib/i18n";
 
 const ctrlBtnStyle: React.CSSProperties = {
   width: 28,
@@ -30,6 +31,7 @@ export function CanvasControls({
   minimapVisible: boolean;
   onToggleMinimap: () => void;
 }) {
+  const t = useT();
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const agentPanelOpen = useAgentStore((s) => s.panelOpen);
   const toggleAgentPanel = useAgentStore((s) => s.togglePanel);
@@ -59,21 +61,21 @@ export function CanvasControls({
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <button
           onClick={() => zoomIn()}
-          title="Zoom in"
+          title={t({ en: "Zoom in", ja: "拡大" })}
           style={ctrlBtnStyle}
         >
           <AddIcon sx={{ fontSize: 16, color: "#374151" }} />
         </button>
         <button
           onClick={() => zoomOut()}
-          title="Zoom out"
+          title={t({ en: "Zoom out", ja: "縮小" })}
           style={ctrlBtnStyle}
         >
           <RemoveIcon sx={{ fontSize: 16, color: "#374151" }} />
         </button>
         <button
           onClick={() => fitView({ padding: 0.3 })}
-          title="Fit to view"
+          title={t({ en: "Fit to view", ja: "全体表示" })}
           style={ctrlBtnStyle}
         >
           <FitScreenIcon sx={{ fontSize: 16, color: "#374151" }} />
@@ -81,7 +83,7 @@ export function CanvasControls({
         <div style={{ height: 4 }} />
         <button
           onClick={handleToggleAgent}
-          title="Research Assistant"
+          title={t({ en: "Research Assistant", ja: "リサーチアシスタント" })}
           style={{
             ...ctrlBtnStyle,
             ...(agentPanelOpen ? { background: "#7c3aed" } : {}),
@@ -91,7 +93,9 @@ export function CanvasControls({
         </button>
         <button
           onClick={onToggleMinimap}
-          title={minimapVisible ? "Hide minimap" : "Show minimap"}
+          title={minimapVisible
+            ? t({ en: "Hide minimap", ja: "ミニマップを隠す" })
+            : t({ en: "Show minimap", ja: "ミニマップを表示" })}
           style={{
             ...ctrlBtnStyle,
             opacity: minimapVisible ? 1 : 0.5,

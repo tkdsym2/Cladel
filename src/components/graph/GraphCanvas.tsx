@@ -31,10 +31,11 @@ import { AgentNode } from "./AgentNode";
 import { ExportNode } from "./ExportNode";
 import { CompareNode } from "./CompareNode";
 import { TitleNode } from "./TitleNode";
-import { NanoBananaNode } from "./NanoBananaNode";
+import { TableNode } from "./TableNode";
+import { RenderNode } from "./RenderNode";
 import { PaperGroupNode } from "./PaperGroupNode";
 import { ImportNode } from "./ImportNode";
-import { AnnotatedEdge, bezierPoint, parseBezierPath } from "./AnnotatedEdge";
+import { AnnotatedEdge, bezierPoint, parseBezierPath, EDGE_CURVATURE } from "./AnnotatedEdge";
 import { EdgeActionMenu } from "./EdgeActionMenu";
 import { TabCreatePopover } from "./TabCreatePopover";
 import { GroupingButton } from "./GroupingButton";
@@ -60,7 +61,8 @@ const nodeTypes = {
   export: ExportNode,
   compare: CompareNode,
   title: TitleNode,
-  nano_banana: NanoBananaNode,
+  table: TableNode,
+  render: RenderNode,
   import: ImportNode,
 };
 
@@ -100,7 +102,7 @@ interface ClipboardData {
 
 let _clipboard: ClipboardData | null = null;
 
-const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "nano_banana"]);
+const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "table", "render"]);
 
 // ─── Edge proximity detection for drop-on-edge ───
 
@@ -145,6 +147,7 @@ function findEdgeNearPoint(
       targetX: tgt.x,
       targetY: tgt.y,
       targetPosition: tgt.position,
+      curvature: EDGE_CURVATURE,
     });
 
     const parsed = parseBezierPath(pathD);
@@ -410,7 +413,7 @@ export function GraphCanvas({
 
   // Tab-to-Create selection handler
   // Resolve default dimensions and title for a new node type
-  const getNodeDefaults = useCallback((nodeType: TabNodeType) => {
+  const getNodeDefaults = useCallback((nodeType: TabNodeType): { width: number; height: number; title: string; metadata?: string } => {
     const prefs = useSettingsStore.getState().uiPreferences;
     switch (nodeType) {
       case "user_doc":
@@ -429,8 +432,21 @@ export function GraphCanvas({
         return { width: 280, height: 210, title: "Compare" };
       case "title":
         return { width: 280, height: 210, title: "Title" };
-      case "nano_banana":
-        return { width: 280, height: 210, title: "Nano Banana" };
+      case "table":
+        return {
+          width: 280,
+          height: 210,
+          title: "Table",
+          // Created unconfigured — the user picks new vs. import in the detail panel.
+          metadata: JSON.stringify({ kind: "table", mode: "unconfigured", rows: [], source: null }),
+        };
+      case "render":
+        return {
+          width: 300,
+          height: 360,
+          title: "Render",
+          metadata: JSON.stringify({ kind: "render", citation_style: "ieee" }),
+        };
     }
   }, []);
 
@@ -504,6 +520,7 @@ export function GraphCanvas({
             node_type: nodeType,
             title: defaults.title,
             content: "",
+            metadata: defaults.metadata,
             position_x: flowPos.x,
             position_y: flowPos.y,
             width: defaults.width,
@@ -563,6 +580,7 @@ export function GraphCanvas({
           node_type: nodeType,
           title: defaults.title,
           content: "",
+          metadata: defaults.metadata,
           position_x: newX,
           position_y: newY,
           width: defaults.width,
@@ -678,9 +696,10 @@ export function GraphCanvas({
         return;
       }
       if (!currentLayer) return;
-      const title = (node.data as { title?: string }).title ?? "Node";
+      const d = node.data as { display_id?: string | null; title?: string };
+      const windowTitle = d.display_id ?? d.title ?? "Node";
       import("../../lib/detached-window").then(({ openNodeDetailWindow }) =>
-        openNodeDetailWindow(node.id, currentLayer.id, title),
+        openNodeDetailWindow(node.id, currentLayer.id, windowTitle),
       );
       setSelectedNodeId(null);
     },
@@ -766,6 +785,14 @@ export function GraphCanvas({
 
       // Normal position update
       for (const n of nodes) {
+        if (n.type === "import") {
+          // Temp React-only node: keep the pending import target position in sync,
+          // but don't persist to the DB (there is no row for it yet).
+          setPendingImport((prev) =>
+            prev && prev.tempNodeId === n.id ? { ...prev, position: n.position } : prev,
+          );
+          continue;
+        }
         updateNodePosition(n.id, n.position.x, n.position.y);
       }
       preDragPositionRef.current.clear();
@@ -937,9 +964,22 @@ export function GraphCanvas({
         return;
       }
 
+      // Temp import node (React-only): remove it locally without touching the backend.
+      const selectedImport = state.nodes.find((n) => n.selected && n.type === "import");
+      if (selectedImport) {
+        e.preventDefault();
+        useGraphStore.setState((s) => ({
+          nodes: s.nodes.filter((nn) => nn.id !== selectedImport.id),
+        }));
+        setPendingImport((prev) =>
+          prev && prev.tempNodeId === selectedImport.id ? null : prev,
+        );
+        return;
+      }
+
       // Collect deletable selected nodes (React Flow multi-select + store single-select)
       const selectedNodes = state.nodes.filter((n) => n.selected);
-      const deletableTypes = new Set(["paper", "user_doc", "image", "agent", "junction", "paper_group", "export"]);
+      const deletableTypes = new Set(["paper", "user_doc", "image", "agent", "junction", "paper_group", "export", "table", "render"]);
       const toDelete = selectedNodes.filter((n) => n.type && deletableTypes.has(n.type));
 
       // Fall back to single-selection if no multi-selected nodes
@@ -1452,17 +1492,26 @@ export function GraphCanvas({
         const handlePos = getHandlePos(dbNode, tabPopover.sourceHandleId ?? null);
         const screenStart = flowToScreenPosition({ x: handlePos.x, y: handlePos.y });
         const screenEnd = tabPopover.position;
+        // Curve the preview branch like a real edge (bezier), not a straight line.
+        const [previewPath] = getBezierPath({
+          sourceX: screenStart.x,
+          sourceY: screenStart.y,
+          sourcePosition: handlePos.position,
+          targetX: screenEnd.x,
+          targetY: screenEnd.y,
+          targetPosition:
+            handlePos.position === Position.Left ? Position.Right : Position.Left,
+          curvature: EDGE_CURVATURE,
+        });
         return (
           <svg
             style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1100 }}
             width="100%"
             height="100%"
           >
-            <line
-              x1={screenStart.x}
-              y1={screenStart.y}
-              x2={screenEnd.x}
-              y2={screenEnd.y}
+            <path
+              d={previewPath}
+              fill="none"
               stroke="#6b7280"
               strokeWidth={2}
               strokeDasharray="6 3"

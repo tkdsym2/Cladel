@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { NodePorts } from "./NodePorts";
 import TitleIcon from "@mui/icons-material/Title";
 import { useGraphStore } from "../../store/graphStore";
 import { useConnectedDisplayIds } from "./useConnectedDisplayIds";
@@ -51,7 +52,7 @@ export function TitleNode({ id, data, selected }: NodeProps<Node<TitleNodeData>>
       <div
         style={{
           position: "relative",
-          background: "rgba(120,113,108,0.08)",
+          background: "#e7e5e4",
           border: selected ? "3px solid #78716c" : "1px solid #78716c",
           color: "#1f2937",
           fontSize: "13px",
@@ -70,11 +71,15 @@ export function TitleNode({ id, data, selected }: NodeProps<Node<TitleNodeData>>
             : "0 1px 4px rgba(0,0,0,0.1)",
         }}
       >
-        {displayId && <div style={displayIdLabelStyle}>{displayId}</div>}
         <div style={headerStyle}>
           <TitleIcon sx={{ fontSize: 16, color: "#78716c" }} />
-          <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{title}</span>
+          <span style={nameStyle}>{displayId ?? title}</span>
         </div>
+        {displayId && title && (
+          <div style={docTitleStyle}>
+            {title.length > 60 ? title.slice(0, 60) + "..." : title}
+          </div>
+        )}
         {subtitle && (
           <div style={subtitleStyle}>
             {subtitle.length > 40 ? subtitle.slice(0, 40) + "..." : subtitle}
@@ -86,30 +91,26 @@ export function TitleNode({ id, data, selected }: NodeProps<Node<TitleNodeData>>
             : "No authors"}
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <Handle type="source" position={Position.Right} id="right" style={handleStyle} />
-        <Handle type="target" position={Position.Right} id="right-target" style={handleStyle} />
-        <Handle type="source" position={Position.Left} id="left" style={handleStyle} />
-        <Handle type="target" position={Position.Left} id="left-target" style={handleStyle} />
+        <NodePorts accent="#78716c" />
       </div>
     </>
   );
 }
 
-const handleStyle: React.CSSProperties = {
-  width: 8,
-  height: "40%",
-  minHeight: 16,
-  borderRadius: 4,
-  background: "#78716c",
-  border: "2px solid rgba(120,113,108,0.15)",
+const nameStyle: React.CSSProperties = {
+  fontWeight: 600,
+  fontFamily: "monospace",
+  wordBreak: "break-word",
 };
 
-const displayIdLabelStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontFamily: "monospace",
-  color: "#9ca3af",
-  lineHeight: 1,
+// Document title (export title page data) — shown as content under the id.
+const docTitleStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#44403c",
+  lineHeight: 1.3,
   marginBottom: 2,
+  wordBreak: "break-word",
 };
 
 const headerStyle: React.CSSProperties = {

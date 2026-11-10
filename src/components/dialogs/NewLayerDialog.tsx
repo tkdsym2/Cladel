@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import CloseIcon from "@mui/icons-material/Close";
+import { useT, type Entry } from "../../lib/i18n";
 import type { NodeData } from "../../types";
 
 interface Props {
@@ -20,11 +21,11 @@ const NODE_TYPE_COLORS: Record<string, string> = {
   image: "#0891b2",
 };
 
-const NODE_TYPE_LABELS: Record<string, string> = {
-  paper: "Paper",
-  user_doc: "Note",
-  agent_proposal: "Suggestion",
-  image: "Image",
+const NODE_TYPE_LABELS: Record<string, Entry> = {
+  paper: { en: "Paper", ja: "論文" },
+  user_doc: { en: "Note", ja: "ノート" },
+  agent_proposal: { en: "Suggestion", ja: "提案" },
+  image: { en: "Image", ja: "画像" },
 };
 
 export function NewLayerDialog({
@@ -35,6 +36,7 @@ export function NewLayerDialog({
   eligibleNodes = [],
   preSelectedNodeId,
 }: Props) {
+  const t = useT();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sourceMode, setSourceMode] = useState<"core" | "node">(
@@ -109,7 +111,7 @@ export function NewLayerDialog({
               color: "#111827",
             }}
           >
-            Create New Layer
+            {t({ en: "Create New Layer", ja: "新規レイヤーを作成" })}
           </h2>
           <button onClick={handleClose} style={closeButtonStyle}>
             <CloseIcon sx={{ fontSize: 22 }} />
@@ -118,7 +120,7 @@ export function NewLayerDialog({
 
         {/* Layer info */}
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, color: "#374151" }}>
-          Layer {nextLayerNumber}
+          {t({ en: "Layer {n}", ja: "レイヤー{n}" }, { n: nextLayerNumber })}
         </div>
 
         {/* Source selection: radio options */}
@@ -143,10 +145,13 @@ export function NewLayerDialog({
             />
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                Inherit from current Core
+                {t({ en: "Inherit from current Core", ja: "現在のCoreから引き継ぐ" })}
               </div>
               <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                Snapshot the current Core node content as the starting point
+                {t({
+                  en: "Snapshot the current Core node content as the starting point",
+                  ja: "現在のCoreノードの内容を起点として複製します",
+                })}
               </div>
             </div>
           </label>
@@ -172,12 +177,12 @@ export function NewLayerDialog({
             />
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                Start from existing node
+                {t({ en: "Start from existing node", ja: "既存のノードから始める" })}
               </div>
               <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
                 {hasEligibleNodes
-                  ? "Use a node's content as the new Core"
-                  : "No eligible nodes in current layer"}
+                  ? t({ en: "Use a node's content as the new Core", ja: "ノードの内容を新しいCoreとして使用します" })
+                  : t({ en: "No eligible nodes in current layer", ja: "現在のレイヤーに利用可能なノードがありません" })}
               </div>
             </div>
           </label>
@@ -187,7 +192,7 @@ export function NewLayerDialog({
         {sourceMode === "node" && hasEligibleNodes && (
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-              Select source node
+              {t({ en: "Select source node", ja: "ソースノードを選択" })}
             </div>
             <div style={nodeListStyle}>
               {eligibleNodes.map((n) => (
@@ -211,7 +216,8 @@ export function NewLayerDialog({
                     }}
                   />
                   <span style={{ fontSize: 11, color: "#6b7280", fontFamily: "monospace", flexShrink: 0 }}>
-                    {n.display_id ?? NODE_TYPE_LABELS[n.node_type] ?? n.node_type}
+                    {n.display_id ??
+                      (NODE_TYPE_LABELS[n.node_type] ? t(NODE_TYPE_LABELS[n.node_type]) : n.node_type)}
                   </span>
                   <span style={{ fontSize: 12, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {n.title.length > 40 ? n.title.slice(0, 40) + "..." : n.title}
@@ -224,22 +230,24 @@ export function NewLayerDialog({
             {selectedNode && (
               <div style={previewBoxStyle}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 4 }}>
-                  Preview
+                  {t({ en: "Preview", ja: "プレビュー" })}
                 </div>
                 <div style={{ fontSize: 12, color: "#374151", fontWeight: 600, marginBottom: 2 }}>
                   {selectedNode.title}
                 </div>
                 <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.4 }}>
                   {contentPreview || (
-                    <span style={{ fontStyle: "italic" }}>No content</span>
+                    <span style={{ fontStyle: "italic" }}>{t({ en: "No content", ja: "内容がありません" })}</span>
                   )}
                 </div>
               </div>
             )}
 
             <div style={{ fontSize: 11, color: "#6b7280", marginTop: 8, lineHeight: 1.4 }}>
-              The selected node's title and content will initialize the new
-              layer's Core node. The source node remains unchanged.
+              {t({
+                en: "The selected node's title and content will initialize the new layer's Core node. The source node remains unchanged.",
+                ja: "選択したノードのタイトルと内容で、新しいレイヤーのCoreノードを初期化します。ソースノードはそのまま残ります。",
+              })}
             </div>
           </div>
         )}
@@ -260,14 +268,16 @@ export function NewLayerDialog({
             disabled={creating}
             style={secondaryBtnStyle}
           >
-            Cancel
+            {t({ en: "Cancel", ja: "キャンセル" })}
           </button>
           <button
             onClick={handleCreate}
             disabled={creating || !canCreate}
             style={creating || !canCreate ? disabledBtnStyle : primaryBtnStyle}
           >
-            {creating ? "Creating..." : "Create Layer"}
+            {creating
+              ? t({ en: "Creating...", ja: "作成中..." })
+              : t({ en: "Create Layer", ja: "レイヤーを作成" })}
           </button>
         </div>
       </div>

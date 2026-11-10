@@ -22,7 +22,6 @@ interface AgentNodeViewerProps {
 export function AgentNodeViewer({ nodeId, layerId }: AgentNodeViewerProps) {
   const storeDbNodes = useGraphStore((s) => s.dbNodes);
   const storeDbEdges = useGraphStore((s) => s.dbEdges);
-  const updateNodeContent = useGraphStore((s) => s.updateNodeContent);
   const setSelectedNodeId = useGraphStore((s) => s.setSelectedNodeId);
   const loadGraph = useGraphStore((s) => s.loadGraph);
   const setProcessing = useAgentNodeStore((s) => s.setProcessing);
@@ -42,8 +41,6 @@ export function AgentNodeViewer({ nodeId, layerId }: AgentNodeViewerProps) {
   const dbEdges = storeDbEdges.length > 0 ? storeDbEdges : fallbackEdges;
 
   const node = dbNodes.find((n) => n.id === nodeId);
-  const [title, setTitle] = useState(node?.title ?? "Agent");
-  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nodeIdRef = useRef(nodeId);
 
   // Messages
@@ -93,7 +90,6 @@ export function AgentNodeViewer({ nodeId, layerId }: AgentNodeViewerProps) {
   // Reset when switching nodes
   useEffect(() => {
     nodeIdRef.current = nodeId;
-    setTitle(node?.title ?? "Agent");
     setInput("");
     setIsProcessing(false);
     setOutputsExpanded(false);
@@ -152,25 +148,6 @@ export function AgentNodeViewer({ nodeId, layerId }: AgentNodeViewerProps) {
         n.title.toLowerCase().includes(q),
     );
   }, [mentionOpen, mentionQuery, mentionCandidates]);
-
-  // Title editing with debounce
-  const handleTitleChange = useCallback(
-    (newTitle: string) => {
-      setTitle(newTitle);
-      if (titleTimer.current) clearTimeout(titleTimer.current);
-      titleTimer.current = setTimeout(() => {
-        updateNodeContent(nodeId, { title: newTitle });
-      }, 500);
-    },
-    [nodeId, updateNodeContent],
-  );
-
-  // Cleanup title timer
-  useEffect(() => {
-    return () => {
-      if (titleTimer.current) clearTimeout(titleTimer.current);
-    };
-  }, []);
 
   // Find output nodes produced by this agent
   const outputNodes = dbNodes.filter((n) => {
@@ -403,12 +380,6 @@ export function AgentNodeViewer({ nodeId, layerId }: AgentNodeViewerProps) {
         {node?.display_id && (
           <div style={displayIdStyle}>{node.display_id}</div>
         )}
-        <input
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          style={titleInputStyle}
-          placeholder="Agent title"
-        />
       </div>
 
       {/* Chat messages */}
@@ -777,21 +748,23 @@ function MentionPopover({
             >
               @{node.display_id}
             </span>
-            <span
-              style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,0.4)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              {node.title.length > 20
-                ? node.title.slice(0, 20) + "\u2026"
-                : node.title}
-            </span>
+            {(node.node_type === "paper" || node.node_type === "title") && (
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.4)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                {node.title.length > 20
+                  ? node.title.slice(0, 20) + "\u2026"
+                  : node.title}
+              </span>
+            )}
           </div>
         );
       })}
@@ -814,24 +787,12 @@ const sectionStyle: React.CSSProperties = {
   marginBottom: 8,
 };
 
+// The agent node's name (its display_id).
 const displayIdStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontFamily: "monospace",
-  color: "#9ca3af",
-  marginBottom: 2,
-};
-
-const titleInputStyle: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid transparent",
-  borderRadius: 4,
-  padding: "4px 6px",
   fontSize: 15,
   fontWeight: 600,
+  fontFamily: "monospace",
   color: "#1f2937",
-  background: "transparent",
-  outline: "none",
-  boxSizing: "border-box",
 };
 
 const messagesContainerStyle: React.CSSProperties = {

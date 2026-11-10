@@ -13,6 +13,7 @@ import LayersIcon from "@mui/icons-material/Layers";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SendIcon from "@mui/icons-material/Send";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGraphStore } from "../../store/graphStore";
 import { useAgentNodeStore } from "../../store/agentNodeStore";
@@ -26,7 +27,8 @@ import { AgentNodeViewer } from "./AgentNodeViewer";
 import { ExportNodeViewer } from "./ExportNodeViewer";
 import { CompareNodeViewer } from "./CompareNodeViewer";
 import { TitleNodeViewer } from "./TitleNodeViewer";
-import { NanoBananaNodeViewer } from "./NanoBananaNodeViewer";
+import { TableNodeViewer } from "./TableNodeViewer";
+import { RenderNodeViewer } from "./RenderNodeViewer";
 import { AccordionSection } from "../graph/NodeAccordionSection";
 import type { NodeData, EdgeData, NodeComment, AgentNodeMessage, PaperGroupMetadata } from "../../types";
 
@@ -56,7 +58,7 @@ export function NodeDetailPanel({
 
   if (!node || node.node_type === "deleted" || node.node_type === "junction") return null;
 
-  const isDeletable = node.node_type === "paper" || node.node_type === "user_doc" || node.node_type === "image" || node.node_type === "agent" || node.node_type === "export" || node.node_type === "compare" || node.node_type === "title" || node.node_type === "nano_banana";
+  const isDeletable = node.node_type === "paper" || node.node_type === "user_doc" || node.node_type === "image" || node.node_type === "agent" || node.node_type === "export" || node.node_type === "compare" || node.node_type === "title" || node.node_type === "table" || node.node_type === "render";
 
   return (
     <div style={panelStyle}>
@@ -109,11 +111,11 @@ export function NodeDetailPanel({
       {node.node_type === "title" && (
         <TitleNodeViewer node={node} />
       )}
-      {node.node_type === "nano_banana" && (
-        <>
-          <NanoBananaNodeViewer node={node} />
-          <CommentSection nodeId={node.id} layerId={node.layer_id} />
-        </>
+      {node.node_type === "table" && (
+        <TableNodeViewer node={node} />
+      )}
+      {node.node_type === "render" && (
+        <RenderNodeViewer node={node} />
       )}
     </div>
   );
@@ -126,7 +128,7 @@ function DetachButton({ node }: { node: NodeData }) {
 
   const handleDetach = async () => {
     const { openNodeDetailWindow } = await import("../../lib/detached-window");
-    await openNodeDetailWindow(node.id, node.layer_id, node.title);
+    await openNodeDetailWindow(node.id, node.layer_id, node.display_id ?? node.title);
     setSelectedNodeId(null);
   };
 
@@ -154,7 +156,6 @@ function CoreEditor({
 }) {
   const editorFontSize = useSettingsStore((s) => s.uiPreferences.editor_font_size) || 13;
   const editorStyle: React.CSSProperties = { ...baseEditorStyle, fontSize: editorFontSize };
-  const [title, setTitle] = useState(node.title);
   const [content, setContent] = useState(node.content ?? "");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -168,7 +169,6 @@ function CoreEditor({
   // Only reset local state when switching to a different node
   useEffect(() => {
     nodeIdRef.current = node.id;
-    setTitle(node.title);
     setContent(node.content ?? "");
     pendingContent.current = null;
     setDirty(false);
@@ -227,17 +227,6 @@ function CoreEditor({
     debouncedSave(val);
   };
 
-  const handleTitleBlur = async () => {
-    if (title !== node.title) {
-      try {
-        await onUpdate(node.id, { title });
-      } catch (err) {
-        console.error("Title save failed:", err);
-        setSaveError(String(err));
-      }
-    }
-  };
-
   const handleSaveClick = async () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     pendingContent.current = null;
@@ -249,14 +238,13 @@ function CoreEditor({
       ? { display: "flex", flexDirection: "column" as const, gap: 4 }
       : { display: "flex", flexDirection: "column" as const, gap: 4, flex: 1, minHeight: 0, overflow: "hidden" }
     }>
-      <AccordionSection label="Title" expanded={openSections.has("title")} onToggle={() => toggleSection("title")} detached={detached}>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleTitleBlur}
-          style={titleInputStyle}
-        />
-      </AccordionSection>
+      {node.display_id && (
+        <div style={displayIdRowStyle}>
+          <span style={{ fontSize: 13, fontFamily: "monospace", color: "#1e40af" }}>
+            {node.display_id}
+          </span>
+        </div>
+      )}
       <AccordionSection label="Content" expanded={openSections.has("content")} onToggle={() => toggleSection("content")} detached={detached}>
         <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>
           Auto-saves 2s after typing.
@@ -267,7 +255,6 @@ function CoreEditor({
             layerId={node.layer_id}
             value={content}
             onChange={handleContentChange}
-            placeholder="Write your core research question in Markdown..."
             style={editorStyle}
           />
         </div>
@@ -1419,7 +1406,17 @@ function ImageViewer({ node, onCreateLayerFromNode, detached }: { node: NodeData
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minHeight: 0, overflowY: "auto" }}>
-      <AccordionSection label="Title" expanded={openSections.has("title")} onToggle={() => toggleSection("title")} detached={detached}>
+      {node.display_id && (
+        <div style={displayIdRowStyle}>
+          <span style={{ fontSize: 13, fontFamily: "monospace", color: "#0e7490" }}>
+            {node.display_id}
+          </span>
+        </div>
+      )}
+      <AccordionSection label="Caption" expanded={openSections.has("caption")} onToggle={() => toggleSection("caption")} detached={detached}>
+        <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>
+          Used as the figure caption when exported via {"{{@"}{node.display_id ?? "image_id"}{"}}"}.
+        </div>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -1633,7 +1630,6 @@ function UserDocEditor({
 }) {
   const editorFontSize = useSettingsStore((s) => s.uiPreferences.editor_font_size) || 13;
   const editorStyle: React.CSSProperties = { ...baseEditorStyle, fontSize: editorFontSize };
-  const [title, setTitle] = useState(node.title);
   const [content, setContent] = useState(node.content ?? "");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1648,13 +1644,18 @@ function UserDocEditor({
   const [displayIdDraft, setDisplayIdDraft] = useState(node.display_id ?? "");
   const [displayIdError, setDisplayIdError] = useState<string | null>(null);
   const displayIdInputRef = useRef<HTMLInputElement>(null);
+
+  // Help opens as its own window so it can be read while writing.
+  const handleOpenHelp = useCallback(async () => {
+    const { openNoteHelpWindow } = await import("../../lib/detached-window");
+    await openNoteHelpWindow();
+  }, []);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const toggleSection = (key: string) => setOpenSections((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
   // Only reset local state when switching to a different node
   useEffect(() => {
     nodeIdRef.current = node.id;
-    setTitle(node.title);
     setContent(node.content ?? "");
     pendingContent.current = null;
     setDirty(false);
@@ -1759,17 +1760,6 @@ function UserDocEditor({
     debouncedSave(val);
   };
 
-  const handleTitleBlur = async () => {
-    if (title !== node.title) {
-      try {
-        await onUpdate(node.id, { title });
-      } catch (err) {
-        console.error("Title save failed:", err);
-        setSaveError(String(err));
-      }
-    }
-  };
-
   const handleSaveClick = async () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     pendingContent.current = null;
@@ -1836,18 +1826,16 @@ function UserDocEditor({
             >
               <EditIcon sx={{ fontSize: 14 }} />
             </button>
+            <button
+              onClick={handleOpenHelp}
+              title="How to write notes (Typst, references, images, tables)"
+              style={{ marginLeft: "auto", border: "none", background: "transparent", cursor: "pointer", padding: "2px", lineHeight: 1, color: "#9ca3af" }}
+            >
+              <HelpOutlineIcon sx={{ fontSize: 16 }} />
+            </button>
           </div>
         )}
       </div>
-
-      <AccordionSection label="Title" expanded={openSections.has("title")} onToggle={() => toggleSection("title")} detached={detached}>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleTitleBlur}
-          style={titleInputStyle}
-        />
-      </AccordionSection>
 
       <AccordionSection label="Content" expanded={openSections.has("content")} onToggle={() => toggleSection("content")} detached={detached}>
         <div>
@@ -1856,7 +1844,7 @@ function UserDocEditor({
             layerId={node.layer_id}
             value={content}
             onChange={handleContentChange}
-            placeholder=""
+            format="typst"
             style={editorStyle}
           />
         </div>
@@ -2231,8 +2219,6 @@ function typeLabel(t: string): string {
       return "Export";
     case "compare":
       return "Compare";
-    case "nano_banana":
-      return "NanoBanana";
     default:
       return t;
   }
@@ -2249,7 +2235,6 @@ function typeBadgeStyle(t: string): React.CSSProperties {
     paper_group: { bg: "#059669", fg: "#fff" },
     export: { bg: "#e11d48", fg: "#fff" },
     compare: { bg: "#0284c7", fg: "#fff" },
-    nano_banana: { bg: "#ca8a04", fg: "#fff" },
   };
   const c = colors[t] ?? { bg: "#6b7280", fg: "#fff" };
   return {
@@ -2322,6 +2307,12 @@ const titleInputStyle: React.CSSProperties = {
   padding: "8px 10px",
   width: "100%",
   boxSizing: "border-box",
+};
+
+// Read-only display_id row shown at the top of node editors (the node's name).
+const displayIdRowStyle: React.CSSProperties = {
+  paddingBottom: 4,
+  borderBottom: "1px solid #f3f4f6",
 };
 
 const baseEditorStyle: React.CSSProperties = {
