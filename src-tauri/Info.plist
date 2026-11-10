@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged by Tauri into the generated macOS Info.plist (top-level keys here
+  replace the generated ones). Tauri's fileAssociations config has no icon
+  field, so the .flnx document type is declared here to attach the document
+  icon (icons/flnx.icns, copied into Contents/Resources via bundle.macOS.files).
+  Keep in sync with bundle.fileAssociations in tauri.conf.json.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Filonex Document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>flnx</string>
+			</array>
+			<key>CFBundleTypeIconFile</key>
+			<string>flnx.icns</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.filonex.document</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.filonex.document</string>
+			<key>UTTypeDescription</key>
+			<string>Filonex Document</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeIconFile</key>
+			<string>flnx.icns</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>flnx</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/x-filonex</string>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>
