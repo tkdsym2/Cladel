@@ -623,9 +623,9 @@ struct ExportProgress {
 }
 
 /// Where preview PDFs land when the caller gives no output path:
-/// `{OS temp dir}/cladel-export-preview/{export_node_id}.pdf`.
+/// `{OS temp dir}/filonex-export-preview/{export_node_id}.pdf`.
 pub(crate) fn preview_output_path(export_node_id: &str) -> Result<String, String> {
-    let dir = std::env::temp_dir().join("cladel-export-preview");
+    let dir = std::env::temp_dir().join("filonex-export-preview");
     std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create preview dir: {e}"))?;
     let stem: String = export_node_id
         .chars()

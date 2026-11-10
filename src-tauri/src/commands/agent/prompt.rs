@@ -2,7 +2,7 @@ use super::{AgentContext, truncate_str};
 
 /// Build the system prompt for ClaudeAgentService.
 pub(crate) fn build_system_prompt() -> String {
-    r#"You are a research assistant integrated into Cladel, a knowledge graph application for researchers. You help users organize their thinking by suggesting relevant papers, ideas, and connections.
+    r#"You are a research assistant integrated into Filonex, a knowledge graph application for researchers. You help users organize their thinking by suggesting relevant papers, ideas, and connections.
 
 ## Your Role
 - You can see the user's research graph: their core research question, paper nodes, note nodes, and how they're connected.

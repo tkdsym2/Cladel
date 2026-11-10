@@ -42,14 +42,14 @@ pub fn run() {
             // Custom Quit item: routes Cmd+Q through the frontend so unsaved
             // changes can be guarded (the predefined quit() bypasses the
             // window's close-requested handler).
-            let quit_item = MenuItemBuilder::with_id("quit", "Quit Cladel")
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit Filonex")
                 .accelerator("CmdOrCtrl+Q")
                 .build(app)?;
 
             // App submenu (macOS: appears under the app name)
-            let app_submenu = SubmenuBuilder::new(app, "Cladel")
+            let app_submenu = SubmenuBuilder::new(app, "Filonex")
                 .about(Some(AboutMetadata {
-                    name: Some("Cladel".to_string()),
+                    name: Some("Filonex".to_string()),
                     version: Some(env!("CARGO_PKG_VERSION").to_string()),
                     ..Default::default()
                 }))
@@ -235,10 +235,6 @@ pub fn run() {
             commands::settings::get_paper_summary_prompt,
             commands::settings::save_paper_summary_prompt,
             commands::settings::reset_paper_summary_prompt,
-            commands::settings::save_supabase_config,
-            commands::settings::get_supabase_config,
-            commands::settings::get_supabase_config_status,
-            commands::settings::delete_supabase_config,
             // User identity commands
             commands::settings::get_user_identity,
             commands::settings::register_user,
@@ -280,11 +276,6 @@ pub fn run() {
             commands::agent_node_messages::add_agent_node_message,
             commands::agent_node_messages::delete_agent_node_message,
             // Sync commands
-            commands::sync::sync_list_remote,
-            commands::sync::sync_check_status,
-            commands::sync::sync_upload,
-            commands::sync::sync_download,
-            commands::sync::sync_get_remote_stats,
         ])
         .on_window_event(|window, event| {
             // On macOS, clicking the red close button only closes the window

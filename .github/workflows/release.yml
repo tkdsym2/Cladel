@@ -54,7 +54,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Cladel ${{ github.ref_name }}'
+          releaseName: 'Filonex ${{ github.ref_name }}'
           releaseBody: 'See the assets for download links and installation instructions.'
           releaseDraft: false
           prerelease: false

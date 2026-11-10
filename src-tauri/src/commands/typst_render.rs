@@ -1,5 +1,5 @@
 //! Render-node pipeline: gather the Typst source of connected Note nodes,
-//! translate Cladel graph references (`{@cite}`, `{{@image}}`, `{@table[r,c]}`)
+//! translate Filonex graph references (`{@cite}`, `{{@image}}`, `{@table[r,c]}`)
 //! into native Typst, and compile to a PDF preview (PNG pages) or a final PDF.
 //!
 //! Graph references are preserved (per the product decision) and translated at
@@ -240,7 +240,7 @@ pub fn render_typst_preview(
 
     // Fresh work dir per render node (cleared each run to drop stale pages).
     let work_dir = std::env::temp_dir()
-        .join("cladel-render")
+        .join("filonex-render")
         .join(safe_filename(&render_node_id));
     let _ = std::fs::remove_dir_all(&work_dir);
     std::fs::create_dir_all(&work_dir).map_err(|e| e.to_string())?;
@@ -344,7 +344,7 @@ pub fn generate_typst_export_pdf(
         let all_nodes = all_active_nodes(&conn, &export_node.layer_id)?;
 
         let work_dir = std::env::temp_dir()
-            .join("cladel-export")
+            .join("filonex-export")
             .join(safe_filename(&export_node_id));
         let _ = std::fs::remove_dir_all(&work_dir);
         std::fs::create_dir_all(&work_dir).map_err(|e| e.to_string())?;

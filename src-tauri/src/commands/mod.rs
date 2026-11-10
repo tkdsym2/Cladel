@@ -16,7 +16,6 @@ pub mod note_versions;
 pub mod pdf_export;
 pub mod pdf_import;
 pub mod settings;
-pub mod sync;
 pub mod tab_commands;
 pub mod table_import;
 pub mod typst_engine;

@@ -219,7 +219,7 @@ async fn lookup_crossref(doi: &str) -> Result<PdfMetadata, String> {
 
     let resp = client
         .get(&url)
-        .header("User-Agent", "Cladel/0.1 (mailto:dev@cladel.app)")
+        .header("User-Agent", "Filonex/0.1 (mailto:dev@filonex.app)")
         .send()
         .await
         .map_err(|e| format!("CrossRef request failed: {e}"))?;

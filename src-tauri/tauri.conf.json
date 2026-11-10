@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Cladel",
+  "productName": "Filonex",
   "version": "0.1.0",
-  "identifier": "com.cladel.desktop",
+  "identifier": "com.filonex.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Cladel",
+        "title": "Filonex",
         "width": 1200,
         "height": 800,
         "resizable": true,
@@ -38,23 +38,15 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
-    "resources": ["../sample/sample.cld"],
+    "resources": ["../sample/sample.flnx"],
     "category": "DeveloperTool",
     "shortDescription": "Research thought-mapping application",
-    "longDescription": "Cladel is a desktop application for researchers to organize thinking as a knowledge graph. Combines literature management, personal thought mapping, and AI agents as collaborative research partners.",
-    "copyright": "Copyright (c) 2026 Cladel",
+    "longDescription": "Filonex is a desktop application for researchers to organize thinking as a knowledge graph. Combines literature management, personal thought mapping, and AI agents as collaborative research partners.",
+    "copyright": "Copyright (c) 2026 Filonex",
     "fileAssociations": [
       {
-        "ext": ["cld"],
-        "mimeType": "application/x-cladel"
-      },
-      {
-        "ext": ["klv"],
-        "mimeType": "application/x-klovel"
-      },
-      {
-        "ext": ["tmgx"],
-        "mimeType": "application/x-tsumugix"
+        "ext": ["flnx"],
+        "mimeType": "application/x-filonex"
       }
     ],
     "macOS": {
@@ -70,7 +62,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/tkdsym2/Cladel/releases/latest/download/latest.json"
+        "https://github.com/tkdsym2/Filonex/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU3RTNDRjg1MzI2N0IxN0UKUldSK3NXY3loYy9qNTFsQmhSYVgrSVpSdlkvRHdLbDNET3lrbWFweVhYWGVodElIQkpGdjFNblAK"
     }

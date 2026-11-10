@@ -9,7 +9,6 @@ import { useAgentStore } from "./store/agentStore";
 import { useFileStore } from "./store/fileStore";
 import { useSettingsStore } from "./store/settingsStore";
 import { useTabStore } from "./store/tabStore";
-import { useSyncStore } from "./store/syncStore";
 import { useUserStore } from "./store/userStore";
 
 import { GraphCanvas } from "./components/graph/GraphCanvas";
@@ -26,7 +25,6 @@ import { ExportBibtexDialog } from "./components/dialogs/ExportBibtexDialog";
 import { NewLayerDialog } from "./components/dialogs/NewLayerDialog";
 import { SettingsDialog } from "./components/dialogs/SettingsDialog";
 import { WelcomeDialog } from "./components/dialogs/WelcomeDialog";
-import { SyncDialog } from "./components/dialogs/SyncDialog";
 import {
   DeleteConfirmDialog,
   BatchDeleteConfirmDialog,
@@ -118,11 +116,6 @@ function App() {
   const tabSwitching = useTabStore((s) => s.switching);
   const [pendingCloseTabId, setPendingCloseTabId] = useState<string | null>(null);
 
-  // Sync state
-  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-  const syncIsConfigured = useSyncStore((s) => s.isConfigured);
-  const syncStatus = useSyncStore((s) => s.syncStatus);
-  const currentFilePath = useFileStore((s) => s.currentFilePath);
 
   // ─── Resizable right sidebar ───
   const [sidebarWidth, setSidebarWidth] = useState(
@@ -268,8 +261,8 @@ function App() {
     const dirtyMark = isDirty ? " *" : "";
     const title =
       fileName === "Untitled"
-        ? `Cladel \u2014 Untitled${dirtyMark}`
-        : `Cladel \u2014 ${fileName}${dirtyMark}`;
+        ? `Filonex \u2014 Untitled${dirtyMark}`
+        : `Filonex \u2014 ${fileName}${dirtyMark}`;
     getCurrentWindow().setTitle(title);
   }, [fileName, isDirty]);
 
@@ -351,16 +344,8 @@ function App() {
     useSettingsStore.getState().loadGeminiApiKeyStatus();
     useSettingsStore.getState().loadAgentCapabilities();
     useSettingsStore.getState().loadUiPreferences();
-    useSyncStore.getState().loadConfig();
     useUserStore.getState().loadUser();
   }, []);
-
-  // Check sync status when file path changes
-  useEffect(() => {
-    if (currentFilePath && useSyncStore.getState().isConfigured) {
-      useSyncStore.getState().checkSyncStatus(currentFilePath);
-    }
-  }, [currentFilePath]);
 
   // Autonomous trigger: detect idle and fire agent queries
   useAutonomousTrigger();
@@ -617,7 +602,7 @@ function App() {
   if (loading) {
     return (
       <div style={centerStyle}>
-        <div style={{ color: "#6b7280", fontSize: 14 }}>Loading Cladel...</div>
+        <div style={{ color: "#6b7280", fontSize: 14 }}>Loading Filonex...</div>
       </div>
     );
   }
@@ -717,11 +702,7 @@ function App() {
         edgeCount={edgeCount}
         apiKeyStatus={apiKeyStatus}
         agentCapabilities={agentCapabilities}
-        syncIsConfigured={syncIsConfigured}
-        syncStatus={syncStatus}
-        currentFilePath={currentFilePath}
         onOpenSettings={openSettings}
-        onOpenSyncDialog={() => setSyncDialogOpen(true)}
       />
 
       {/* Version History Modal */}
@@ -781,24 +762,6 @@ function App() {
       {/* Settings Dialog */}
       <SettingsDialog />
 
-      {/* Sync Dialog */}
-      <SyncDialog
-        open={syncDialogOpen}
-        onClose={() => setSyncDialogOpen(false)}
-        localPath={currentFilePath ?? ""}
-        onSyncComplete={() => {
-          // After sync (especially download), reload the current tab's data
-          const filePath = useFileStore.getState().currentFilePath;
-          if (filePath) {
-            useTabStore.getState().reloadActiveTabFromDisk()
-              .then(() => {
-                useFileStore.getState().refreshFilePath();
-                useFileStore.getState().markClean();
-              })
-              .catch(console.error);
-          }
-        }}
-      />
 
       {/* Export BibTeX Dialog */}
       <ExportBibtexDialog

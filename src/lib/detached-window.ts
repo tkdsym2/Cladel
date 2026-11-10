@@ -157,7 +157,7 @@ export async function openNoteHelpWindow(): Promise<WebviewWindow | null> {
 
 /**
  * Close all detached node-detail windows.
- * Called when the .cld file changes (new/open) so stale windows don't linger.
+ * Called when the .flnx file changes (new/open) so stale windows don't linger.
  */
 export async function closeAllDetachedWindows(): Promise<void> {
   // Emit file-changed so child windows close themselves gracefully

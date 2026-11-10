@@ -1,4 +1,4 @@
-# Cladel
+# Filonex
 
 Research thought-mapping desktop application built with Tauri v2. Combines literature management (PDF import), personal thought mapping on a knowledge graph, and AI agents (Claude / Gemini) as collaborative research partners.
 
@@ -30,7 +30,7 @@ Research thought-mapping desktop application built with Tauri v2. Combines liter
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd Tsumugix
+cd Filonex
 
 # Install frontend dependencies
 npm install
@@ -72,7 +72,7 @@ npx tsc --noEmit
 ### Project Structure
 
 ```
-Tsumugix/
+Filonex/
 ├── src/                          # Frontend (React + TypeScript)
 │   ├── App.tsx                   # Main app shell
 │   ├── main.tsx                  # Entry point (HashRouter)
@@ -104,7 +104,7 @@ Tsumugix/
 │   ├── fonts/                    # Bundled LiberationSerif fonts
 │   ├── Cargo.toml
 │   └── tauri.conf.json
-├── sample/                       # Sample .cld file
+├── sample/                       # Sample .flnx file
 ├── package.json
 └── CLAUDE.md                     # Full codebase reference
 ```
@@ -118,7 +118,7 @@ Tsumugix/
 
 ### File Format
 
-Cladel uses `.cld` files (SQLite databases in DELETE journal mode) as single portable files. Legacy `.klv` and `.tmgx` formats are supported for reading only.
+Filonex uses `.flnx` files (SQLite databases in DELETE journal mode) as single portable files.
 
 - Text and metadata only -- PDFs and images are referenced by local file path, not stored in the database.
 - The app starts with an in-memory database; no file is created until the user performs Save As.
@@ -155,7 +155,7 @@ Configured in-app via Settings dialog (gear icon or `Cmd+,`):
 Settings are stored at:
 
 ```
-~/Library/Application Support/com.cladel.desktop/settings.json
+~/Library/Application Support/com.filonex.desktop/settings.json
 ```
 
 (via `tauri-plugin-store`)
@@ -170,11 +170,11 @@ Output binaries are placed in `src-tauri/target/release/bundle/`.
 
 ## リリース手順(自動アップデートの配信)
 
-Cladel には GitHub Releases を利用した自動アップデート機能(`tauri-plugin-updater`)が組み込まれています。新しいバージョンを公開すると、インストール済みのアプリは次回起動時に自動で更新を検知し、確認ダイアログ(「Update Now」)を表示します。
+Filonex には GitHub Releases を利用した自動アップデート機能(`tauri-plugin-updater`)が組み込まれています。新しいバージョンを公開すると、インストール済みのアプリは次回起動時に自動で更新を検知し、確認ダイアログ(「Update Now」)を表示します。
 
 ### 仕組み
 
-- アプリは起動時に `https://github.com/tkdsym2/Cladel/releases/latest/download/latest.json` を自動チェックします(開発モード `npm run tauri dev` ではスキップされます)。
+- アプリは起動時に `https://github.com/tkdsym2/Filonex/releases/latest/download/latest.json` を自動チェックします(開発モード `npm run tauri dev` ではスキップされます)。
 - インストール済みバージョンより新しいリリースがあればダイアログを表示し、ユーザーが「Update Now」を押すとダウンロード → 署名検証 → インストール → 再起動が行われます。
 - ビルドと署名はすべて GitHub Actions(`.github/workflows/release.yml`)が実行します。**ローカル PC でのビルドは不要です。**
 

@@ -1,4 +1,4 @@
-# Cladel -- Handoff Document
+# Filonex -- Handoff Document
 
 > Last updated: 2026-03-09. Code is the source of truth.
 
@@ -6,7 +6,7 @@
 
 ## 1. Project Summary
 
-**Cladel** is a desktop application for researchers to organize thinking as a knowledge graph. It combines literature management (PDF import with DOI lookup), personal thought mapping (free-form note nodes), and AI agents (Claude/Gemini APIs) as collaborative research partners. Users build layered graphs where nodes represent papers, notes, images, AI suggestions, and comparisons, connected by weighted edges with annotation threads. The app saves everything in a single `.cld` file (SQLite, DELETE journal mode; legacy `.klv` and `.tmgx` also supported for reading).
+**Filonex** is a desktop application for researchers to organize thinking as a knowledge graph. It combines literature management (PDF import with DOI lookup), personal thought mapping (free-form note nodes), and AI agents (Claude/Gemini APIs) as collaborative research partners. Users build layered graphs where nodes represent papers, notes, images, AI suggestions, and comparisons, connected by weighted edges with annotation threads. The app saves everything in a single `.flnx` file (SQLite, DELETE journal mode).
 
 | Property | Value |
 |----------|-------|
@@ -21,8 +21,8 @@
 | **HTTP** | reqwest 0.12 |
 | **PDF** | pdf-extract 0.7 (read), genpdf 0.2 + pulldown-cmark 0.12 (write) |
 | **Settings** | tauri-plugin-store 2 |
-| **File format** | `.cld` (SQLite, DELETE journal mode, single-file; legacy `.klv` and `.tmgx` also supported for reading) |
-| **App ID** | `com.cladel.desktop` |
+| **File format** | `.flnx` (SQLite, DELETE journal mode, single-file) |
+| **App ID** | `com.filonex.desktop` |
 
 ### Development Commands
 
@@ -42,7 +42,7 @@ npm run tauri build         # Production build
 
 ```
 +--------+------------------------------+----------------------------+
-| File Tab Bar (Untitled* | paper.cld | +)              [Settings] |
+| File Tab Bar (Untitled* | paper.flnx | +)              [Settings] |
 +--------+------------------------------+----------------------------+
 | Layers |                              |  Node Detail Panel         |
 | (160px)|       Graph Canvas           |  (Core/Paper/Edit/Image/   |
@@ -246,7 +246,7 @@ Single row tracking current schema version. Updated at end of migrations.
 | 19 | Add 'nano_banana' to node_type CHECK (column-aware rebuild with all columns) |
 
 **Design decisions**:
-- `.cld` stores text/metadata only, NOT binary data. PDFs/images referenced by local file path.
+- `.flnx` stores text/metadata only, NOT binary data. PDFs/images referenced by local file path.
 - DELETE journal mode = single portable file, no -shm/-wal sidecars.
 - App starts with in-memory DB; no file created until explicit Save As.
 - `VACUUM INTO` for Save As (compacted copy), then reopen at new path.
@@ -306,13 +306,13 @@ Browser-style multi-file tabs. Each tab has its own SQLite connection.
 
 **Flow**: FileTabBar (UI) -> tabStore -> tab_commands.rs (backend)
 
-**Switching tabs**: Current tab's in-memory DB is snapshot to temp file (`~/.tmp/cladel-tabs/{tab_id}.cld`) via `VACUUM INTO`, then the target tab's snapshot is reopened. All frontend stores are reinitialized after switch.
+**Switching tabs**: Current tab's in-memory DB is snapshot to temp file (`~/.tmp/filonex-tabs/{tab_id}.flnx`) via `VACUUM INTO`, then the target tab's snapshot is reopened. All frontend stores are reinitialized after switch.
 
 **Key files**: `FileTabBar.tsx`, `tabStore.ts`, `tab_commands.rs`
 
 **Commands**: `get_tabs`, `get_active_tab_id`, `create_tab`, `open_file_in_tab`, `switch_tab`, `close_tab`, `update_tab_after_save`
 
-**Gotchas**: Closing the last tab creates a fresh empty tab automatically. Tab snapshots at `~/.tmp/cladel-tabs/` are cleaned up on tab close but not on crash.
+**Gotchas**: Closing the last tab creates a fresh empty tab automatically. Tab snapshots at `~/.tmp/filonex-tabs/` are cleaned up on tab close but not on crash.
 
 ### 5.2 Layer System
 
@@ -440,21 +440,7 @@ Uses Gemini 2.5 Flash with `inline_data` for PDF upload. 120s timeout.
 
 **Key files**: `NodeDetailPanel.tsx` (paper chat section), `agent/paper_chat.rs`
 
-### 5.10 Cloud Sync (Supabase)
-
-Optional cloud sync for `.cld` files via Supabase storage.
-
-**Backend** (sync.rs): upload, download, list remote, check status, get remote stats. Bucket name: "cladel".
-
-**Frontend**: SyncDialog (management), CloudOpenDialog (browse remote files), syncStore (state).
-
-**Settings**: Supabase URL + anon key configured in SettingsDialog.
-
-**StatusBar**: Shows sync status indicator (in sync / not uploaded / out of sync).
-
-**Commands**: `sync_list_remote`, `sync_check_status`, `sync_upload`, `sync_download`, `sync_get_remote_stats`, `save_supabase_config`, `get_supabase_config`, `get_supabase_config_status`, `delete_supabase_config`
-
-### 5.11 Multi-Window Node Detail
+### 5.10 Multi-Window Node Detail
 
 **Routing**: HashRouter: "/" = main, "/node-detail/:nodeId/:layerId" = detached.
 
@@ -464,7 +450,7 @@ Double-click any node (except junction/deleted) -> opens detached WebviewWindow 
 
 **Key files**: `DetachedNodeDetail.tsx`, `detached-window.ts`, `sync-events.ts`
 
-### 5.12 Color Mode Toggle (C Key)
+### 5.11 Color Mode Toggle (C Key)
 
 Canvas-wide color mode toggle. Press C on the canvas to switch between two display modes:
 
@@ -481,7 +467,7 @@ Canvas-wide color mode toggle. Press C on the canvas to switch between two displ
 
 **Key files**: `userColors.ts`, `CursorModeIndicator.tsx`, `graphStore.ts`, `PaperNode.tsx`, `UserDocNode.tsx`, `ImageNode.tsx`
 
-### 5.13 User Identity System
+### 5.12 User Identity System
 
 Nodes and comments track which user created them.
 
@@ -493,7 +479,7 @@ Nodes and comments track which user created them.
 
 **Display**: `CreatorLabel.tsx` shows attribution on node cards. Color Mode uses `creator_user_id` for deterministic coloring.
 
-### 5.14 Import Node (Temp React-Only)
+### 5.13 Import Node (Temp React-Only)
 
 NOT a DB node_type. Temporary placeholder created via Tab-to-Create or context menu.
 
@@ -501,7 +487,7 @@ Click -> file dialog -> auto-detects PDF vs image -> opens PdfImportDialog or Im
 
 **Key files**: `ImportNode.tsx`, `GraphCanvas.tsx`
 
-### 5.15 Content Pull
+### 5.14 Content Pull
 
 Inline reference insertion for Edit and Core nodes. Press Space on empty line -> ContentPullPopover.
 
@@ -509,7 +495,7 @@ Inline reference insertion for Edit and Core nodes. Press Space on empty line ->
 
 **Key files**: `ContentPullPopover.tsx`, `NoteEditorWithPull.tsx`
 
-### 5.16 Paper Group System
+### 5.15 Paper Group System
 
 Select 2+ papers -> GroupingButton -> enter name -> creates `paper_group` node with `{ member_node_ids: string[] }`.
 
@@ -517,7 +503,7 @@ Expand/collapse via context menu. `graphStore.expandedGroupIds` tracks state. Co
 
 **Key files**: `PaperGroupNode.tsx`, `GroupingButton.tsx`, `GroupNamePopover.tsx`, `graphStore.ts`
 
-### 5.17 Compare Node
+### 5.16 Compare Node
 
 Connect exactly 2 Edit nodes to a Compare node to see their differences.
 
@@ -525,13 +511,13 @@ Connect exactly 2 Edit nodes to a Compare node to see their differences.
 
 **Key files**: `CompareNode.tsx`, `CompareNodeViewer.tsx`
 
-### 5.18 NanoBanana Node (AI Image Generation)
+### 5.17 NanoBanana Node (AI Image Generation)
 
 AI-powered image generation using the Gemini API (`gemini-2.5-flash-image` model).
 
 - Generates images from text prompts with configurable aspect ratio.
 - Reuses existing Gemini API key (no separate key needed).
-- Generated images saved locally in `nano_banana_images/` subfolder next to the .cld file (or temp dir if unsaved).
+- Generated images saved locally in `nano_banana_images/` subfolder next to the .flnx file (or temp dir if unsaved).
 - Supports aspect ratios: 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9.
 - If no Gemini API key configured, viewer shows guidance with link to https://aistudio.google.com/apikey.
 - 90s HTTP timeout, 2x retry on transient errors (429, 500, 502, 503, 529).
@@ -548,7 +534,7 @@ AI-powered image generation using the Gemini API (`gemini-2.5-flash-image` model
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `src-tauri/src/main.rs` | 6 | Calls `cladel_app_lib::run()` |
+| `src-tauri/src/main.rs` | 6 | Calls `filonex_app_lib::run()` |
 | `src-tauri/src/lib.rs` | 280 | App entry: 111 command registrations, native menu, plugins init |
 | `src-tauri/src/db.rs` | 1000 | SQLite schema, SCHEMA_VERSION=19, 19 migrations, Database+TabInfo structs |
 | `src-tauri/src/commands/mod.rs` | 21 | Module declarations |
@@ -574,9 +560,8 @@ AI-powered image generation using the Gemini API (`gemini-2.5-flash-image` model
 | `commands/pdf_export.rs` | 2,183 | `get_export_sections`, `update_export_section_order`, `update_export_citation_style`, `update_export_language`, `update_export_style_config`, `generate_export_pdf` |
 | `commands/image_import.rs` | 315 | `validate_image_file`, `create_image_node`, `get_node_image_info`, `check_file_exists`, `update_node_image_path`, `open_file_external`, `set_paper_pdf_path`, `get_paper_pdf_path` |
 | `commands/export.rs` | 283 | `get_paper_nodes_by_layers`, `export_bibtex_selected`, `export_bibtex_to_file` |
-| `commands/settings.rs` | 686 | `save_api_key`, `get_api_key_status`, `get_api_key`, `delete_api_key`, `save_gemini_api_key`, `get_gemini_api_key_status`, `get_gemini_api_key`, `delete_gemini_api_key`, `save_agent_capabilities`, `get_agent_capabilities`, `get_ui_preferences`, `save_ui_preferences`, `get_recent_files`, `add_recent_file`, `remove_recent_file`, `get_paper_summary_prompt`, `save_paper_summary_prompt`, `reset_paper_summary_prompt`, `save_supabase_config`, `get_supabase_config`, `get_supabase_config_status`, `delete_supabase_config`, `get_user_identity`, `register_user`, `update_user_name` |
+| `commands/settings.rs` | 686 | `save_api_key`, `get_api_key_status`, `get_api_key`, `delete_api_key`, `save_gemini_api_key`, `get_gemini_api_key_status`, `get_gemini_api_key`, `delete_gemini_api_key`, `save_agent_capabilities`, `get_agent_capabilities`, `get_ui_preferences`, `save_ui_preferences`, `get_recent_files`, `add_recent_file`, `remove_recent_file`, `get_paper_summary_prompt`, `save_paper_summary_prompt`, `reset_paper_summary_prompt`, `get_user_identity`, `register_user`, `update_user_name` |
 | `commands/usage.rs` | 223 | `get_usage_summary`, `get_usage_history`, `clear_usage_log` |
-| `commands/sync.rs` | 445 | `sync_list_remote`, `sync_check_status`, `sync_upload`, `sync_download`, `sync_get_remote_stats` |
 | `commands/nano_banana.rs` | 260 | `generate_nano_banana_image` (Gemini image generation API) |
 
 ### Agent Subsystem
@@ -629,7 +614,6 @@ AI-powered image generation using the Gemini API (`gemini-2.5-flash-image` model
 | `tabStore.ts` | 200 | Tab lifecycle: new/open/switch/close, reinitialize on switch | `tabs`, `activeTabId`, `switching` |
 | `fileStore.ts` | 163 | File ops (new/open/save/save-as), auto-dirty tracking | `currentFilePath`, `fileName`, `isDirty` |
 | `settingsStore.ts` | 98 | API key status, AgentCapabilities, UIPreferences | `apiKeyStatus`, `agentCapabilities`, `uiPreferences` |
-| `syncStore.ts` | 96 | Cloud sync state (Supabase) | `isConfigured`, `remoteFiles`, `syncStatus` |
 | `layerStore.ts` | 58 | Layer list, current layer | `layers`, `currentLayer` |
 | `agentNodeStore.ts` | 44 | Per-agent-node processing state | `processingNodes: Set`, `errors: Map` |
 | `projectStore.ts` | 35 | Project list, current project | `projects`, `currentProject` |
@@ -715,9 +699,7 @@ AI-powered image generation using the Gemini API (`gemini-2.5-flash-image` model
 | `SettingsDialog.tsx` | 2,007 | **Modify with care**. API keys, capabilities, UI prefs, usage, paper prompt, sync |
 | `WelcomeDialog.tsx` | 753 | Launch dialog: recent files, create/open |
 | `PdfImportDialog.tsx` | 733 | PDF import 6-phase state machine with error recovery |
-| `CloudOpenDialog.tsx` | 575 | Cloud file browser (Supabase) |
 | `ExportBibtexDialog.tsx` | 471 | Tri-state checkbox tree export to .bib |
-| `SyncDialog.tsx` | 440 | Cloud sync management |
 | `NewLayerDialog.tsx` | 389 | Layer creation with optional source node |
 | `ImageImportDialog.tsx` | 386 | Image import + validation + positionOverride |
 | `ExportStyleConfigDialog.tsx` | 681 | PDF export style configuration (fonts, sizes, margins, title alignment, affiliation markers, line numbers) with live preview |
@@ -741,10 +723,10 @@ AI-powered image generation using the Gemini API (`gemini-2.5-flash-image` model
 | Command | Rust File | Description |
 |---------|-----------|-------------|
 | `file_new` | file_commands.rs | Reset to empty in-memory DB |
-| `file_open` | file_commands.rs | Open .cld/.klv/.tmgx file at path |
+| `file_open` | file_commands.rs | Open .flnx file at path |
 | `file_save` | file_commands.rs | Save to current path (VACUUM INTO) |
 | `file_save_as` | file_commands.rs | Save to new path (VACUUM INTO) |
-| `file_get_current_path` | file_commands.rs | Get current .cld file path |
+| `file_get_current_path` | file_commands.rs | Get current .flnx file path |
 | `get_tabs` | tab_commands.rs | List all tabs |
 | `get_active_tab_id` | tab_commands.rs | Get active tab ID |
 | `create_tab` | tab_commands.rs | Create new empty tab |
@@ -813,10 +795,6 @@ AI-powered image generation using the Gemini API (`gemini-2.5-flash-image` model
 | `get_paper_summary_prompt` | settings.rs | Get custom paper summary prompt |
 | `save_paper_summary_prompt` | settings.rs | Save custom paper summary prompt |
 | `reset_paper_summary_prompt` | settings.rs | Reset to default prompt |
-| `save_supabase_config` | settings.rs | Save Supabase URL + key |
-| `get_supabase_config` | settings.rs | Get Supabase config |
-| `get_supabase_config_status` | settings.rs | Check if Supabase configured |
-| `delete_supabase_config` | settings.rs | Delete Supabase config |
 | `get_user_identity` | settings.rs | Get user_id + user_name |
 | `register_user` | settings.rs | Register new user (generates UUID) |
 | `update_user_name` | settings.rs | Update user display name |
@@ -845,18 +823,13 @@ AI-powered image generation using the Gemini API (`gemini-2.5-flash-image` model
 | `get_agent_node_messages` | agent_node_messages.rs | Get chat messages for agent node |
 | `add_agent_node_message` | agent_node_messages.rs | Add message to agent node chat |
 | `delete_agent_node_message` | agent_node_messages.rs | Delete message from agent node chat |
-| `sync_list_remote` | sync.rs | List remote files in Supabase |
-| `sync_check_status` | sync.rs | Compare local vs remote file |
-| `sync_upload` | sync.rs | Upload .cld to Supabase |
-| `sync_download` | sync.rs | Download .cld from Supabase |
-| `sync_get_remote_stats` | sync.rs | Get remote file stats |
 | `generate_nano_banana_image` | nano_banana.rs | Generate image via Gemini Nano Banana API |
 
 ---
 
 ## 9. Settings Reference
 
-Store file: `~/Library/Application Support/com.cladel.desktop/settings.json` (tauri-plugin-store)
+Store file: `~/Library/Application Support/com.filonex.desktop/settings.json` (tauri-plugin-store)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -885,8 +858,6 @@ Store file: `~/Library/Application Support/com.cladel.desktop/settings.json` (ta
 | `canvas_grid_size` | f64 | 20 | Grid cell size in pixels |
 | `editor_font_size` | f64 | 13 | Editor font size in pixels |
 | `paper_summary_prompt` | string | (template) | Custom prompt for paper summarization |
-| `supabase_url` | string | -- | Supabase project URL |
-| `supabase_anon_key` | string | -- | Supabase anonymous key |
 | `recent_files` | JSON array | [] | Recent files list (max 10 entries) |
 | `user_id` | string | -- | User UUID (generated on register) |
 | `user_name` | string | -- | User display name |
@@ -1016,7 +987,7 @@ Unknown/null user: bg #f3f4f6, border #9ca3af, glow #d1d5db.
 - **BibTeX parser**: Hand-written in `bibtex.rs` (no external crate). Handles UTF-8/multibyte correctly.
 - **StubAgentService**: Exists in `stub_service.rs` (239 lines) but is not used. Only ClaudeAgentService and GeminiAgentService are active.
 - **Version history tables**: `core_versions`/`note_versions` tables and backend commands exist but frontend no longer uses them.
-- **Tab snapshots**: In-memory tabs `VACUUM INTO` temp files at `~/.tmp/cladel-tabs/`. Cleaned up on tab close but not on crash.
+- **Tab snapshots**: In-memory tabs `VACUUM INTO` temp files at `~/.tmp/filonex-tabs/`. Cleaned up on tab close but not on crash.
 - **PDF export fonts**: LiberationSerif bundled at `src-tauri/fonts/` (Regular/Bold/Italic/BoldItalic).
 - **Multi-selection**: Shift+click toggles individual, Shift+drag draws selection box (SelectionMode.Partial). Module-level `_shiftHeld` flag works around React Flow's stale `multiSelectionActive` bug.
 - **open_file_external**: Cross-platform via `#[cfg(target_os)]` -- `open` (macOS), `cmd /c start` (Windows), `xdg-open` (Linux).
@@ -1027,7 +998,7 @@ Unknown/null user: bg #f3f4f6, border #9ca3af, glow #d1d5db.
 
 ### Native Menu Bar
 
-- **Cladel**: About, Settings (Cmd+,), Hide, Hide Others, Show All, Quit
+- **Filonex**: About, Settings (Cmd+,), Hide, Hide Others, Show All, Quit
 - **File**: New (Cmd+N), Open (Cmd+O), Save (Cmd+S), Save As (Cmd+Shift+S), Close Tab (Cmd+W)
 - **Edit**: Undo, Redo, Cut, Copy, Paste, Select All
 - **Window**: Minimize, Close
@@ -1064,7 +1035,7 @@ Close Tab (Cmd+W) has special handling: if a detached window is focused, closes 
 3. For ALTER TABLE additions: use `ALTER TABLE ... ADD COLUMN`.
 4. For CHECK constraint changes: use column-aware table rebuild pattern (see migrations v7, v11, v13, v14 for examples).
 5. Never reorder existing migrations. Append-only.
-6. Test on both fresh DB (in-memory) and existing `.cld` files.
+6. Test on both fresh DB (in-memory) and existing `.flnx` files.
 
 ### How to Add a New Node Type
 
@@ -1145,7 +1116,7 @@ Close Tab (Cmd+W) has special handling: if a detached window is focused, closes 
 
 | Setting | Value |
 |---------|-------|
-| App identifier | `com.cladel.desktop` |
+| App identifier | `com.filonex.desktop` |
 | Window size | 1200 x 800, resizable |
 | CSP | null (permissive, required for asset:// protocol) |
 | Asset protocol | Enabled, scope `["**/*"]` |

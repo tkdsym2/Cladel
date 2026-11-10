@@ -1,9 +1,5 @@
-import type { AgentCapabilities, SyncStatusResult } from "../types";
+import type { AgentCapabilities } from "../types";
 import { useT } from "../lib/i18n";
-import CloudDoneIcon from "@mui/icons-material/CloudDone";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import CloudSyncIcon from "@mui/icons-material/CloudSync";
-import CloudOffIcon from "@mui/icons-material/CloudOff";
 
 const statusBarStyle: React.CSSProperties = {
   display: "flex",
@@ -41,21 +37,13 @@ export function StatusBar({
   edgeCount,
   apiKeyStatus,
   agentCapabilities,
-  syncIsConfigured,
-  syncStatus,
-  currentFilePath,
   onOpenSettings,
-  onOpenSyncDialog,
 }: {
   nodeCount: number;
   edgeCount: number;
   apiKeyStatus: string | null;
   agentCapabilities: AgentCapabilities;
-  syncIsConfigured: boolean;
-  syncStatus: SyncStatusResult | null;
-  currentFilePath: string | null;
   onOpenSettings: () => void;
-  onOpenSyncDialog: () => void;
 }) {
   const t = useT();
   return (
@@ -115,45 +103,6 @@ export function StatusBar({
                 : t({ en: "Agent: On", ja: "\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8: \u30aa\u30f3" })}
           </span>
         </button>
-        {/* Cloud sync indicator */}
-        {syncIsConfigured && currentFilePath && (
-          <button
-            onClick={onOpenSyncDialog}
-            style={apiStatusBtnStyle}
-            title={t({ en: "Cloud sync status — click to manage", ja: "クラウド同期の状態 — クリックして管理" })}
-          >
-            {!syncStatus ? (
-              <>
-                <CloudSyncIcon sx={{ fontSize: 14, color: "#9ca3af" }} />
-                <span>{t({ en: "Checking...", ja: "確認中..." })}</span>
-              </>
-            ) : syncStatus.is_in_sync ? (
-              <>
-                <CloudDoneIcon sx={{ fontSize: 14, color: "#059669" }} />
-                <span style={{ color: "#059669" }}>{t({ en: "In sync", ja: "同期済み" })}</span>
-              </>
-            ) : !syncStatus.has_remote ? (
-              <>
-                <CloudUploadIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                <span style={{ color: "#d97706" }}>{t({ en: "Not uploaded", ja: "未アップロード" })}</span>
-              </>
-            ) : (
-              <>
-                <CloudSyncIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                <span style={{ color: "#d97706" }}>{t({ en: "Out of sync", ja: "未同期" })}</span>
-              </>
-            )}
-          </button>
-        )}
-        {!syncIsConfigured && (
-          <button
-            onClick={onOpenSettings}
-            style={apiStatusBtnStyle}
-            title={t({ en: "Cloud sync not configured", ja: "クラウド同期が未設定" })}
-          >
-            <CloudOffIcon sx={{ fontSize: 14, color: "#d1d5db" }} />
-          </button>
-        )}
       </div>
     </div>
   );

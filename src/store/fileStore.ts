@@ -3,7 +3,6 @@ import * as cmd from "../lib/tauri-commands";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useGraphStore } from "./graphStore";
 import { useTabStore } from "./tabStore";
-import { useSyncStore } from "./syncStore";
 
 interface FileStore {
   currentFilePath: string | null;
@@ -26,7 +25,7 @@ function extractFileName(path: string | null): string {
   if (!path) return "Untitled";
   const parts = path.replace(/\\/g, "/").split("/");
   const filename = parts[parts.length - 1];
-  return filename.replace(/\.(cld|klv|tmgx)$/i, "");
+  return filename.replace(/\.flnx$/i, "");
 }
 
 export const useFileStore = create<FileStore>((set, get) => ({
@@ -63,7 +62,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   openFile: async () => {
     const selected = await open({
       multiple: false,
-      filters: [{ name: "Cladel Document", extensions: ["cld", "klv", "tmgx"] }],
+      filters: [{ name: "Filonex Document", extensions: ["flnx"] }],
     });
     if (!selected) return; // User cancelled
 
@@ -100,10 +99,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
         await cmd.fileSave();
         set({ isDirty: false });
         useTabStore.getState().markActiveTabClean();
-        // Background sync check after save
-        if (useSyncStore.getState().isConfigured) {
-          useSyncStore.getState().checkSyncStatus(currentFilePath);
-        }
         return true;
       } catch (err) {
         console.error("Failed to save file:", err);
@@ -116,18 +111,18 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
   saveFileAs: async () => {
     const selected = await save({
-      filters: [{ name: "Cladel Document", extensions: ["cld"] }],
+      filters: [{ name: "Filonex Document", extensions: ["flnx"] }],
       defaultPath:
         get().fileName === "Untitled"
-          ? "research.cld"
-          : `${get().fileName}.cld`,
+          ? "research.flnx"
+          : `${get().fileName}.flnx`,
     });
     if (!selected) return false; // User cancelled
 
     let path = selected;
-    // Ensure .cld extension
-    if (!path.toLowerCase().endsWith(".cld") && !path.toLowerCase().endsWith(".klv") && !path.toLowerCase().endsWith(".tmgx")) {
-      path += ".cld";
+    // Ensure .flnx extension
+    if (!path.toLowerCase().endsWith(".flnx")) {
+      path += ".flnx";
     }
 
     try {
@@ -142,10 +137,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
       useTabStore.getState().updateActiveTabAfterSave(path, name);
       // Track in recent files list
       cmd.addRecentFile(path).catch(() => {});
-      // Background sync check after save
-      if (useSyncStore.getState().isConfigured) {
-        useSyncStore.getState().checkSyncStatus(path);
-      }
       return true;
     } catch (err) {
       console.error("Failed to save file as:", err);

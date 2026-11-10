@@ -8,8 +8,6 @@ const GEMINI_API_KEY_FIELD: &str = "gemini_api_key";
 const KEY_RECENT_FILES: &str = "recent_files";
 const MAX_RECENT_FILES: usize = 10;
 const KEY_PAPER_SUMMARY_PROMPT: &str = "paper_summary_prompt";
-const KEY_SUPABASE_URL: &str = "supabase_url";
-const KEY_SUPABASE_ANON_KEY: &str = "supabase_anon_key";
 const KEY_USER_ID: &str = "user_id";
 const KEY_USER_NAME: &str = "user_name";
 
@@ -37,9 +35,6 @@ const KEY_SUGGEST_CONNECTIONS_ENABLED: &str = "suggest_connections_enabled";
 const KEY_SUGGEST_IDEAS_ENABLED: &str = "suggest_ideas_enabled";
 const KEY_AUTONOMOUS_IDLE_SECONDS: &str = "autonomous_idle_seconds";
 const KEY_AUTONOMOUS_COOLDOWN_SECONDS: &str = "autonomous_cooldown_seconds";
-
-// Legacy key from old AutonomousSettings (for backward compat migration)
-const LEGACY_AUTONOMOUS_SETTINGS_FIELD: &str = "autonomous_settings";
 
 // UI preferences store keys
 const KEY_CORE_DEFAULT_WIDTH: &str = "core_default_width";
@@ -126,14 +121,6 @@ impl Default for UIPreferences {
             language: "en".to_string(),
         }
     }
-}
-
-/// Legacy struct for migrating old settings
-#[derive(Debug, Deserialize)]
-struct LegacyAutonomousSettings {
-    enabled: bool,
-    idle_seconds: u64,
-    cooldown_seconds: u64,
 }
 
 #[tauri::command]
@@ -284,8 +271,6 @@ pub fn save_agent_capabilities(app: AppHandle, capabilities: AgentCapabilities) 
     store.set(KEY_SUGGEST_IDEAS_ENABLED, serde_json::json!(capabilities.suggest_ideas_enabled));
     store.set(KEY_AUTONOMOUS_IDLE_SECONDS, serde_json::json!(capabilities.autonomous_idle_seconds));
     store.set(KEY_AUTONOMOUS_COOLDOWN_SECONDS, serde_json::json!(capabilities.autonomous_cooldown_seconds));
-    // Remove legacy key if present
-    store.delete(LEGACY_AUTONOMOUS_SETTINGS_FIELD);
     Ok(())
 }
 
@@ -295,60 +280,39 @@ pub fn get_agent_capabilities(app: AppHandle) -> Result<AgentCapabilities, Strin
         .store(STORE_FILE)
         .map_err(|e| format!("Failed to open store: {e}"))?;
 
-    // Check if new keys exist by looking for agent_enabled
-    if store.get(KEY_AGENT_ENABLED).is_some() {
-        // New format: read individual keys with defaults
-        let defaults = AgentCapabilities::default();
-        let agent_enabled = store.get(KEY_AGENT_ENABLED)
-            .and_then(|v| v.as_bool())
-            .unwrap_or(defaults.agent_enabled);
-        let autonomous_enabled = store.get(KEY_AUTONOMOUS_ENABLED)
-            .and_then(|v| v.as_bool())
-            .unwrap_or(defaults.autonomous_enabled);
-        let search_papers_enabled = store.get(KEY_SEARCH_PAPERS_ENABLED)
-            .and_then(|v| v.as_bool())
-            .unwrap_or(defaults.search_papers_enabled);
-        let suggest_connections_enabled = store.get(KEY_SUGGEST_CONNECTIONS_ENABLED)
-            .and_then(|v| v.as_bool())
-            .unwrap_or(defaults.suggest_connections_enabled);
-        let suggest_ideas_enabled = store.get(KEY_SUGGEST_IDEAS_ENABLED)
-            .and_then(|v| v.as_bool())
-            .unwrap_or(defaults.suggest_ideas_enabled);
-        let autonomous_idle_seconds = store.get(KEY_AUTONOMOUS_IDLE_SECONDS)
-            .and_then(|v| v.as_u64())
-            .unwrap_or(defaults.autonomous_idle_seconds);
-        let autonomous_cooldown_seconds = store.get(KEY_AUTONOMOUS_COOLDOWN_SECONDS)
-            .and_then(|v| v.as_u64())
-            .unwrap_or(defaults.autonomous_cooldown_seconds);
+    // Read individual keys, falling back to defaults for anything unset
+    let defaults = AgentCapabilities::default();
+    let agent_enabled = store.get(KEY_AGENT_ENABLED)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(defaults.agent_enabled);
+    let autonomous_enabled = store.get(KEY_AUTONOMOUS_ENABLED)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(defaults.autonomous_enabled);
+    let search_papers_enabled = store.get(KEY_SEARCH_PAPERS_ENABLED)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(defaults.search_papers_enabled);
+    let suggest_connections_enabled = store.get(KEY_SUGGEST_CONNECTIONS_ENABLED)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(defaults.suggest_connections_enabled);
+    let suggest_ideas_enabled = store.get(KEY_SUGGEST_IDEAS_ENABLED)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(defaults.suggest_ideas_enabled);
+    let autonomous_idle_seconds = store.get(KEY_AUTONOMOUS_IDLE_SECONDS)
+        .and_then(|v| v.as_u64())
+        .unwrap_or(defaults.autonomous_idle_seconds);
+    let autonomous_cooldown_seconds = store.get(KEY_AUTONOMOUS_COOLDOWN_SECONDS)
+        .and_then(|v| v.as_u64())
+        .unwrap_or(defaults.autonomous_cooldown_seconds);
 
-        return Ok(AgentCapabilities {
-            agent_enabled,
-            autonomous_enabled,
-            search_papers_enabled,
-            suggest_connections_enabled,
-            suggest_ideas_enabled,
-            autonomous_idle_seconds,
-            autonomous_cooldown_seconds,
-        });
-    }
-
-    // Backward compat: try to read legacy autonomous_settings
-    if let Some(val) = store.get(LEGACY_AUTONOMOUS_SETTINGS_FIELD) {
-        if let Ok(legacy) = serde_json::from_value::<LegacyAutonomousSettings>(val.clone()) {
-            return Ok(AgentCapabilities {
-                agent_enabled: false,
-                autonomous_enabled: legacy.enabled,
-                search_papers_enabled: true,
-                suggest_connections_enabled: true,
-                suggest_ideas_enabled: true,
-                autonomous_idle_seconds: legacy.idle_seconds,
-                autonomous_cooldown_seconds: legacy.cooldown_seconds,
-            });
-        }
-    }
-
-    // No settings at all — return defaults
-    Ok(AgentCapabilities::default())
+    Ok(AgentCapabilities {
+        agent_enabled,
+        autonomous_enabled,
+        search_papers_enabled,
+        suggest_connections_enabled,
+        suggest_ideas_enabled,
+        autonomous_idle_seconds,
+        autonomous_cooldown_seconds,
+    })
 }
 
 // ─── UI Preferences ───
@@ -558,80 +522,6 @@ pub fn get_stored_paper_summary_prompt(app: &AppHandle) -> String {
         Some(val) => val.as_str().unwrap_or(DEFAULT_PAPER_SUMMARY_PROMPT).to_string(),
         None => DEFAULT_PAPER_SUMMARY_PROMPT.to_string(),
     }
-}
-
-// ─── Supabase Config ───
-
-#[tauri::command]
-pub fn save_supabase_config(app: AppHandle, url: String, anon_key: String) -> Result<(), String> {
-    if url.is_empty() {
-        return Err("Supabase URL cannot be empty".to_string());
-    }
-    if anon_key.is_empty() {
-        return Err("Supabase anon key cannot be empty".to_string());
-    }
-    let store = app
-        .store(STORE_FILE)
-        .map_err(|e| format!("Failed to open store: {e}"))?;
-    store.set(KEY_SUPABASE_URL, serde_json::json!(url));
-    store.set(KEY_SUPABASE_ANON_KEY, serde_json::json!(anon_key));
-    Ok(())
-}
-
-#[tauri::command]
-pub fn get_supabase_config(app: AppHandle) -> Result<(String, String), String> {
-    let store = app
-        .store(STORE_FILE)
-        .map_err(|e| format!("Failed to open store: {e}"))?;
-    let url = store
-        .get(KEY_SUPABASE_URL)
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_default();
-    let anon_key = store
-        .get(KEY_SUPABASE_ANON_KEY)
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_default();
-    Ok((url, anon_key))
-}
-
-#[tauri::command]
-pub fn get_supabase_config_status(app: AppHandle) -> Result<bool, String> {
-    let store = app
-        .store(STORE_FILE)
-        .map_err(|e| format!("Failed to open store: {e}"))?;
-    let url = store
-        .get(KEY_SUPABASE_URL)
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_default();
-    let anon_key = store
-        .get(KEY_SUPABASE_ANON_KEY)
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_default();
-    Ok(!url.is_empty() && !anon_key.is_empty())
-}
-
-#[tauri::command]
-pub fn delete_supabase_config(app: AppHandle) -> Result<(), String> {
-    let store = app
-        .store(STORE_FILE)
-        .map_err(|e| format!("Failed to open store: {e}"))?;
-    store.delete(KEY_SUPABASE_URL);
-    store.delete(KEY_SUPABASE_ANON_KEY);
-    Ok(())
-}
-
-/// Read Supabase config from store (used by sync module).
-pub fn get_stored_supabase_config(app: &AppHandle) -> Option<(String, String)> {
-    let store = app.store(STORE_FILE).ok()?;
-    let url = store
-        .get(KEY_SUPABASE_URL)
-        .and_then(|v| v.as_str().map(String::from))
-        .filter(|s| !s.is_empty())?;
-    let anon_key = store
-        .get(KEY_SUPABASE_ANON_KEY)
-        .and_then(|v| v.as_str().map(String::from))
-        .filter(|s| !s.is_empty())?;
-    Some((url, anon_key))
 }
 
 // ─── User Identity ───

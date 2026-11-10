@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::path::Path;
 
 /// Result of importing a CSV/XLSX file into a Table node.
-/// The parsed cell data is embedded in the .cld (snapshot), so the table
+/// The parsed cell data is embedded in the .flnx (snapshot), so the table
 /// remains portable and intact even if the source file is moved or deleted.
 #[derive(Debug, Serialize)]
 pub struct TableImportResult {

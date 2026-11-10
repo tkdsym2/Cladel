@@ -107,7 +107,7 @@ This is *Typst* rendered in-process with mixed 日本語 and Latin text.";
     fn resolves_bibliography_from_root() {
         // Verifies the file-system resolver: `bibliography("refs.bib")` must read
         // a file from the image_root dir, and `@key` must resolve against it.
-        let dir = std::env::temp_dir().join("cladel-typst-test-bib");
+        let dir = std::env::temp_dir().join("filonex-typst-test-bib");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("refs.bib"),

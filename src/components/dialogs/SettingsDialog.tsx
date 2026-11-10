@@ -8,17 +8,13 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import GridViewIcon from "@mui/icons-material/GridView";
 import DataUsageIcon from "@mui/icons-material/DataUsage";
-import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import PersonIcon from "@mui/icons-material/Person";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import * as cmd from "../../lib/tauri-commands";
 import { useSettingsStore } from "../../store/settingsStore";
-import { useSyncStore } from "../../store/syncStore";
 import { useUserStore } from "../../store/userStore";
 import { useFileStore } from "../../store/fileStore";
 import type { AgentCapabilities, UIPreferences, UsageSummary, UsageLogEntry } from "../../types";
@@ -269,15 +265,6 @@ export function SettingsDialog() {
   const [usageExpanded, setUsageExpanded] = useState(false);
   const [usageClearing, setUsageClearing] = useState(false);
 
-  // Supabase cloud sync
-  const supabaseConfigured = useSyncStore((s) => s.isConfigured);
-  const [supabaseUrl, setSupabaseUrl] = useState("");
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState("");
-  const [supabaseSaving, setSupabaseSaving] = useState(false);
-  const [supabaseMsg, setSupabaseMsg] = useState<string | null>(null);
-  const [supabaseError, setSupabaseError] = useState<string | null>(null);
-  const [showAnonKey, setShowAnonKey] = useState(false);
-
   // Profile
   const userStoreId = useUserStore((s) => s.userId);
   const userStoreName = useUserStore((s) => s.userName);
@@ -313,16 +300,6 @@ export function SettingsDialog() {
         setSummaryPromptOriginal(p);
       }).catch(console.error);
       setSummaryPromptMsg(null);
-
-      // Load Supabase config
-      useSyncStore.getState().loadConfig();
-      cmd.getSupabaseConfig().then(([url, key]) => {
-        setSupabaseUrl(url);
-        setSupabaseAnonKey(key);
-      }).catch(() => {});
-      setSupabaseMsg(null);
-      setSupabaseError(null);
-      setShowAnonKey(false);
 
       // Load profile
       useUserStore.getState().loadUser();
@@ -693,7 +670,7 @@ export function SettingsDialog() {
                     <span style={onboardingTitleStyle}>Connect to Claude API</span>
                   </div>
                   <div style={onboardingDescStyle}>
-                    Cladel uses Claude to power its research assistant. You'll need
+                    Filonex uses Claude to power its research assistant. You'll need
                     an Anthropic API key to enable AI features.
                   </div>
                   <div style={stepsContainerStyle}>
@@ -1232,97 +1209,6 @@ export function SettingsDialog() {
                   No API usage recorded yet. Usage will appear here after agent calls.
                 </div>
               )}
-            </div>
-
-            <div style={dividerStyle} />
-
-            {/* Cloud Sync */}
-            <div style={sectionStyle}>
-              <div style={agentSectionHeaderStyle}>
-                <CloudSyncIcon sx={{ fontSize: 16, color: "#0891b2", flexShrink: 0 }} />
-                <span style={agentSectionTitleStyle}>Cloud Sync</span>
-              </div>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12 }}>
-                Connect your own Supabase project to sync .cld files across devices.
-                Each user provides their own Supabase project credentials.
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-                <span style={{
-                  width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-                  background: supabaseConfigured ? "#059669" : "#d1d5db",
-                }} />
-                <span style={{ fontSize: 12, color: supabaseConfigured ? "#059669" : "#9ca3af" }}>
-                  {supabaseConfigured ? "Connected" : "Not configured"}
-                </span>
-              </div>
-              <div style={{ marginBottom: 8 }}>
-                <label style={cloudFieldLabelStyle}>Supabase Project URL</label>
-                <input type="text" value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  placeholder="https://xxxx.supabase.co" style={inputStyle} />
-              </div>
-              <div style={{ marginBottom: 10 }}>
-                <label style={cloudFieldLabelStyle}>Supabase Anon Key</label>
-                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <input type={showAnonKey ? "text" : "password"} value={supabaseAnonKey}
-                    onChange={(e) => setSupabaseAnonKey(e.target.value)}
-                    placeholder="eyJhbGci..." style={{ ...inputStyle, flex: 1 }} />
-                  <button onClick={() => setShowAnonKey((v) => !v)}
-                    style={cloudToggleVisStyle} title={showAnonKey ? "Hide" : "Show"}>
-                    {showAnonKey ? <VisibilityOffIcon sx={{ fontSize: 16 }} /> : <VisibilityIcon sx={{ fontSize: 16 }} />}
-                  </button>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <button
-                  onClick={async () => {
-                    setSupabaseMsg(null); setSupabaseError(null); setSupabaseSaving(true);
-                    try {
-                      await cmd.saveSupabaseConfig(supabaseUrl.trim(), supabaseAnonKey.trim());
-                      await useSyncStore.getState().loadConfig();
-                      setSupabaseMsg("Supabase config saved.");
-                    } catch (e) { setSupabaseError(String(e)); }
-                    finally { setSupabaseSaving(false); }
-                  }}
-                  disabled={supabaseSaving || !supabaseUrl.trim() || !supabaseAnonKey.trim()}
-                  style={supabaseSaving || !supabaseUrl.trim() || !supabaseAnonKey.trim() ? disabledSaveBtnStyle : saveBtnStyle}
-                >
-                  {supabaseSaving ? "Saving..." : "Save"}
-                </button>
-                {supabaseConfigured && (
-                  <button
-                    onClick={async () => {
-                      setSupabaseMsg(null); setSupabaseError(null);
-                      try {
-                        await cmd.deleteSupabaseConfig();
-                        await useSyncStore.getState().loadConfig();
-                        setSupabaseUrl(""); setSupabaseAnonKey("");
-                        setSupabaseMsg("Supabase disconnected.");
-                      } catch (e) { setSupabaseError(String(e)); }
-                    }}
-                    style={removeBtnStyle}
-                  >
-                    Disconnect
-                  </button>
-                )}
-              </div>
-              {supabaseMsg && (
-                <div style={cloudSuccessStyle}>
-                  <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />{supabaseMsg}
-                </div>
-              )}
-              {supabaseError && (
-                <div style={cloudErrorStyle}>
-                  <ErrorOutlineIcon sx={{ fontSize: 14 }} />{supabaseError}
-                </div>
-              )}
-              <button
-                onClick={() => shellOpen("https://supabase.com/docs/guides/api").catch(console.error)}
-                style={cloudHelpLinkStyle}
-              >
-                How to get your Supabase credentials
-                <OpenInNewIcon sx={{ fontSize: 12 }} />
-              </button>
             </div>
           </>
         )}
@@ -2036,59 +1922,3 @@ const usageEmptyStyle: React.CSSProperties = {
   padding: "16px 0",
 };
 
-// ── Cloud Sync styles ──
-
-const cloudFieldLabelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 11,
-  fontWeight: 500,
-  color: "#6b7280",
-  marginBottom: 4,
-};
-
-const cloudToggleVisStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 32,
-  height: 32,
-  background: "none",
-  border: "1px solid #d1d5db",
-  borderRadius: 6,
-  cursor: "pointer",
-  color: "#6b7280",
-  padding: 0,
-  flexShrink: 0,
-};
-
-const cloudSuccessStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-  fontSize: 12,
-  color: "#059669",
-  marginTop: 8,
-};
-
-const cloudErrorStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-  fontSize: 12,
-  color: "#dc2626",
-  marginTop: 8,
-};
-
-const cloudHelpLinkStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 4,
-  background: "none",
-  border: "none",
-  padding: 0,
-  marginTop: 12,
-  fontSize: 12,
-  color: "#1e40af",
-  cursor: "pointer",
-  textDecoration: "underline",
-};
