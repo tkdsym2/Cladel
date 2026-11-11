@@ -78,8 +78,9 @@ export function AgentNode({ id, data, selected }: NodeProps<Node<AgentNodeData>>
           {processing ? "Processing..." : error ? "Error" : "Idle"}
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <NodePorts accent="#4338ca" />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered card) */}
+      <NodePorts accent="#4338ca" />
     </>
   );
 }

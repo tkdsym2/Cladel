@@ -152,8 +152,9 @@ export function GhostNode({
 
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
 
-        <NodePorts accent="#7c3aed" />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered / clipped card) */}
+      <NodePorts accent="#7c3aed" />
     </>
   );
 }

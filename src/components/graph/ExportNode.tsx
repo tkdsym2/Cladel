@@ -87,8 +87,9 @@ export function ExportNode({ id, data, selected }: NodeProps<Node<ExportNodeData
           {sectionCount > 0 ? `${sectionCount} section${sectionCount !== 1 ? "s" : ""}` : "No sections"}
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <NodePorts accent="#e11d48" />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered card) */}
+      <NodePorts accent="#e11d48" />
     </>
   );
 }

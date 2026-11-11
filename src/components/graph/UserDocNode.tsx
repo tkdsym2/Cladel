@@ -96,8 +96,9 @@ export function UserDocNode({ id, data, selected }: NodeProps<Node<UserDocNodeDa
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
-        <NodePorts accent={userColor ? userColor.border : "#d97706"} />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered card) */}
+      <NodePorts accent={userColor ? userColor.border : "#d97706"} />
     </>
   );
 }

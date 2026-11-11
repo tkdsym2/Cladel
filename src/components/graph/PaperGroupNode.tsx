@@ -90,8 +90,9 @@ export function PaperGroupNode({ id, data, selected }: NodeProps<Node<PaperGroup
             </button>
           </div>
 
-          <NodePorts accent="#059669" />
         </div>
+        {/* Ports sit on the node's outer box (not inside the bordered card) */}
+        <NodePorts accent="#059669" />
       </>
     );
   }
@@ -154,8 +155,9 @@ export function PaperGroupNode({ id, data, selected }: NodeProps<Node<PaperGroup
         </div>
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
 
-        <NodePorts accent="#059669" />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered card) */}
+      <NodePorts accent="#059669" />
     </>
   );
 }

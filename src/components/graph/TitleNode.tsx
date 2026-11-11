@@ -91,8 +91,9 @@ export function TitleNode({ id, data, selected }: NodeProps<Node<TitleNodeData>>
             : "No authors"}
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <NodePorts accent="#78716c" />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered card) */}
+      <NodePorts accent="#78716c" />
     </>
   );
 }
