@@ -296,21 +296,11 @@ export function ManualWindow() {
             ]}
           />
           <p>
-            A popover appears with 8 options (press the number key to instant-select):
+            A popover appears with a search field that already has the cursor in it. Type
+            part of a node name in English letters (e.g. <code>ed</code> → Edit,{" "}
+            <code>tr</code> → Translate) to narrow the list; with nothing typed, every node
+            type is shown. Use the arrow keys to move, Enter to create, Esc to cancel.
           </p>
-          <Table
-            headers={["Key", "Node Type"]}
-            rows={[
-              ["1", "Edit"],
-              ["2", "Paper"],
-              ["3", "Image"],
-              ["4", "Agent"],
-              ["5", "Import File"],
-              ["6", "Export"],
-              ["7", "Compare"],
-              ["8", "Title"],
-            ]}
-          />
           <p>
             Tab-to-Create also works during edge dragging (creates a node connected to the
             drag source) or with no selection (creates a standalone node at the cursor position).
