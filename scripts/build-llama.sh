@@ -8,6 +8,12 @@
 #   scripts/build-llama.sh                 # host triple, pinned tag
 #   LLAMA_TAG=b12300 scripts/build-llama.sh
 #   scripts/build-llama.sh aarch64-apple-darwin
+#   scripts/build-llama.sh universal-apple-darwin   # release builds (CI)
+#
+# `universal-apple-darwin` builds both architectures and installs all three
+# files Tauri needs for `tauri build --target universal-apple-darwin`: the
+# per-arch binaries (copied by tauri-build for each cargo target) and the
+# lipo'd universal one (used by the bundler).
 #
 # Requirements (macOS): Xcode Command Line Tools, cmake (`brew install cmake`), git.
 # Metal shaders are embedded into the binary (GGML_METAL_EMBED_LIBRARY), so the
@@ -32,6 +38,18 @@ if [[ $# -ge 1 ]]; then
   TRIPLE="$1"
 else
   TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
+fi
+
+if [[ "$TRIPLE" == "universal-apple-darwin" ]]; then
+  "$0" aarch64-apple-darwin
+  "$0" x86_64-apple-darwin
+  DEST="$BIN_DIR/llama-server-universal-apple-darwin"
+  lipo -create \
+    "$BIN_DIR/llama-server-aarch64-apple-darwin" \
+    "$BIN_DIR/llama-server-x86_64-apple-darwin" \
+    -output "$DEST"
+  echo "==> installed $DEST ($(du -h "$DEST" | cut -f1)): $(lipo -archs "$DEST")"
+  exit 0
 fi
 
 case "$TRIPLE" in

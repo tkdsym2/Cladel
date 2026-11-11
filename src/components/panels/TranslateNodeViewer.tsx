@@ -103,7 +103,11 @@ export function TranslateNodeViewer({ node }: Props) {
       </div>
 
       {/* ── Model ── */}
-      {modelStatus.checked && !modelStatus.hasModel ? (
+      {modelStatus.checked && !modelStatus.supported ? (
+        <div style={ctaBoxStyle}>
+          <div style={{ fontSize: 12.5 }}>{t({ en: "Local translation currently runs on macOS only.", ja: "ローカル翻訳は現在 macOS でのみ利用できます。" })}</div>
+        </div>
+      ) : modelStatus.checked && !modelStatus.hasModel ? (
         <div style={ctaBoxStyle}>
           <div style={{ fontSize: 12.5 }}>
             {t({

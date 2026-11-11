@@ -759,6 +759,8 @@ export interface LocalModels {
   models: LocalModel[];
   partials: PartialDownload[];
   active_model_path: string | null;
+  /** False where local translation is not available (non-macOS builds). */
+  platform_supported: boolean;
 }
 
 /** `translation-model-progress` event payload (downloads and imports). */

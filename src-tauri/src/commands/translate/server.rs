@@ -22,6 +22,12 @@ use tauri_plugin_shell::ShellExt;
 
 use crate::commands::agent::emit_agent_log;
 
+/// The llama-server sidecar is only built/bundled for macOS (Metal); on other
+/// platforms the Translate node explains that instead of failing to spawn it.
+pub const PLATFORM_SUPPORTED: bool = cfg!(target_os = "macos");
+pub const UNSUPPORTED_PLATFORM: &str =
+    "UNSUPPORTED_PLATFORM: Local translation (PLaMo 3 Translate) currently runs on macOS only.";
+
 const SIDECAR_NAME: &str = "llama-server";
 const PID_FILE: &str = "llama-server.pid";
 const LOG_SOURCE: &str = "translate";
@@ -78,6 +84,9 @@ impl LlamaServerState {
 
     /// Ensure a server for `model_path` is running and healthy; returns its status.
     pub async fn ensure_running(&self, app: &AppHandle, model_path: &Path) -> Result<ServerStatus, String> {
+        if !PLATFORM_SUPPORTED {
+            return Err(UNSUPPORTED_PLATFORM.to_string());
+        }
         let _guard = self.start_lock.lock().await;
 
         let model_path = model_path

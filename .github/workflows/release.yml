@@ -41,6 +41,32 @@ jobs:
 
       - run: npm install
 
+      # Translate node: llama.cpp `llama-server` sidecar (macOS only; declared
+      # in tauri.macos.conf.json). Universal builds need the aarch64, x86_64
+      # and lipo'd universal binaries. Cached per build-script revision (the
+      # script pins the llama.cpp tag).
+      - name: Cache llama-server sidecar
+        if: matrix.platform == 'macos-latest'
+        id: llama-cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/binaries
+          key: llama-server-${{ runner.os }}-${{ hashFiles('scripts/build-llama.sh') }}
+
+      - name: Build llama-server sidecar
+        if: matrix.platform == 'macos-latest' && steps.llama-cache.outputs.cache-hit != 'true'
+        run: |
+          command -v cmake || brew install cmake
+          scripts/build-llama.sh universal-apple-darwin
+
+      - name: Check llama-server sidecar
+        if: matrix.platform == 'macos-latest'
+        run: |
+          for t in aarch64-apple-darwin x86_64-apple-darwin universal-apple-darwin; do
+            test -x "src-tauri/binaries/llama-server-$t" || { echo "missing llama-server-$t"; exit 1; }
+          done
+          lipo -archs src-tauri/binaries/llama-server-universal-apple-darwin
+
       - name: Validate release configuration
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

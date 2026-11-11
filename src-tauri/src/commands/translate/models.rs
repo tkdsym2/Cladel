@@ -258,6 +258,8 @@ pub struct LocalModels {
     pub models: Vec<LocalModel>,
     pub partials: Vec<PartialDownload>,
     pub active_model_path: Option<String>,
+    /// False where the llama-server sidecar is not available (non-macOS).
+    pub platform_supported: bool,
 }
 
 fn manifest_path(model: &Path) -> PathBuf {
@@ -348,6 +350,7 @@ pub fn list_local(root: &Path, active: Option<&Path>, running: &[String]) -> Loc
         active_model_path: active.map(|p| p.to_string_lossy().into_owned()),
         models,
         partials,
+        platform_supported: super::server::PLATFORM_SUPPORTED,
     }
 }
 
