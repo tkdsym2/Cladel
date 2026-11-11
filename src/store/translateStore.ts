@@ -39,6 +39,8 @@ export interface ModelStatus {
   hasModel: boolean;
   /** e.g. "plamo-3-translate-0.8b-Q4_K_M.gguf" */
   activeName: string | null;
+  /** Local translation is available on this platform (macOS only for now). */
+  supported: boolean;
 }
 
 /** Progress of applying bilingual-sync items (per Translate node). */
@@ -89,14 +91,21 @@ export const useTranslateStore = create<TranslateStore>((set) => ({
         [nodeId]: { ...(s.syncByNode[nodeId] ?? EMPTY_SYNC_STATE), ...partial },
       },
     })),
-  modelStatus: { checked: false, hasModel: false, activeName: null },
+  modelStatus: { checked: false, hasModel: false, activeName: null, supported: true },
   refreshModelStatus: async () => {
     try {
       const local = await cmd.translationListLocalModels();
       const active = local.models.find((m) => m.active) ?? local.models[0] ?? null;
-      set({ modelStatus: { checked: true, hasModel: local.models.length > 0, activeName: active?.filename ?? null } });
+      set({
+        modelStatus: {
+          checked: true,
+          hasModel: local.models.length > 0,
+          activeName: active?.filename ?? null,
+          supported: local.platform_supported,
+        },
+      });
     } catch {
-      set({ modelStatus: { checked: true, hasModel: false, activeName: null } });
+      set({ modelStatus: { checked: true, hasModel: false, activeName: null, supported: true } });
     }
   },
 }));

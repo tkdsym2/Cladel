@@ -184,7 +184,9 @@ The Translate node translates text locally with **PLaMo 3 Translate** by Preferr
 
 `scripts/build-llama.sh` builds `llama-server` from a pinned llama.cpp tag as a statically linked binary (Metal enabled, HTTPS disabled) into `src-tauri/binaries/llama-server-<target-triple>` (git-ignored). Tauri requires that file to exist before building on macOS (`src-tauri/tauri.macos.conf.json` declares it as `externalBin`). The app starts the server on demand on a free `127.0.0.1` port and stops it when the app quits.
 
-Currently macOS (Apple Silicon) only.
+For a universal macOS build, run `scripts/build-llama.sh universal-apple-darwin`: it builds both architectures (Apple Silicon with Metal, Intel CPU-only) and installs the `aarch64`, `x86_64` and lipo'd `universal` binaries that `tauri build --target universal-apple-darwin` needs. The release workflow does this automatically (cached per build-script revision). Windows and Linux builds ship without the sidecar; there the Translate node shows that local translation is macOS-only.
+
+Currently macOS only (Apple Silicon uses Metal; Intel Macs run on the CPU).
 
 ## Building for Production
 

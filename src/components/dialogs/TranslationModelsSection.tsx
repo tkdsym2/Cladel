@@ -265,6 +265,15 @@ export function TranslationModelsSection() {
         </div>
       )}
 
+      {local && !local.platform_supported && (
+        <div style={{ ...descStyle, color: "#b45309", marginTop: 8 }}>
+          {t({
+            en: "Local translation currently runs on macOS only. Models can still be managed here, but the Translate node cannot run on this platform.",
+            ja: "ローカル翻訳は現在 macOS でのみ利用できます。モデルの管理はできますが、この環境では Translate ノードを実行できません。",
+          })}
+        </div>
+      )}
+
       {/* ── Installed ── */}
       <div style={headingStyle}>{t({ en: "Installed models", ja: "インストール済みのモデル" })}</div>
       {local && local.models.length === 0 && local.partials.length === 0 && (

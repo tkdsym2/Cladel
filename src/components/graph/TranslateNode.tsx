@@ -63,12 +63,13 @@ export function TranslateNode({ id, data, selected }: NodeProps<Node<TranslateNo
     [id, updateNodeSize],
   );
 
+  const unsupported = modelStatus.checked && !modelStatus.supported;
   const noModel = modelStatus.checked && !modelStatus.hasModel;
   const errorText =
     run.status === "error"
       ? run.error === "NO_INPUT"
         ? t({ en: "Connect a Note (or enter text in the panel) first.", ja: "先にノートを接続するか、パネルで原文を入力してください。" })
-        : run.error?.replace(/^NO_MODEL:\s*/, "") ?? ""
+        : run.error?.replace(/^(NO_MODEL|UNSUPPORTED_PLATFORM):\s*/, "") ?? ""
       : null;
 
   return (
@@ -111,7 +112,11 @@ export function TranslateNode({ id, data, selected }: NodeProps<Node<TranslateNo
           </span>
         </div>
 
-        {noModel ? (
+        {unsupported ? (
+          <div style={ctaWrapStyle}>
+            <div style={hintStyle}>{t({ en: "Local translation currently runs on macOS only.", ja: "ローカル翻訳は現在 macOS でのみ利用できます。" })}</div>
+          </div>
+        ) : noModel ? (
           <div style={ctaWrapStyle}>
             <div style={hintStyle}>
               {t({ en: "No translation model is installed.", ja: "翻訳モデルがインストールされていません。" })}
@@ -173,7 +178,7 @@ export function TranslateNode({ id, data, selected }: NodeProps<Node<TranslateNo
 
         <div style={footerStyle}>
           {connectedRefs ? <span style={refsStyle}>↔ {connectedRefs}</span> : <span style={{ flex: 1 }} />}
-          {!noModel &&
+          {!noModel && !unsupported &&
             (busy ? (
               <button
                 className="nodrag"
