@@ -1,10 +1,13 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import {
   BaseEdge,
+  Position,
+  ViewportPortal,
   getBezierPath,
   type EdgeProps,
 } from "@xyflow/react";
 import { useGraphStore } from "../../store/graphStore";
+import { leftWireOffset, portDimsForNodeType } from "./portLayout";
 
 /**
  * Bezier curvature used for ALL edge paths. GraphCanvas recomputes edge
@@ -57,25 +60,45 @@ export function parseBezierPath(pathD: string): {
   };
 }
 
-function computeArrowPoints(
-  tipX: number,
-  tipY: number,
-  fromX: number,
-  fromY: number,
-  arrowSize: number,
-): string {
-  const dx = tipX - fromX;
-  const dy = tipY - fromY;
-  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-  const nx = dx / len;
-  const ny = dy / len;
-  const px = -ny;
-  const py = nx;
-  const baseX = tipX - nx * arrowSize;
-  const baseY = tipY - ny * arrowSize;
-  // Slim arrowhead (narrower than equilateral) for a sleeker wire look.
-  const halfW = arrowSize * 0.42;
-  return `${tipX},${tipY} ${baseX + px * halfW},${baseY + py * halfW} ${baseX - px * halfW},${baseY - py * halfW}`;
+/** How far before the notch mouth the re-drawn wire starts (≥ NodePorts MOUTH_EXT). */
+const NOTCH_WIRE_EXT = 7;
+
+/** Clipped copy of the wire inside an input notch, drawn ABOVE the nodes. */
+function NotchWire({
+  clipId,
+  path,
+  endX,
+  endY,
+  depth,
+  style,
+}: {
+  clipId: string;
+  path: string;
+  endX: number;
+  endY: number;
+  depth: number;
+  style: React.CSSProperties;
+}) {
+  // The notch spans [endX - depth, endX] horizontally (endX = back wall).
+  // Start NOTCH_WIRE_EXT px before the mouth: NodePorts paints canvas over
+  // the card's shadow in front of the mouth, so the wire must be on top
+  // there too, or a faint seam shows across it.
+  const half = 12;
+  return (
+    <svg
+      style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none", zIndex: 3000 }}
+      width={1}
+      height={1}
+      aria-hidden="true"
+    >
+      <defs>
+        <clipPath id={clipId}>
+          <rect x={endX - depth - NOTCH_WIRE_EXT} y={endY - half} width={depth + NOTCH_WIRE_EXT} height={half * 2} />
+        </clipPath>
+      </defs>
+      <path d={path} fill="none" clipPath={`url(#${clipId})`} style={style} />
+    </svg>
+  );
 }
 
 export function AnnotatedEdge({
@@ -105,8 +128,24 @@ export function AnnotatedEdge({
     ),
   );
 
-  const targetNode = useGraphStore((s) => s.dbNodes.find((n) => n.id === target));
-  const sourceNode = useGraphStore((s) => s.dbNodes.find((n) => n.id === source));
+  // Ends on a node's LEFT side plug into its input notch: they land on the
+  // notch's back wall and are fanned out vertically (portLayout.ts).
+  const sourceIsNotch = sourcePosition === Position.Left;
+  const targetIsNotch = targetPosition === Position.Left;
+  const sourceDims = useGraphStore((s) =>
+    portDimsForNodeType(s.dbNodes.find((n) => n.id === source)?.node_type),
+  );
+  const targetDims = useGraphStore((s) =>
+    portDimsForNodeType(s.dbNodes.find((n) => n.id === target)?.node_type),
+  );
+  const sourceOffset = useGraphStore((s) =>
+    sourceIsNotch ? leftWireOffset(source, id, s.dbEdges, s.dbNodes, sourceDims) : 0,
+  );
+  const targetOffset = useGraphStore((s) =>
+    targetIsNotch ? leftWireOffset(target, id, s.dbEdges, s.dbNodes, targetDims) : 0,
+  );
+  const sy = sourceY + sourceOffset;
+  const ty = targetY + targetOffset;
 
   // Weight 1..5 → 1.6..4.0px: thinner wires than before, still distinct steps.
   const strokeWidth = 1 + weight * 0.6;
@@ -114,9 +153,9 @@ export function AnnotatedEdge({
 
   const [edgePath] = getBezierPath({
     sourceX,
-    sourceY,
+    sourceY: sy,
     targetX,
-    targetY,
+    targetY: ty,
     sourcePosition,
     targetPosition,
     curvature: EDGE_CURVATURE, // slightly stronger S-curve, TouchDesigner-style wires
@@ -133,47 +172,20 @@ export function AnnotatedEdge({
           : "#94a3b8";
   const edgeOpacity = hasDeletedEndpoint ? 0.5 : 1;
 
-  const arrowSize = Math.max(9, strokeWidth * 2.7);
-  const arrowPoints = useMemo(() => {
-    if (!targetNode || !sourceNode) return "0,0 0,0 0,0";
-
-    const parsed = parseBezierPath(edgePath);
-    if (!parsed) return "0,0 0,0 0,0";
-
-    const { sx, sy, cx1, cy1, cx2, cy2, ex, ey } = parsed;
-
-    // Determine which end of the bezier path is near the actual target node
-    const tw = targetNode.width ?? 180;
-    const th = targetNode.height ?? 260;
-    const targetCenterX = targetNode.position_x + tw / 2;
-    const targetCenterY = targetNode.position_y + th / 2;
-
-    const sw = sourceNode.width ?? 180;
-    const sh = sourceNode.height ?? 260;
-    const sourceCenterX = sourceNode.position_x + sw / 2;
-    const sourceCenterY = sourceNode.position_y + sh / 2;
-
-    const endDistToTarget = Math.hypot(ex - targetCenterX, ey - targetCenterY);
-    const endDistToSource = Math.hypot(ex - sourceCenterX, ey - sourceCenterY);
-
-    let tipX: number, tipY: number, nearTipX: number, nearTipY: number;
-
-    if (endDistToTarget <= endDistToSource) {
-      tipX = ex;
-      tipY = ey;
-      [nearTipX, nearTipY] = bezierPoint(0.92, sx, sy, cx1, cy1, cx2, cy2, ex, ey);
-    } else {
-      tipX = sx;
-      tipY = sy;
-      [nearTipX, nearTipY] = bezierPoint(0.08, sx, sy, cx1, cy1, cx2, cy2, ex, ey);
-    }
-
-    return computeArrowPoints(tipX, tipY, nearTipX, nearTipY, arrowSize);
-  }, [edgePath, sourceNode, targetNode, arrowSize]);
+  const wireStyle: React.CSSProperties = {
+    stroke: baseColor,
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeDasharray: isAgent ? "7 4" : undefined,
+    opacity: edgeOpacity,
+    transition: "stroke 90ms ease",
+  };
 
   const handleMouseEnter = useCallback(() => setHovered(true), []);
   const handleMouseLeave = useCallback(() => setHovered(false), []);
 
+  // No arrowheads: direction reads from the ports (wires leave output tabs
+  // on the right and plug into input notches on the left).
   return (
     <>
       {/* Invisible wide hit area for hover detection and easier clicking */}
@@ -198,29 +210,33 @@ export function AnnotatedEdge({
           style={{ pointerEvents: "none" }}
         />
       )}
-      {/* Main edge path — no markerEnd (WebKit breaks SVG markers across <svg> elements) */}
-      <BaseEdge
-        id={id}
-        path={edgePath}
-        style={{
-          stroke: baseColor,
-          strokeWidth,
-          strokeLinecap: "round",
-          strokeDasharray: isAgent ? "7 4" : undefined,
-          opacity: edgeOpacity,
-          transition: "stroke 90ms ease",
-        }}
-      />
-      {/* Manual arrowhead at TARGET endpoint */}
-      <polygon
-        points={arrowPoints}
-        fill={baseColor}
-        stroke={baseColor}
-        strokeWidth={0.5}
-        strokeLinejoin="round"
-        opacity={edgeOpacity}
-        style={{ pointerEvents: "none" }}
-      />
+      <BaseEdge id={id} path={edgePath} style={wireStyle} />
+      {/* Edges render below nodes, so the stretch inside an input notch
+          (which overlaps the node box) is re-drawn above the nodes. */}
+      {(sourceIsNotch || targetIsNotch) && (
+        <ViewportPortal>
+          {sourceIsNotch && (
+            <NotchWire
+              clipId={`notch-wire-${id}-s`}
+              path={edgePath}
+              endX={sourceX}
+              endY={sy}
+              depth={sourceDims.notchDepth}
+              style={wireStyle}
+            />
+          )}
+          {targetIsNotch && (
+            <NotchWire
+              clipId={`notch-wire-${id}-t`}
+              path={edgePath}
+              endX={targetX}
+              endY={ty}
+              depth={targetDims.notchDepth}
+              style={wireStyle}
+            />
+          )}
+        </ViewportPortal>
+      )}
     </>
   );
 }

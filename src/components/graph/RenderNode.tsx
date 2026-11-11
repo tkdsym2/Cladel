@@ -107,8 +107,9 @@ export function RenderNode({ id, data, selected }: NodeProps<Node<RenderNodeData
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
 
-        <NodePorts accent={ACCENT} />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered / clipped card) */}
+      <NodePorts accent={ACCENT} />
     </>
   );
 }

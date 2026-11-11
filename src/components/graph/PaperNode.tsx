@@ -143,8 +143,9 @@ export function PaperNode({ id, data, selected }: NodeProps<Node<PaperNodeData>>
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} />
-        <NodePorts accent={userColor ? userColor.border : "#059669"} />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered card) */}
+      <NodePorts accent={userColor ? userColor.border : "#059669"} />
     </>
   );
 }

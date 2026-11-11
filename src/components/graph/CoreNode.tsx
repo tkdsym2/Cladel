@@ -49,8 +49,9 @@ export function CoreNode({ id, data, selected }: NodeProps<Node<CoreNodeData>>) 
         )}
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
         <CreatorLabel nodeId={id} creatorUserId={data.creator_user_id} creatorUserName={data.creator_user_name} dark />
-        <NodePorts accent="#60a5fa" />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered / clipped card) */}
+      <NodePorts accent="#60a5fa" />
     </>
   );
 }

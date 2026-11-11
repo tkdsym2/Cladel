@@ -1,21 +1,29 @@
-import { useId } from "react";
-import { Handle, Position } from "@xyflow/react";
+import { useLayoutEffect, useRef, useState } from "react";
+import { Handle, Position, useNodeId } from "@xyflow/react";
+import { useGraphStore } from "../../store/graphStore";
+import { PORT_DIMS, PORT_DIMS_COMPACT, countLeftWires, notchHeight } from "./portLayout";
 
 /**
- * Connector-style ports drawn as custom SVG shapes, both in the node's
- * accent color:
+ * Outline-style ports: the connectors are part of the node's own silhouette,
+ * drawn in the node's actual border color / width and background.
  *
- * - Right (output): an angular arrow-pentagon tab (凸) protruding from the
- *   edge in the flow direction, accent-filled.
- * - Left (input): a rectangular slot of the same mouth height sunk INTO the
- *   node (凹), filled with the darkened accent — the left handle box sits
- *   inside the node edge, and the cavity covers the node border at the
- *   mouth, so the node itself looks carved open. Edge arrowheads land
- *   inside the cavity ("plugged in").
+ * - Left (input): a rectangular NOTCH cut into the node — the outline turns
+ *   inward, runs down the notch's back wall and back out; inside the notch
+ *   you see the canvas. Wires end on the back wall (AnnotatedEdge re-draws
+ *   the bit inside the notch above the node). With several wires on the
+ *   left side the notch grows and the wires are fanned out vertically
+ *   (portLayout.ts).
+ * - Right (output): a small TAB pushed out of the outline (node background,
+ *   outlined on its three outer sides); wires leave from its outer face.
  *
- * The Handle divs are invisible geometry/hit containers (positioning, hover
- * and hit-area rules in index.css `.td-port`); the SVG child is purely
- * visual (pointer-events: none).
+ * Border width/color and background are read from the node card's computed
+ * style after every render, so selection (thicker border, glow color) and
+ * User Color Mode are followed automatically; `accent` is only the fallback
+ * when the card has no border (e.g. the junction dot).
+ *
+ * NodePorts is rendered as a sibling AFTER the node card (directly under the
+ * React Flow node wrapper) in full-size nodes, so offsets are measured from
+ * the node's outer edge.
  *
  * Each side stacks a source + target handle at the SAME spot (source first,
  * target on top) — GraphCanvas normalizes swapped directions via
@@ -24,78 +32,153 @@ import { Handle, Position } from "@xyflow/react";
  * stay exactly as they are.
  */
 interface NodePortsProps {
-  /** Port fill color — usually the node's border accent. */
+  /** Fallback outline color when the node card has no border. */
   accent: string;
   /** Smaller ports for mini nodes (junction, deleted, collapsed papers). */
   compact?: boolean;
 }
 
-// 10x22 viewBox (the compact 7x14 variant just scales the viewBox).
-// Output tab: angular arrow pentagon (rectangular body + pointed tip) —
-// points outward in the flow direction; x=0 sits 3px inside the node, so
-// it looks attached.
-const OUT_D = "M0 4.5 H5 L9.5 11 L5 17.5 H0 Z";
-// Input slot: rectangle of the same mouth height sunk into the node. In the
-// left handle (which sits inside the node) x=3 falls exactly on the node
-// edge, so the cavity opens flush at the border. CAVITY is the filled hole,
-// WALLS the rim (open path — the mouth face must stay open).
-const IN_CAVITY_D = "M3 4.5 H9.5 V17.5 H3 Z";
-const IN_WALLS_D = "M3 4.5 H9.5 V17.5 H3";
-
-/** Output arrow tab: accent fill with an inset white rim (stroke clipped inside). */
-function OutShape({ clipId }: { clipId: string }) {
-  return (
-    <svg viewBox="0 0 10 22" aria-hidden="true">
-      <defs>
-        <clipPath id={clipId}>
-          <path d={OUT_D} />
-        </clipPath>
-      </defs>
-      <path
-        d={OUT_D}
-        fill="currentColor"
-        stroke="rgba(255,255,255,0.5)"
-        strokeWidth={3}
-        clipPath={`url(#${clipId})`}
-      />
-    </svg>
-  );
+interface Outline {
+  bw: number;
+  border: string;
+  bg: string;
 }
 
-/**
- * Input slot: recessed cavity in the node's accent color — the accent fill
- * darkened by a black overlay, with brighter accent walls for depth.
- */
-function InShape() {
-  return (
-    <svg viewBox="0 0 10 22" aria-hidden="true">
-      <path d={IN_CAVITY_D} fill="currentColor" />
-      <path d={IN_CAVITY_D} fill="rgba(0, 0, 0, 0.42)" />
-      <path d={IN_WALLS_D} fill="none" stroke="currentColor" strokeWidth={1} />
-    </svg>
-  );
+/** Width of the (invisible) left handle box sitting on the notch's back wall. */
+const IN_HANDLE_W = 4;
+/** Canvas fill painted this far out in front of the notch mouth (px); keep in sync with NOTCH_WIRE_EXT in AnnotatedEdge. */
+const MOUTH_EXT = 6;
+/** The tab's fill reaches this far into the card at its root (px). */
+const TAB_ROOT_EXT = 1.5;
+
+function findCard(handleEl: HTMLElement): HTMLElement | null {
+  const parent = handleEl.parentElement;
+  if (!parent) return null;
+  if (!parent.classList.contains("react-flow__node")) return parent; // ports inside the card
+  for (const child of Array.from(parent.children)) {
+    const el = child as HTMLElement;
+    if (el.classList.contains("react-flow__handle")) continue;
+    if (el.classList.contains("react-flow__resize-control")) continue;
+    return el;
+  }
+  return null;
 }
 
 export function NodePorts({ accent, compact = false }: NodePortsProps) {
+  const dims = compact ? PORT_DIMS_COMPACT : PORT_DIMS;
+  const nodeId = useNodeId();
+  const wireCount = useGraphStore((s) => (nodeId ? countLeftWires(nodeId, s.dbEdges) : 0));
+  const h = notchHeight(dims, wireCount);
+
+  const probeRef = useRef<HTMLDivElement>(null);
+  const [outline, setOutline] = useState<Outline>({ bw: 1, border: accent, bg: "#ffffff" });
+
+  // Follow the card's real outline (selection / color mode change it).
+  useLayoutEffect(() => {
+    const el = probeRef.current;
+    const card = el && findCard(el);
+    if (!card) return;
+    const cs = getComputedStyle(card);
+    const w = parseFloat(cs.borderLeftWidth) || 0;
+    const hasBorder = cs.borderLeftStyle !== "none" && w > 0;
+    const next: Outline = {
+      bw: hasBorder ? w : 1,
+      border: hasBorder ? cs.borderLeftColor : accent,
+      bg: cs.backgroundColor,
+    };
+    if (next.bw !== outline.bw || next.border !== outline.border || next.bg !== outline.bg) {
+      setOutline(next);
+    }
+  });
+
+  const { bw, border, bg } = outline;
+  const { notchDepth: d, tabOut, tabH } = dims;
+
+  // Left handle box: IN_HANDLE_W wide, starting ON the back wall (x = d), so
+  // React Flow attaches the wire there. RF centers left handles on `left`.
+  const inStyle: React.CSSProperties = {
+    width: IN_HANDLE_W,
+    height: h,
+    left: d + IN_HANDLE_W / 2,
+  };
+  // Notch drawing, placed relative to the handle box (overflow visible).
+  // The canvas fill also reaches MOUTH_EXT px OUT of the mouth: it paints
+  // over the card's box-shadow / anti-aliased border right in front of the
+  // notch, which would otherwise show as a faint line across the mouth.
+  const notchW = MOUTH_EXT + d + bw;
+  const notchH = h + 2 * bw;
+  const notchSvgStyle: React.CSSProperties = {
+    position: "absolute",
+    left: -d - MOUTH_EXT,
+    top: -bw,
+    width: notchW,
+    height: notchH,
+  };
+
+  // Right handle box = the tab: from the inner side of the card's right
+  // border (x = W - bw) to the tab's outer face (x = W + tabOut). RF centers
+  // right handles at W - right.
+  const tabW = bw + tabOut;
+  const tabTotalH = tabH + 2 * bw;
+  const outStyle: React.CSSProperties = {
+    width: tabW,
+    height: tabTotalH,
+    right: -(tabOut - bw) / 2,
+  };
+
+  const notch = (
+    <svg
+      style={notchSvgStyle}
+      width={notchW}
+      height={notchH}
+      viewBox={`0 0 ${notchW} ${notchH}`}
+      aria-hidden="true"
+    >
+      {/* the cut-out: canvas shows through */}
+      <rect x={0} y={bw} width={MOUTH_EXT + d} height={h} fill="var(--canvas-bg, #f8fafc)" />
+      {/* outline turning inward: top wall, back wall, bottom wall */}
+      <rect className="td-wall" x={MOUTH_EXT} y={0} width={d + bw} height={bw} fill={border} />
+      <rect className="td-wall" x={MOUTH_EXT + d} y={0} width={bw} height={notchH} fill={border} />
+      <rect className="td-wall" x={MOUTH_EXT} y={h + bw} width={d + bw} height={bw} fill={border} />
+    </svg>
+  );
+
+  // The tab's fill starts TAB_ROOT_EXT px inside the card (over the card's
+  // own background) so no anti-aliased sliver of the card's border shows
+  // through at the tab's root.
+  const tabSvgW = TAB_ROOT_EXT + tabW;
+  const tab = (
+    <svg
+      style={{ marginLeft: -TAB_ROOT_EXT }}
+      width={tabSvgW}
+      height={tabTotalH}
+      viewBox={`0 0 ${tabSvgW} ${tabTotalH}`}
+      aria-hidden="true"
+    >
+      {/* canvas first so a translucent node background composites like the card */}
+      <rect x={0} y={bw} width={tabSvgW} height={tabTotalH - 2 * bw} fill="var(--canvas-bg, #f8fafc)" />
+      <rect x={0} y={bw} width={tabSvgW} height={tabTotalH - 2 * bw} fill={bg} />
+      {/* outline on the three outer sides (covers the card's border at the root) */}
+      <rect className="td-wall" x={TAB_ROOT_EXT} y={0} width={tabW} height={bw} fill={border} />
+      <rect className="td-wall" x={tabSvgW - bw} y={0} width={bw} height={tabTotalH} fill={border} />
+      <rect className="td-wall" x={TAB_ROOT_EXT} y={tabTotalH - bw} width={tabW} height={bw} fill={border} />
+    </svg>
+  );
+
   const cls = compact ? "td-port td-port-sm" : "td-port";
-  // The SVG picks the accent up via currentColor.
-  const style: React.CSSProperties = { color: accent };
-  // clipPath ids are document-global — make them unique per instance, and
-  // strip useId's delimiter chars, which break url(#...) references.
-  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   return (
     <>
-      <Handle type="source" position={Position.Right} id="right" className={cls} style={style}>
-        <OutShape clipId={`port-out-s-${uid}`} />
+      <Handle type="source" position={Position.Right} id="right" className={cls} style={outStyle}>
+        {tab}
       </Handle>
-      <Handle type="target" position={Position.Right} id="right-target" className={cls} style={style}>
-        <OutShape clipId={`port-out-t-${uid}`} />
+      <Handle type="target" position={Position.Right} id="right-target" className={cls} style={outStyle}>
+        {tab}
       </Handle>
-      <Handle type="source" position={Position.Left} id="left" className={cls} style={style}>
-        <InShape />
+      <Handle ref={probeRef} type="source" position={Position.Left} id="left" className={cls} style={inStyle}>
+        {notch}
       </Handle>
-      <Handle type="target" position={Position.Left} id="left-target" className={cls} style={style}>
-        <InShape />
+      <Handle type="target" position={Position.Left} id="left-target" className={cls} style={inStyle}>
+        {notch}
       </Handle>
     </>
   );

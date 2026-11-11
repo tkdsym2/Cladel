@@ -1432,7 +1432,8 @@ export function GraphCanvas({
   return (
     <div
       ref={canvasContainerRef}
-      style={{ width: "100%", height: "100%", background: canvasBackground }}
+      // --canvas-bg: NodePorts paints the input notch (the cut-out) with it
+      style={{ width: "100%", height: "100%", background: canvasBackground, ["--canvas-bg" as string]: canvasBackground }}
       onMouseDown={handleRightMouseDown}
       onContextMenu={(e) => e.preventDefault()}
     >

@@ -68,8 +68,9 @@ export function DeletedNode({ id, data, selected }: NodeProps<Node<DeletedNodeDa
           </div>
         )}
 
-        <NodePorts accent="#9ca3af" compact />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered card) */}
+      <NodePorts accent="#9ca3af" compact />
     </>
   );
 }

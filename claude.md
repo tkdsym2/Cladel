@@ -57,7 +57,7 @@ Every node gets a globally unique `display_id` (across ALL layers). **The displa
 
 ### Edges
 
-First-class entities with weight 1-5 (visual thickness), bezier curves, 4-directional handles. Click -> `EdgeActionMenu` (Delete Connection / Edge Properties / Add Branch Point -- there is NO "Edit Annotations" action; the old `EdgePopover` edge-comment thread UI is orphaned). Badge for comment count. Reconnectable. No self-loops; no duplicate `(layer_id, source, target)` edges, enforced both client-side (`graphStore.onConnect`) and server-side (`edges.rs::create_edge`); A->B and B->A both allowed. Directional arrows via `<polygon>` triangle (not SVG markers -- WebKit breaks them).
+First-class entities with weight 1-5 (visual thickness), bezier curves, 4-directional handles. Click -> `EdgeActionMenu` (Delete Connection / Edge Properties / Add Branch Point -- there is NO "Edit Annotations" action; the old `EdgePopover` edge-comment thread UI is orphaned). Badge for comment count. Reconnectable. No self-loops; no duplicate `(layer_id, source, target)` edges, enforced both client-side (`graphStore.onConnect`) and server-side (`edges.rs::create_edge`); A->B and B->A both allowed. **No arrowheads**: direction reads from the ports (wires leave a node's output tab on the right and plug into an input notch on the left; see Ports in Visual Design Tokens).
 
 ### Layer System
 
@@ -228,7 +228,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/CreatorLabel.tsx` | 46 | Shows creator name on nodes ("You" or user name) |
 | `src/components/graph/GroupingButton.tsx` | 73 | "Group" button for multi-selected papers |
 | `src/components/graph/GroupNamePopover.tsx` | 115 | Popover input for group name |
-| `src/components/graph/AnnotatedEdge.tsx` | 226 | Bezier edge + weight + badge + polygon arrow |
+| `src/components/graph/AnnotatedEdge.tsx` | 236 | Bezier edge + weight + hover/selection halo (no arrowhead); fans out wire ends in input notches (portLayout) and re-draws the in-notch stretch above nodes via `ViewportPortal` |
 | `src/components/graph/TabCreatePopover.tsx` | 300 | Light-themed popover (10 options: Edit/Paper/Image/Agent/Import/Export/Compare/Title/Table/Render), bilingual labels |
 | `src/components/graph/CanvasControls.tsx` | 124 | Zoom in/out/fit, agent panel toggle, minimap toggle |
 | `src/components/graph/CursorModeIndicator.tsx` | 196 | Upper-left bar: Move/Select pills, Color Mode toggle, shortcut help |
@@ -238,7 +238,8 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/ContextMenu.tsx` | 359 | Canvas/node right-click menus (unified "Import File", Add Agent). **ORPHANED -- zero importers** |
 | `src/components/graph/NodeAccordionSection.tsx` | 86 | Collapsible section for node detail panel |
 | `src/components/graph/useConnectedDisplayIds.ts` | 30 | Hook: connected node display_ids |
-| `src/components/graph/NodePorts.tsx` | 102 | Shared connector ports: SVG arrow-pentagon tab (right, 凸, accent) + recessed rectangular slot carved into the node (left, 凹, darkened accent); 4 handles, ids/order preserved; geometry in index.css |
+| `src/components/graph/NodePorts.tsx` | 168 | Shared outline-style ports: input = notch cut into the node outline (凹, canvas shows through), output = small tab pushed out of the outline (凸); drawn in the card's own computed border color/width + background; 4 handles, ids/order preserved; rendered as a sibling of the node card |
+| `src/components/graph/portLayout.ts` | 104 | Port geometry shared by NodePorts + AnnotatedEdge: notch/tab dims (normal + compact), notch height from left-side wire count, per-wire vertical offsets |
 | **Panel Components** | | |
 | `src/components/panels/NodeDetailPanel.tsx` | 2,685 | Right sidebar: polymorphic viewer + CommentSection with @Agent |
 | `src/components/panels/AgentNodeViewer.tsx` | 1,101 | Agent node chat interface (messages, send, output tracking) |
@@ -572,8 +573,8 @@ User Color Mode palette (8 colors, deterministic hash):
   fuchsia: bg #fdf2f8, border #d946ef, glow #f0abfc
   unknown: bg #f3f4f6, border #9ca3af, glow #d1d5db
 
-Edge colors: default #94a3b8, hover #2563eb, selected #3b82f6 (+glow halo), agent-created #7c3aed (dashed), deleted #9ca3af. Wires: round caps, width = 1 + weight*0.6 (1.6-4.0px), curvature EDGE_CURVATURE=0.32 (exported from AnnotatedEdge; GraphCanvas hit-test/preview must reuse it), slim polygon arrowhead.
-Ports (connector style): shared <NodePorts accent> component — custom SVG shapes inside 10x22 handles (7x14 compact), both in the node's accent color. Right(output)=angular arrow-pentagon tab 凸 pointing in the flow direction (accent fill + inset white rim via clipPath trick, center 2px outside edge). Left(input)=rectangular slot 凹 carved INTO the node (handle center 2px INSIDE the edge; cavity = accent darkened by rgba(0,0,0,.42) overlay, covers the border at the mouth, accent-stroked walls, edge arrowheads land inside). Handle ids/order unchanged; hover/connecting glow via CSS drop-shadow filter in index.css (.td-port), enlarged invisible hit area via ::after. Paper/Edit/Image pass userColor.border as accent in User Color Mode (ports follow the node color)
+Edge colors: default #94a3b8, hover #2563eb, selected #3b82f6 (+glow halo), agent-created #7c3aed (dashed), deleted #9ca3af. Wires: round caps, width = 1 + weight*0.6 (1.6-4.0px), curvature EDGE_CURVATURE=0.32 (exported from AnnotatedEdge; GraphCanvas hit-test/preview must reuse it), no arrowheads.
+Ports (connector style): shared <NodePorts accent> component — the ports are part of the node's silhouette, drawn in the node card's actual border color/width and background, read via getComputedStyle after every render (so selection's thicker glow-colored border and User Color Mode are followed automatically; `accent` is only the fallback when the card has no border, e.g. the junction dot). Left(input)=rectangular NOTCH cut into the outline 凹: depth 8px, height max(20, (n-1)*8+12) for n wires on the left side; the cut-out is painted with `--canvas-bg` (set on GraphCanvas's container from canvas_background) and the outline turns inward along its top/back/bottom walls. The left handle box (4px wide) sits ON the back wall so React Flow attaches wires there; its ::after hit area reaches over the notch. Several wires on a node's left side are fanned out vertically 8px apart, ordered by the other end's y (portLayout.ts `leftWireOffset`, used by AnnotatedEdge; NodePorts sizes the notch with `countLeftWires`). Because edges render below nodes, AnnotatedEdge re-draws each wire's in-notch stretch above the nodes through `ViewportPortal` (clipPath to the notch, zIndex 3000). Seam guards: the notch's canvas fill reaches MOUTH_EXT=6px out in front of the mouth (painting over the card's box-shadow / anti-aliased border) and the re-drawn wire starts NOTCH_WIRE_EXT=7px before the mouth (must stay ≥ MOUTH_EXT); the output tab's fill reaches 1.5px into the card at its root — otherwise a faint vertical line shows across the mouth/root. Right(output)=small TAB pushed out of the outline 凸: 7px out, 14px tall, node background with the outline on its 3 outer sides (covers the card's border at its root); all wires leave from its outer face center. Compact (junction/deleted/collapsed papers): notch 3px deep x 7px, tab 3x6, no fan-out. Hover/connectingfrom/connectingto: the port outline (.td-wall) turns #3b82f6 + blue drop-shadow glow (index.css .td-port). Handle sizes/offsets are set inline from portLayout.ts. <NodePorts> is rendered as a sibling AFTER the node card (directly under the React Flow node wrapper) in every full-size node, so offsets are from the node's outer edge and overflow:hidden cards don't clip the ports (Junction and compact Paper keep it inside their root). Handle ids/order unchanged.
 ProcessingIndicator: amber #f59e0b icon, rgba(245,158,11,0.15) bg circle, spinning 1.2s
 Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode.Partial)
 ```
@@ -617,7 +618,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 
 - **React Flow v12**: `NodeDragHandler` doesn't exist -> use `OnNodeDrag`. Custom node props: `NodeProps<Node<MyDataType>>` with `[key: string]: unknown`.
 - **Handle overlap causes edge direction swap**: Each node side has overlapping source + target handles. Always use `connectingFrom` state to detect and normalize swaps.
-- **Arrow rendering**: Use `bezierPoint(t~0.92)` for accurate tangent, not control points. Must use `<polygon>`, not SVG markers (WebKit breaks them).
+- **Arrow rendering**: edges currently have NO arrowheads (direction is shown by notch/tab ports). If arrows return: use `bezierPoint(t~0.92)` for an accurate tangent, and `<polygon>`, not SVG markers (WebKit breaks them).
 - **Semantic Scholar rate limiting**: 90 requests per 5-minute sliding window.
 - **PDF Claude fallback requires API key**: If no key and DOI lookup fails, import_pdf errors.
 - **open_file_external**: Cross-platform via `#[cfg(target_os)]` -- `open` (macOS), `cmd /c start` (Windows), `xdg-open` (Linux).

@@ -65,8 +65,9 @@ export function ImportNode({ id, selected }: NodeProps<Node<ImportNodeData>>) {
           </button>
           <span style={hintStyle}>or drag &amp; drop a PDF / Image</span>
         </div>
-        <NodePorts accent="#9ca3af" />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered / clipped card) */}
+      <NodePorts accent="#9ca3af" />
     </>
   );
 }

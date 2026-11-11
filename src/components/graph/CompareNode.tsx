@@ -75,8 +75,9 @@ export function CompareNode({ id, data, selected }: NodeProps<Node<CompareNodeDa
           Connect 2 Edit nodes
         </div>
         {connectedRefs && <div style={connectedRefsStyle}>↔ {connectedRefs}</div>}
-        <NodePorts accent="#0284c7" />
       </div>
+      {/* Ports sit on the node's outer box (not inside the bordered card) */}
+      <NodePorts accent="#0284c7" />
     </>
   );
 }
