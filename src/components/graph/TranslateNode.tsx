@@ -148,6 +148,12 @@ export function TranslateNode({ id, data, selected }: NodeProps<Node<TranslateNo
           </div>
         )}
 
+        {text && !busy && !unsupported && !noModel && (
+          <div style={creditStyle} title={t({ en: "This text was machine-translated by PLaMo 3 Translate (local).", ja: "この文章は PLaMo 3 Translate（ローカル）による機械翻訳です。" })}>
+            Translated by PLaMo
+          </div>
+        )}
+
         {errorText && <div style={errorStyle}>{errorText}</div>}
         {run.truncated && run.status === "done" && (
           <div style={errorStyle}>{t({ en: "Output may be cut short.", ja: "出力が途中で切れている可能性があります。" })}</div>
@@ -211,6 +217,16 @@ export function TranslateNode({ id, data, selected }: NodeProps<Node<TranslateNo
   );
 }
 
+const creditStyle: React.CSSProperties = {
+  alignSelf: "flex-end",
+  marginTop: 3,
+  fontSize: 9.5,
+  fontWeight: 600,
+  fontStyle: "italic",
+  color: "#9a3412",
+  opacity: 0.8,
+  whiteSpace: "nowrap",
+};
 const syncLineStyle: React.CSSProperties = {
   fontSize: 10.5,
   fontWeight: 600,
