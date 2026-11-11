@@ -33,6 +33,8 @@ import { CompareNode } from "./CompareNode";
 import { TitleNode } from "./TitleNode";
 import { TableNode } from "./TableNode";
 import { RenderNode } from "./RenderNode";
+import { TranslateNode } from "./TranslateNode";
+import { defaultTranslateModel } from "../../lib/translateRunner";
 import { PaperGroupNode } from "./PaperGroupNode";
 import { ImportNode } from "./ImportNode";
 import { AnnotatedEdge, bezierPoint, parseBezierPath, EDGE_CURVATURE } from "./AnnotatedEdge";
@@ -63,6 +65,7 @@ const nodeTypes = {
   title: TitleNode,
   table: TableNode,
   render: RenderNode,
+  translate: TranslateNode,
   import: ImportNode,
 };
 
@@ -102,7 +105,7 @@ interface ClipboardData {
 
 let _clipboard: ClipboardData | null = null;
 
-const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "table", "render"]);
+const COPYABLE_TYPES = new Set(["paper", "user_doc", "image", "agent", "export", "compare", "table", "render", "translate"]);
 
 // ─── Edge proximity detection for drop-on-edge ───
 
@@ -446,6 +449,13 @@ export function GraphCanvas({
           height: 360,
           title: "Render",
           metadata: JSON.stringify({ kind: "render", citation_style: "ieee" }),
+        };
+      case "translate":
+        return {
+          width: 280,
+          height: 240,
+          title: "Translate",
+          metadata: JSON.stringify(defaultTranslateModel()),
         };
     }
   }, []);
@@ -979,7 +989,7 @@ export function GraphCanvas({
 
       // Collect deletable selected nodes (React Flow multi-select + store single-select)
       const selectedNodes = state.nodes.filter((n) => n.selected);
-      const deletableTypes = new Set(["paper", "user_doc", "image", "agent", "junction", "paper_group", "export", "table", "render"]);
+      const deletableTypes = new Set(["paper", "user_doc", "image", "agent", "junction", "paper_group", "export", "table", "render", "translate"]);
       const toDelete = selectedNodes.filter((n) => n.type && deletableTypes.has(n.type));
 
       // Fall back to single-selection if no multi-selected nodes

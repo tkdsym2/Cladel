@@ -9,6 +9,7 @@ import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import TitleIcon from "@mui/icons-material/Title";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import PreviewIcon from "@mui/icons-material/Preview";
+import TranslateIcon from "@mui/icons-material/Translate";
 import type { TabNodeType, TabDirection } from "../../types";
 import { useT, type Entry } from "../../lib/i18n";
 
@@ -33,6 +34,8 @@ const ITEMS: { type: TabNodeType; label: Entry; key: string; color: string; bg: 
   { type: "title", label: { en: "Title", ja: "\u30bf\u30a4\u30c8\u30eb(Title)" }, key: "8", color: "#78716c", bg: "rgba(120,113,108,0.08)" },
   { type: "table", label: { en: "Table", ja: "\u30c6\u30fc\u30d6\u30eb(Table)" }, key: "9", color: "#0f766e", bg: "rgba(15,118,110,0.08)" },
   { type: "render", label: { en: "Render", ja: "\u30ec\u30f3\u30c0\u30fc(Render)" }, key: "0", color: "#9333ea", bg: "rgba(147,51,234,0.08)" },
+  // No number key left: reachable by click / arrow keys + Enter.
+  { type: "translate", label: { en: "Translate", ja: "\u7ffb\u8a33(Translate)" }, key: "", color: "#ea580c", bg: "rgba(234,88,12,0.08)" },
 ];
 
 const DIRECTION_LABELS: Record<TabDirection, Entry> = {
@@ -40,7 +43,7 @@ const DIRECTION_LABELS: Record<TabDirection, Entry> = {
   left: { en: "\u2190 Left", ja: "\u2190 \u5de6" },
 };
 
-const ICONS = [NoteAddIcon, PictureAsPdfIcon, AddPhotoAlternateIcon, SmartToyIcon, FileUploadIcon, SaveAltIcon, CompareArrowsIcon, TitleIcon, TableChartIcon, PreviewIcon];
+const ICONS = [NoteAddIcon, PictureAsPdfIcon, AddPhotoAlternateIcon, SmartToyIcon, FileUploadIcon, SaveAltIcon, CompareArrowsIcon, TitleIcon, TableChartIcon, PreviewIcon, TranslateIcon];
 
 export function TabCreatePopover({
   isOpen,
@@ -218,7 +221,7 @@ export function TabCreatePopover({
                 <Icon sx={{ fontSize: 20, color: item.color }} />
               </div>
               <span style={{ fontSize: 11, fontWeight: 500, color: "#374151" }}>{t(item.label)}</span>
-              <span style={badgeStyle}>{item.key}</span>
+              {item.key && <span style={badgeStyle}>{item.key}</span>}
             </div>
           );
         })}

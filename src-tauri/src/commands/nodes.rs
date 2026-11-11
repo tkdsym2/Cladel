@@ -174,6 +174,7 @@ pub fn create_node(db: State<Database>, input: CreateNodeInput) -> Result<NodeDa
         "nano_banana" => Some(get_next_display_id(&conn, "nanob")?),
         "table" => Some(get_next_display_id(&conn, "table")?),
         "render" => Some(get_next_display_id(&conn, "render")?),
+        "translate" => Some(get_next_display_id(&conn, "translate")?),
         "junction" | "deleted" => None,
         _ => None,
     };

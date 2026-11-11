@@ -15,7 +15,7 @@ export interface LayerData {
   updated_at: string;
 }
 
-export type NodeType = "core" | "paper" | "user_doc" | "agent_proposal" | "deleted" | "junction" | "image" | "agent" | "paper_group" | "export" | "compare" | "title" | "table" | "render";
+export type NodeType = "core" | "paper" | "user_doc" | "agent_proposal" | "deleted" | "junction" | "image" | "agent" | "paper_group" | "export" | "compare" | "title" | "table" | "render" | "translate";
 export type NodeStatus = "active" | "ghost" | "dismissed";
 export type CreatedBy = "user" | "agent";
 
@@ -576,7 +576,7 @@ export interface PaperGroupMetadata {
 
 // ─── Tab-to-Create ───
 
-export type TabNodeType = "user_doc" | "paper" | "image" | "agent" | "import" | "export" | "compare" | "title" | "table" | "render";
+export type TabNodeType = "user_doc" | "paper" | "image" | "agent" | "import" | "export" | "compare" | "title" | "table" | "render" | "translate";
 
 // ─── Table Node ───
 
@@ -625,6 +625,231 @@ export interface RenderPreviewResult {
   pages: string[];
   page_count: number;
   note_count: number;
+}
+
+// ─── Translate Node ───
+
+/** Running llama-server sidecar (translation_server_start / _status). */
+export interface TranslationServerStatus {
+  port: number;
+  pid: number;
+  model_path: string;
+}
+
+/** PLaMo 3 Translate language codes (model card). */
+export type TranslateLang =
+  | "ja" | "en" | "zh-hans" | "zh-hant" | "ko" | "ar" | "az" | "be" | "bg" | "bn" | "ca" | "ceb" | "de" | "es"
+  | "et" | "eu" | "fa" | "fr" | "gu" | "he" | "hi" | "hr" | "hu" | "hy" | "id" | "it" | "jv" | "ka" | "kk"
+  | "km" | "lt" | "lv" | "ml" | "mr" | "ms" | "my" | "ne" | "nl" | "pa" | "pl" | "ru" | "si" | "sk" | "sl"
+  | "sr" | "sw" | "ta" | "te" | "th" | "tl" | "ur" | "uz" | "vi";
+
+/** Japanese output style: plain = だ・である調, polite = です・ます調. */
+export type JaForm = "plain" | "polite";
+
+export interface GlossaryEntry {
+  src: string;
+  dst: string;
+}
+
+/** Translate node model, stored as JSON in NodeData.metadata. */
+export interface TranslateModel {
+  kind: "translate";
+  target_lang: TranslateLang;
+  /** null = auto-detect. */
+  source_lang: TranslateLang | null;
+  /** Japanese output style (only used when target_lang === "ja"). */
+  form: JaForm | null;
+  glossary: GlossaryEntry[];
+  /** Source text used when no node is connected as input. */
+  input_text: string;
+  /** Last completed translation. */
+  output: string;
+  translated_at: string | null;
+  /** Note (user_doc) created by "Write to Note"; updated after each translation. */
+  output_node_id: string | null;
+  /** Block pairs of the last translation (single Note input only) and that
+   *  Note's id — become the sync snapshot when written to a Note. */
+  output_pairs: SyncPair[] | null;
+  output_source_id: string | null;
+  /** Bilingual note pair kept in sync by this node (null = not syncing). */
+  sync: TranslateSync | null;
+}
+
+export interface TranslateOptions {
+  target_lang: TranslateLang;
+  /** null/omitted = auto-detect. */
+  source_lang?: TranslateLang | null;
+  /** Only applied when target_lang === "ja". */
+  form?: JaForm | null;
+  glossary?: GlossaryEntry[];
+}
+
+/** typst = Note source (prose translated, markup preserved); plain = text / Markdown. */
+export type TranslateInputFormat = "typst" | "plain";
+
+export interface TranslateInput {
+  text: string;
+  format: TranslateInputFormat;
+}
+
+export interface TranslateRequest extends TranslateOptions {
+  /** Caller-chosen id, used by translateCancel. */
+  job_id: string;
+  /** Omit to use the active model (Settings → Translation). */
+  model_path?: string | null;
+  /** Translated in order, joined with a blank line. */
+  inputs?: TranslateInput[];
+  /** Shorthand for one plain-text input. */
+  text?: string;
+  /** Image node display_id → caption. In Typst inputs, lines holding only
+   *  `{{@image_N}}` become adjustable `#figure(image("@image_N", ...))`s with
+   *  the caption translated. */
+  figures?: Record<string, string>;
+}
+
+// ─── Translation model management ───
+
+export type ModelSizeLabel = "0.8b" | "2b" | "8b";
+
+export interface RemoteModelFile {
+  repo: string;
+  size_label: ModelSizeLabel;
+  filename: string;
+  bytes: number;
+  /** SHA-256 (HF lfs.oid). */
+  sha256: string;
+  quant: string;
+  recommended: boolean;
+}
+
+export interface RemoteRepo {
+  size_label: ModelSizeLabel;
+  repo: string;
+  files: RemoteModelFile[];
+  /** Live fetch failed (files may come from the offline cache). */
+  error: string | null;
+  from_cache: boolean;
+}
+
+export interface LocalModel {
+  path: string;
+  filename: string;
+  repo: string | null;
+  size_label: ModelSizeLabel | null;
+  quant: string | null;
+  bytes: number;
+  sha256: string | null;
+  /** SHA-256 matched the official Hugging Face file. */
+  verified: boolean;
+  source: "download" | "import" | "manual";
+  active: boolean;
+}
+
+export interface PartialDownload {
+  path: string;
+  repo: string;
+  filename: string;
+  downloaded: number;
+  total: number;
+  running: boolean;
+}
+
+export interface LocalModels {
+  models_dir: string;
+  models: LocalModel[];
+  partials: PartialDownload[];
+  active_model_path: string | null;
+}
+
+/** `translation-model-progress` event payload (downloads and imports). */
+export interface ModelProgress {
+  /** "{repo}/{filename}" or "import:{filename}" */
+  key: string;
+  filename: string;
+  status: "starting" | "hashing" | "downloading" | "done" | "cancelled" | "error";
+  downloaded: number;
+  total: number;
+  bytes_per_sec: number;
+  error: string | null;
+}
+
+export interface LicenseText {
+  lang: "ja" | "en";
+  text: string | null;
+  sha256: string | null;
+  from_cache: boolean;
+  official_url: string;
+  error: string | null;
+}
+
+export interface LicenseStatus {
+  accepted: boolean;
+  accepted_at: string | null;
+  needs_reaccept: boolean;
+}
+
+/** Streamed by translate_text. Running document = last `segment.prefix` + following `delta` texts. */
+export type TranslateEvent =
+  | { type: "loading" }
+  | { type: "started"; chunk_count: number }
+  | { type: "segment"; chunk_index: number; prefix: string }
+  | { type: "delta"; chunk_index: number; text: string }
+  | { type: "chunk_done"; chunk_index: number };
+
+export interface TranslateResult {
+  text: string;
+  cancelled: boolean;
+  chunk_count: number;
+  tokens_predicted: number;
+  duration_ms: number;
+  /** A piece hit the generation limit (output may be cut short). */
+  truncated: boolean;
+  /** Pieces that needed the placeholder retry to keep their markup. */
+  masked_retries: number;
+  /** Starts of pieces left untranslated because their markup could not be preserved. */
+  kept_original: string[];
+  /** Single Typst input: (source block, translated block) pairs. */
+  pairs: SyncPair[] | null;
+}
+
+// ─── Bilingual note pair sync ───
+
+/** One aligned block pair as of the last sync; a null side has no counterpart. */
+export interface SyncPair {
+  src: string | null;
+  dst: string | null;
+}
+
+export interface TranslateSync {
+  /** The input Note (written in source_lang) ⇄ the output Note (target_lang). */
+  source_note_id: string;
+  target_note_id: string;
+  source_lang: TranslateLang;
+  target_lang: TranslateLang;
+  pairs: SyncPair[];
+  synced_at: string;
+}
+
+export type SyncSide = "src" | "dst";
+export type SyncItemKind = "modified" | "added" | "deleted" | "conflict_modified" | "conflict_deleted";
+export type SyncAction = "write_src" | "write_dst" | "delete" | "ignore";
+
+export interface SyncItem {
+  key: string;
+  kind: SyncItemKind;
+  /** Side that changed / was deleted / (conflict_deleted) was edited. */
+  side: SyncSide;
+  src_text: string | null;
+  dst_text: string | null;
+  old_src: string | null;
+  old_dst: string | null;
+}
+
+export interface SyncState {
+  source_text: string;
+  target_text: string;
+  pairs: SyncPair[];
+  items: SyncItem[];
 }
 
 export type TabDirection = "right" | "left";

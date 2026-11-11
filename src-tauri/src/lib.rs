@@ -2,6 +2,7 @@ mod commands;
 mod db;
 
 use commands::literature::LiteratureClient;
+use commands::translate::LlamaServerState;
 use db::Database;
 use tauri::menu::{AboutMetadata, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{Emitter, Manager};
@@ -19,6 +20,13 @@ pub fn run() {
             app.manage(database);
 
             app.manage(LiteratureClient::new());
+
+            // Translate node: llama-server sidecar (started lazily). Clean up a
+            // server orphaned by a previous crash.
+            app.manage(LlamaServerState::default());
+            app.manage(commands::translate::TranslateJobs::default());
+            app.manage(commands::translate::models::DownloadJobs::default());
+            commands::translate::server::kill_stale_server(app.handle());
 
             // ─── Native menu bar ───
 
@@ -51,6 +59,15 @@ pub fn run() {
                 .about(Some(AboutMetadata {
                     name: Some("Filonex".to_string()),
                     version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                    // Attribution for the Translate node's model (shown in the macOS About panel).
+                    credits: Some(
+                        "Built with PLaMo\n\
+                         Translate node: PLaMo 3 Translate by Preferred Networks, run locally with llama.cpp.\n\
+                         Models are downloaded separately and licensed under the PLaMo Community License:\n\
+                         https://plamo.preferredai.jp/info/plamo-community-license-ja\n\
+                         https://plamo.preferredai.jp/info/plamo-community-license-en"
+                            .to_string(),
+                    ),
                     ..Default::default()
                 }))
                 .separator()
@@ -247,6 +264,27 @@ pub fn run() {
             // Typst render/export commands
             commands::typst_render::render_typst_preview,
             commands::typst_render::generate_typst_export_pdf,
+            // Translate node (PLaMo 3 Translate via llama-server sidecar)
+            commands::translate::translation_models_dir,
+            commands::translate::translation_server_start,
+            commands::translate::translation_server_status,
+            commands::translate::translation_server_stop,
+            commands::translate::translate_text,
+            commands::translate::translate_cancel,
+            commands::translate::models::translation_remote_catalog,
+            commands::translate::models::translation_list_local_models,
+            commands::translate::models::translation_set_active_model,
+            commands::translate::models::translation_download_model,
+            commands::translate::models::translation_cancel_download,
+            commands::translate::models::translation_delete_model,
+            commands::translate::models::translation_import_model,
+            commands::translate::license::translation_get_license,
+            commands::translate::license::translation_license_status,
+            commands::translate::license::translation_accept_license,
+            commands::translate::license::translation_revoke_license,
+            commands::translate::sync::translation_sync_plan,
+            commands::translate::sync::translation_sync_apply,
+            commands::translate::sync::translation_sync_align,
             // Image import commands
             commands::image_import::validate_image_file,
             commands::image_import::create_image_node,
@@ -286,6 +324,14 @@ pub fn run() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Make sure the llama-server sidecar never outlives the app.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(state) = app.try_state::<LlamaServerState>() {
+                    state.shutdown(app);
+                }
+            }
+        });
 }

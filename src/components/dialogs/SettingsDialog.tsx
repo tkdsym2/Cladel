@@ -9,6 +9,7 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import GridViewIcon from "@mui/icons-material/GridView";
 import DataUsageIcon from "@mui/icons-material/DataUsage";
 import PersonIcon from "@mui/icons-material/Person";
+import TranslateIcon from "@mui/icons-material/Translate";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -19,6 +20,7 @@ import { useUserStore } from "../../store/userStore";
 import { useFileStore } from "../../store/fileStore";
 import type { AgentCapabilities, UIPreferences, UsageSummary, UsageLogEntry } from "../../types";
 import { SYSTEM_DEFAULTS } from "../../types";
+import { TranslationModelsSection } from "./TranslationModelsSection";
 
 const CONSOLE_URL = "https://console.anthropic.com/settings/keys";
 const GEMINI_CONSOLE_URL = "https://aistudio.google.com/apikey";
@@ -224,7 +226,7 @@ function NodeSizeRow({
 
 // ─── Settings Dialog ───
 
-type SettingsTab = "profile" | "api_keys" | "agent" | "ui_layout" | "usage_sync";
+type SettingsTab = "profile" | "api_keys" | "agent" | "translation" | "ui_layout" | "usage_sync";
 
 export function SettingsDialog() {
   const isOpen = useSettingsStore((s) => s.isSettingsOpen);
@@ -234,6 +236,15 @@ export function SettingsDialog() {
   const agentCapabilities = useSettingsStore((s) => s.agentCapabilities);
   const saveAgentCapabilitiesAction = useSettingsStore((s) => s.saveAgentCapabilities);
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  // Honour openSettingsTab("translation") etc.
+  const requestedTab = useSettingsStore((s) => s.requestedSettingsTab);
+  const clearRequestedTab = useSettingsStore((s) => s.clearRequestedSettingsTab);
+  useEffect(() => {
+    if (isOpen && requestedTab) {
+      setActiveTab(requestedTab as SettingsTab);
+      clearRequestedTab();
+    }
+  }, [isOpen, requestedTab, clearRequestedTab]);
   const [keyInput, setKeyInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -477,6 +488,7 @@ export function SettingsDialog() {
     { key: "profile", label: "Profile", icon: <PersonIcon sx={{ fontSize: 14 }} /> },
     { key: "api_keys", label: "API Keys", icon: <LockIcon sx={{ fontSize: 14 }} /> },
     { key: "agent", label: "Agent", icon: <AutoAwesomeIcon sx={{ fontSize: 14 }} /> },
+    { key: "translation", label: "Translation", icon: <TranslateIcon sx={{ fontSize: 14 }} /> },
     { key: "ui_layout", label: "UI Layout", icon: <GridViewIcon sx={{ fontSize: 14 }} /> },
     { key: "usage_sync", label: "Usage & Sync", icon: <DataUsageIcon sx={{ fontSize: 14 }} /> },
   ];
@@ -976,6 +988,12 @@ export function SettingsDialog() {
         )}
 
         {/* ── UI Layout Tab ── */}
+        {activeTab === "translation" && (
+          <div style={sectionStyle}>
+            <TranslationModelsSection />
+          </div>
+        )}
+
         {activeTab === "ui_layout" && (
           <div style={sectionStyle}>
             <div style={subHeadingStyle}>Language</div>

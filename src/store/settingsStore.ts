@@ -24,6 +24,11 @@ interface SettingsStore {
   loadApiKeyStatus: () => Promise<void>;
   loadGeminiApiKeyStatus: () => Promise<void>;
   openSettings: () => void;
+  /** Open Settings on a specific tab (e.g. "translation"). */
+  openSettingsTab: (tab: string) => void;
+  /** Tab requested by openSettingsTab; consumed by SettingsDialog. */
+  requestedSettingsTab: string | null;
+  clearRequestedSettingsTab: () => void;
   closeSettings: () => void;
   loadAgentCapabilities: () => Promise<void>;
   saveAgentCapabilities: (capabilities: AgentCapabilities) => Promise<void>;
@@ -57,6 +62,9 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   },
 
   openSettings: () => set({ isSettingsOpen: true }),
+  openSettingsTab: (tab) => set({ isSettingsOpen: true, requestedSettingsTab: tab }),
+  requestedSettingsTab: null,
+  clearRequestedSettingsTab: () => set({ requestedSettingsTab: null }),
   closeSettings: () => set({ isSettingsOpen: false }),
 
   loadAgentCapabilities: async () => {

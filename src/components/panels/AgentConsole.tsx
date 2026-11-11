@@ -172,6 +172,7 @@ const SOURCE_COLORS: Record<string, string> = {
   agent_node: "#34d399",
   comment_agent: "#fbbf24",
   paper_chat: "#38bdf8",
+  translate: "#fb923c",
 };
 
 // ─── Styles ───

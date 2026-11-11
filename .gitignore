@@ -29,3 +29,8 @@ npm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Translate node: local models + llama.cpp sidecar (built by scripts/build-llama.sh)
+*.gguf
+*.gguf.part
+src-tauri/binaries/
