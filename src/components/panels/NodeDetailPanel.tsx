@@ -29,6 +29,7 @@ import { CompareNodeViewer } from "./CompareNodeViewer";
 import { TitleNodeViewer } from "./TitleNodeViewer";
 import { TableNodeViewer } from "./TableNodeViewer";
 import { RenderNodeViewer } from "./RenderNodeViewer";
+import { TranslateNodeViewer } from "./TranslateNodeViewer";
 import { AccordionSection } from "../graph/NodeAccordionSection";
 import type { NodeData, EdgeData, NodeComment, AgentNodeMessage, PaperGroupMetadata } from "../../types";
 
@@ -58,7 +59,7 @@ export function NodeDetailPanel({
 
   if (!node || node.node_type === "deleted" || node.node_type === "junction") return null;
 
-  const isDeletable = node.node_type === "paper" || node.node_type === "user_doc" || node.node_type === "image" || node.node_type === "agent" || node.node_type === "export" || node.node_type === "compare" || node.node_type === "title" || node.node_type === "table" || node.node_type === "render";
+  const isDeletable = node.node_type === "paper" || node.node_type === "user_doc" || node.node_type === "image" || node.node_type === "agent" || node.node_type === "export" || node.node_type === "compare" || node.node_type === "title" || node.node_type === "table" || node.node_type === "render" || node.node_type === "translate";
 
   return (
     <div style={panelStyle}>
@@ -116,6 +117,9 @@ export function NodeDetailPanel({
       )}
       {node.node_type === "render" && (
         <RenderNodeViewer node={node} />
+      )}
+      {node.node_type === "translate" && (
+        <TranslateNodeViewer node={node} />
       )}
     </div>
   );
@@ -175,6 +179,14 @@ function CoreEditor({
     setSaveError(null);
     setOpenSections(new Set());
   }, [node.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Follow content changed elsewhere (translation sync / "Update note" / another
+  // window) — unless the user has unsaved edits here.
+  useEffect(() => {
+    if (pendingContent.current !== null || dirty) return;
+    const external = node.content ?? "";
+    setContent((cur) => (cur === external ? cur : external));
+  }, [node.content]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doSave = useCallback(
     async (nodeId: string, newContent: string) => {
@@ -1666,6 +1678,14 @@ function UserDocEditor({
     setOpenSections(new Set());
   }, [node.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Follow content changed elsewhere (translation sync / "Update note" / another
+  // window) — unless the user has unsaved edits here.
+  useEffect(() => {
+    if (pendingContent.current !== null || dirty) return;
+    const external = node.content ?? "";
+    setContent((cur) => (cur === external ? cur : external));
+  }, [node.content]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Keep draft in sync when display_id updates from outside (e.g. refreshNode)
   useEffect(() => {
     if (!editingDisplayId) {
@@ -2219,6 +2239,8 @@ function typeLabel(t: string): string {
       return "Export";
     case "compare":
       return "Compare";
+    case "translate":
+      return "Translate";
     default:
       return t;
   }
@@ -2235,6 +2257,7 @@ function typeBadgeStyle(t: string): React.CSSProperties {
     paper_group: { bg: "#059669", fg: "#fff" },
     export: { bg: "#e11d48", fg: "#fff" },
     compare: { bg: "#0284c7", fg: "#fff" },
+    translate: { bg: "#ea580c", fg: "#fff" },
   };
   const c = colors[t] ?? { bg: "#6b7280", fg: "#fff" };
   return {

@@ -14,7 +14,7 @@ Tauri v2 + React + TypeScript desktop app for researchers to organize thinking a
 
 ## Core Concepts
 
-### Node Types (14 active + deleted placeholder + import temp)
+### Node Types (15 active + deleted placeholder + import temp)
 
 | Type | Visual | Key Behavior |
 |------|--------|-------------|
@@ -30,6 +30,7 @@ Tauri v2 + React + TypeScript desktop app for researchers to organize thinking a
 | **title** | Stone #e7e5e4, 1px solid #78716c, 280x210 | Document title page for PDF export. Authors + affiliations metadata. Title icon. |
 | **table** | Teal #ccfbf1, 1px solid #0f766e, 280x210 | Manual grid OR CSV/XLSX/ODS import. `TableModel` metadata. Cell refs in export. TableChart icon. |
 | **render** | Purple #f3e8ff, 1px solid #9333ea, 300x360 | Compiles connected Note (Typst) nodes -> live PDF preview (PNG pages). `RenderModel` metadata. Preview icon. |
+| **translate** | Orange #ffedd5, 1px solid #ea580c, 280x240 | Local translation with PLaMo 3 Translate (llama-server sidecar). Input = connected Edit/Core/Paper(abstract) nodes or its own input text. Streams the result onto the node. `TranslateModel` metadata. Translate icon. |
 | **deleted** | Gray rgba(229,231,235,0.3), 1px dashed #d1d5db, circle | Soft-delete placeholder. Preserves edges. Right-click -> "Remove completely". |
 | **junction** | Dark gray (#4b5563), circle, ~16x16 | Edge branching point. "Dissolve junction" merges back. |
 | **import** | Gray dashed, temp React-only | NOT a DB node_type. Temporary placeholder for file import. Auto-detects PDF vs image. |
@@ -53,6 +54,7 @@ Every node gets a globally unique `display_id` (across ALL layers). **The displa
 | title | `title_{N}` | No |
 | table | `table_{N}` | No |
 | render | `render_{N}` | No |
+| translate | `translate_{N}` | No |
 | paper_group | `group_{N}` | No |
 
 ### Edges
@@ -90,7 +92,7 @@ CREATE TABLE layers (
 );
 CREATE TABLE nodes (
     id TEXT PRIMARY KEY, layer_id TEXT NOT NULL REFERENCES layers(id),
-    node_type TEXT NOT NULL CHECK(node_type IN ('core','paper','user_doc','agent_proposal','deleted','junction','image','agent','paper_group','export','compare','title','nano_banana','table','render')),
+    node_type TEXT NOT NULL CHECK(node_type IN ('core','paper','user_doc','agent_proposal','deleted','junction','image','agent','paper_group','export','compare','title','nano_banana','table','render','translate')),
     title TEXT NOT NULL, content TEXT, bibtex TEXT, metadata TEXT,
     pdf_path TEXT, display_id TEXT,
     position_x REAL NOT NULL DEFAULT 0, position_y REAL NOT NULL DEFAULT 0,
@@ -136,7 +138,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ### Migrations (db.rs `initialize_schema()`)
 
-`SCHEMA_VERSION` = 21. Version-tracked via `schema_version` table. Fast path: skip all if `current_version >= SCHEMA_VERSION`. Append-only -- never reorder.
+`SCHEMA_VERSION` = 22. Version-tracked via `schema_version` table. Fast path: skip all if `current_version >= SCHEMA_VERSION`. Append-only -- never reorder.
 
 | # | Migration |
 |---|-----------|
@@ -161,6 +163,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | 19 | 'nano_banana' node_type CHECK (column-aware table rebuild with all columns) |
 | 20 | 'table' node_type CHECK (column-aware table rebuild with all columns) |
 | 21 | 'render' node_type CHECK (column-aware table rebuild with all columns) |
+| 22 | 'translate' node_type CHECK (column-aware table rebuild with all columns) |
 
 **Key design decisions**:
 - .flnx stores text/metadata only, NOT binary data. PDFs/images referenced by local file path.
@@ -185,18 +188,19 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/App.tsx` | 830 | Main app shell: initialization, tab/layer/delete orchestration, layout composition, dialog state, startup update check |
 | `src/main.tsx` | 26 | Entry: HashRouter with 5 routes: `/`, `/node-detail/:nodeId/:layerId`, `/agent-console`, `/manual`, `/note-help` |
 | `src/types/index.ts` | 760 | All shared interfaces, SYSTEM_DEFAULTS, TabNodeType, TableModel/TableSource, RenderModel, ExportStyleConfig, ExportTitlePage |
-| `src/lib/tauri-commands.ts` | 768 | Typed wrappers for 104 of 106 Tauri invoke commands (all except backend-only get_api_key/get_gemini_api_key) |
+| `src/lib/tauri-commands.ts` | 768 | Typed wrappers for 124 of 126 Tauri invoke commands (all except backend-only get_api_key/get_gemini_api_key) |
 | `src/lib/detached-window.ts` | 180 | Multi-window management (open/focus/closeAll); spawns node-detail, agent-console, manual, note-help windows |
 | `src/lib/sync-events.ts` | 183 | Cross-window event bus (node-updated, node-deleted, comments-changed, file-changed, graph-changed, settings-changed, export-started, export-finished) |
 | `src/lib/userColors.ts` | 21 | Deterministic 8-color palette for user-based node coloring |
 | `src/lib/i18n.ts` | 103 | Bilingual EN/JP translation table + `useT()` hook (active language from UI preferences) |
-| **Stores (12)** | | |
+| **Stores (13)** | | |
 | `src/store/graphStore.ts` | 1,862 | Nodes, edges, selection, comment counts, CRUD, ghost nodes, junctions, groups, colorMode |
 | `src/store/agentStore.ts` | 382 | Global agent: status, suggestions, history, context building, cooldown |
 | `src/store/tabStore.ts` | 223 | Tab lifecycle: new/open/switch/close/reload-from-disk, reinitialize on switch |
 | `src/store/fileStore.ts` | 163 | File ops (new/open/save/save-as), delegates to tabStore, auto-dirty |
 | `src/store/exportStore.ts` | 62 | PDF export progress, error state, cross-window coordination |
 | `src/store/renderStore.ts` | 50 | Transient render-node preview state (status/pages/error), keyed by node id |
+| `src/store/translateStore.ts` | ~70 | Transient translate-node state (streamed text, status, chunk progress) keyed by node id + cached "is a model installed" status |
 | `src/store/settingsStore.ts` | 98 | API key status, AgentCapabilities, UIPreferences |
 | `src/store/layerStore.ts` | 58 | Layer list, current layer, smart switch on delete |
 | `src/store/agentNodeStore.ts` | 44 | Per-agent-node processing state (Set + Map) |
@@ -220,6 +224,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/TitleNode.tsx` | 160 | Title node card (Title icon, subtitle, author count) |
 | `src/components/graph/TableNode.tsx` | 219 | Table node (TableChart icon, preview grid, mode badge: manual/imported/unconfigured) |
 | `src/components/graph/RenderNode.tsx` | 194 | Render node (Preview icon, first-page thumbnail via renderStore, status badge) |
+| `src/components/graph/TranslateNode.tsx` | ~280 | Translate node (lang badge, streamed output, ▶/■ run button, "Download model" CTA when no model) |
 | `src/components/graph/ImportNode.tsx` | 133 | Temp import placeholder (file dialog trigger) |
 | `src/components/graph/DeletedNode.tsx` | 165 | Soft-delete circle (tooltip with original title) |
 | `src/components/graph/JunctionNode.tsx` | 69 | Edge branch point dot |
@@ -229,7 +234,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/graph/GroupingButton.tsx` | 73 | "Group" button for multi-selected papers |
 | `src/components/graph/GroupNamePopover.tsx` | 115 | Popover input for group name |
 | `src/components/graph/AnnotatedEdge.tsx` | 236 | Bezier edge + weight + hover/selection halo (no arrowhead); fans out wire ends in input notches (portLayout) and re-draws the in-notch stretch above nodes via `ViewportPortal` |
-| `src/components/graph/TabCreatePopover.tsx` | 300 | Light-themed popover (10 options: Edit/Paper/Image/Agent/Import/Export/Compare/Title/Table/Render), bilingual labels |
+| `src/components/graph/TabCreatePopover.tsx` | 300 | Light-themed popover (11 options: Edit/Paper/Image/Agent/Import/Export/Compare/Title/Table/Render/Translate), bilingual labels |
 | `src/components/graph/CanvasControls.tsx` | 124 | Zoom in/out/fit, agent panel toggle, minimap toggle |
 | `src/components/graph/CursorModeIndicator.tsx` | 196 | Upper-left bar: Move/Select pills, Color Mode toggle, shortcut help |
 | `src/components/graph/CustomMiniMap.tsx` | 258 | SVG minimap (160x120) with color-coded nodes + edges |
@@ -249,6 +254,13 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/panels/CompareNodeViewer.tsx` | 484 | Compare node: word-level diff of 2 connected Edit nodes (LCS algorithm) |
 | `src/components/panels/TableNodeViewer.tsx` | 600 | Table node editor: manual grid edit + CSV/XLSX/ODS import (import_table_file), cell selection copies {@id[r,c]} ref |
 | `src/components/panels/RenderNodeViewer.tsx` | 211 | Render node viewer: multi-page Typst PDF preview (PNG), re-render button, compile-error panel |
+| `src/components/panels/TranslateNodeViewer.tsx` | ~470 | Translate node viewer: source/target language, ja plain/polite, glossary, input sources/text, run/stop, output + copy + write/update linked Note |
+| `src/components/dialogs/TranslationModelsSection.tsx` | ~520 | Settings → Translation: Built with PLaMo, license status, installed models (active/verify/delete), resumable downloads w/ progress, import .gguf, HF catalog |
+| `src/components/dialogs/PlamoLicenseDialog.tsx` | ~260 | PLaMo Community License full text (ja/en, fetched from the model repo, cached) + consent checkbox; fixed modal height |
+| `src/lib/translateRunner.ts` | ~270 | Translate node logic: TranslateModel parse/patch, input collection, runTranslate/cancel (streams into translateStore), write to linked Note (+ starts the sync snapshot), `figureCaptions` |
+| `src/lib/translateSync.ts` | ~260 | Bilingual note sync: `syncNotes`/`syncCandidates`, `useSyncPlan` (live items), per-block translation in either direction, `applySyncItem`/`applyAllSync`/`cancelSync`, start/stop |
+| `src/components/panels/TranslateSyncSection.tsx` | ~380 | Sync UI in the Translate panel: pair header, counts, item cards (translate / delete / ignore / conflict choices), apply-all; `countsLabel` also used by the canvas node |
+| `src/lib/translateLangs.ts` | ~60 | 53 PLaMo language codes with EN/JA names |
 | `src/components/panels/NoteEditorWithPull.tsx` | 916 | Textarea with Content Pull + @mention; `format` prop (Markdown+preview for Core, raw Typst for Edit) |
 | `src/components/panels/ContentPullPopover.tsx` | 508 | Dark-themed two-step content selection popover |
 | `src/components/panels/MentionPopover.tsx` | 392 | @mention autocomplete for node references |
@@ -283,7 +295,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | Path | Lines | Purpose |
 |------|------:|---------|
 | `src-tauri/src/main.rs` | 6 | Calls `filonex_app_lib::run()` |
-| `src-tauri/src/lib.rs` | 299 | App entry: 106 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
+| `src-tauri/src/lib.rs` | ~330 | App entry: 126 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
 | `src-tauri/src/db.rs` | 1,116 | SQLite schema, SCHEMA_VERSION=21, 21 migrations, Database+TabInfo |
 | `src-tauri/src/commands/mod.rs` | 24 | Module declarations (23 submodules) |
 | `src-tauri/src/commands/nodes.rs` | 600 | CRUD + soft_delete + restore + update_display_id + update_paper_bibtex |
@@ -303,6 +315,16 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src-tauri/src/commands/table_import.rs` | 142 | import_table_file (CSV/TSV/XLSX/XLS/ODS -> rows[][]) |
 | `src-tauri/src/commands/typst_engine.rs` | 150 | In-process Typst engine (typst-as-lib): compile source -> PDF / per-page PNG, bundled fonts |
 | `src-tauri/src/commands/typst_render.rs` | 363 | render_typst_preview + generate_typst_export_pdf: gather Notes, translate {@..} refs to Typst, compile |
+| **Translate subsystem** (`commands/translate/`) | | |
+| `translate/mod.rs` | ~340 | Commands: server lifecycle, `translate_text` (Channel streaming), `translate_cancel`; `run_translation` pipeline; ignored E2E tests (PLAMO_GGUF) |
+| `translate/server.rs` | ~370 | llama-server sidecar: free 127.0.0.1 port, /health wait, restart on model change, kill on RunEvent::Exit, stale-pid cleanup |
+| `translate/pfml.rs` | ~300 | PFML3 prompt builder (glossary/source lang/ja form), control-token sanitizing, 53 language codes |
+| `translate/chunk.rs` | ~300 | Paragraph/sentence chunking (1200 chars) for plain-text inputs |
+| `translate/sync.rs` | ~560 | Bilingual note sync: top-level Typst blocks (`Doc`), LCS diff vs the last-synced `SyncPair`s, items (modified/added/deleted/conflict_*), `apply` (write_src/write_dst/delete/ignore), positional alignment |
+| `translate/typst_seg.rs` | ~560 | Typst-aware plan (typst::syntax parser): prose units vs kept code/math/raw/comments; protected inline tokens; `check_output`, `⟦n⟧` mask/unmask, line-comment repair, `#set text(lang:)` rewrite |
+| `translate/completion.rs` | ~200 | Streaming `/completion` SSE client (temperature 0, stop tokens, cancel) |
+| `translate/models.rs` | ~1250 | HF catalog (tree API, lfs.oid), resumable Range download + SHA-256 verify + .part rename, list/delete/import, active model setting |
+| `translate/license.rs` | ~180 | License text fetch (repo LICENSE/{ja,en}) + cache, consent bound to text SHA-256 |
 | `src-tauri/src/commands/pdf_export.rs` | 2,322 | Export node -> PDF (genpdf + pulldown-cmark), IEEE/APA citations, style config, title page (Title node only), preview temp path, line numbers |
 | `src-tauri/src/commands/image_import.rs` | 315 | validate, create, check, re-link, open_external, paper PDF path |
 | `src-tauri/src/commands/export.rs` | 283 | BibTeX export by layer/selection, native save dialog |
@@ -342,7 +364,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ---
 
-## Registered Tauri Commands (106 total)
+## Registered Tauri Commands (126 total)
 
 Counted from `generate_handler![]` in `lib.rs`:
 
@@ -370,6 +392,10 @@ Counted from `generate_handler![]` in `lib.rs`:
 | BibTeX Export | 3 | `get_paper_nodes_by_layers`, `export_bibtex_selected`, `export_bibtex_to_file` |
 | PDF Export | 6 | `get_export_sections`, `update_export_section_order`, `update_export_citation_style`, `update_export_language`, `update_export_style_config`, `generate_export_pdf` |
 | Typst Render | 2 | `render_typst_preview`, `generate_typst_export_pdf` |
+| Translate | 6 | `translation_models_dir`, `translation_server_start`, `translation_server_status`, `translation_server_stop`, `translate_text`, `translate_cancel` |
+| Translation Models | 7 | `translation_remote_catalog`, `translation_list_local_models`, `translation_set_active_model`, `translation_download_model`, `translation_cancel_download`, `translation_delete_model`, `translation_import_model` |
+| PLaMo License | 4 | `translation_get_license`, `translation_license_status`, `translation_accept_license`, `translation_revoke_license` |
+| Translation Sync | 3 | `translation_sync_plan`, `translation_sync_apply`, `translation_sync_align` |
 | Usage | 3 | `get_usage_summary`, `get_usage_history`, `clear_usage_log` |
 | Agent Messages | 3 | `add_agent_node_message`, `get_agent_node_messages`, `delete_agent_node_message` |
 
@@ -450,9 +476,20 @@ A second authoring pipeline (parallel to Markdown/genpdf) for writing in **Typst
 
 **Engine** (`typst_engine.rs`): in-process via `typst-as-lib` (typst 0.14). Bundled fonts (`NotoSerifJP`/`NotoSansJP` + Liberation) → JP + Latin. `compile_to_pdf` / `compile_to_pngs` (typst-render @ 2.0 ppt). A temp work dir per node holds copied images + `refs.bib` and is the file-resolver root.
 
-**Reference translation** (`typst_render.rs::assemble_typst_source`, reuses `split_citation_ids` / `parse_table_cell_ref` / `build_table_map` from pdf_export): `{@cite}` → Typst `@cite` (plus a `#bibliography("refs.bib", style:"ieee"|"apa")` generated from cited papers' BibTeX, entry key rewritten to the display_id); `{{@image_id}}` → `#figure(image(...), caption:[title])` (image copied into the work dir); `{@table_id[r,c]}` → the cell value. Data-derived text is Typst-escaped.
+**Reference translation** (`typst_render.rs::assemble_typst_source`, reuses `split_citation_ids` / `parse_table_cell_ref` / `build_table_map` from pdf_export): `{@cite}` → Typst `@cite` (plus a `#bibliography("refs.bib", style:"ieee"|"apa")` generated from cited papers' BibTeX, entry key rewritten to the display_id); `{{@image_id}}` → `#figure(image(.., width: 80%), caption:[title])` (image copied into the work dir); `{@table_id[r,c]}` → the cell value. Data-derived text is Typst-escaped. **Adjustable figures**: any Typst string literal `"@image_id"` in code (e.g. `#figure(image("@image_1", width: 60%), placement: top, caption: [..]) <fig:x>`) is resolved to the copied image file (`resolve_image_paths`, syntax-tree based: markup text, raw and comments untouched) — so width/placement/caption/label are controlled in the note.
 
 **Commands:** `render_typst_preview(render_node_id)` → `{ pages, page_count, note_count }`; `generate_typst_export_pdf(export_node_id, output_path?)` (emits `export-progress`, reuses the export overlay; `output_path` omitted → preview PDF in temp dir, see Export Node section). Frontend preview state lives in `renderStore` (transient — never dirties the file).
+
+### Translate Node (PLaMo 3 Translate, local)
+
+- **Engine**: llama.cpp `llama-server` bundled as a Tauri sidecar (`src-tauri/binaries/llama-server-<triple>`, git-ignored, built by `scripts/build-llama.sh`: pinned tag, static, Metal, `LLAMA_OPENSSL=OFF`). Declared only in `tauri.macos.conf.json` (`externalBin`) -> macOS only; the binary must exist before `cargo build`/`tauri dev`. Started lazily on a free 127.0.0.1 port with `-c 16384 --no-webui --offline`; restarted when the active model changes; killed on `RunEvent::Exit` (lib.rs uses `.build().run(..)`); pid file `app_data_dir/llama-server.pid` cleans up orphans at startup.
+- **Prompt** (pfml.rs): `<|plamo:tag|>dataset<|plamo:msg|>translation[<|plamo:tag|>glossary(<|plamo:index|>src<|plamo:item|>dst)+]<|plamo:tag|>input[<|plamo:key|>lang<|plamo:val|>SRC]<|plamo:msg|>TEXT<|plamo:tag|>output<|plamo:key|>lang<|plamo:val|>TGT[<|plamo:key|>form<|plamo:val|>plain|polite]<|plamo:msg|>`; no BOS (llama.cpp adds it); stop `<|plamo:tag|>`, `<|plamo:bos|>`; temperature 0. `<|plamo:...|>` in user text is stripped.
+- **Typst-aware** (typst_seg.rs): Note inputs (`format: "typst"`) are parsed with Typst's parser; only prose units are sent (paragraphs, heading/list/enum/term bodies, content blocks inside code such as `caption: [..]` / `#let x = [..]`; not inside set/show/import). Kept verbatim: code, display math, raw, comments, labels, reference-only paragraphs. **Figures**: before planning, a line holding only `{{@image_N}}` (a real markup ref, Image node in the request's `figures` map = display_id → title, sent by the frontend) is rewritten to `#figure(image("@image_N", width: 80%), caption: [title]) <fig:image_N>` (`expand_figure_refs`), so the caption is translated and the figure is adjustable in the output note. Protected inline tokens (inline math, raw, `@ref`, `<label>`, links, comments, escapes, `#code` heads, `{@..}` / `{{@..}}`) must survive (`check_output`, also strong/emph count + no new syntax errors); else retry with `⟦n⟧` placeholders; else the unit stays untranslated (`kept_original`). Each prompt carries the last 3 (source, translation) pairs as PFML3 translation history for consistent terminology. Core/Paper/typed text use `format: "plain"`.
+- **Streaming**: `translate_text(request{inputs:[{text,format}], ..options}, onEvent: Channel)` -> events `loading` / `started{chunk_count}` / `segment{prefix}` (assembled document before the current unit) / `delta{text}` / `chunk_done`; result = final text + `masked_retries` + `kept_original`. `model_path` omitted -> active model (`NO_MODEL:` error when none).
+- **Node**: `TranslateModel { target_lang, source_lang|null, form, glossary[], input_text, output, translated_at, output_node_id, output_pairs, output_source_id, sync }`. Input = incoming edges from Edit/Core/Paper (content; paper = abstract), sorted top->bottom, else `input_text`. Streaming text lives in translateStore; only the finished output is saved (dirties the file). "Write to new Note" creates a user_doc to the right + edge (linked while wired). The linked note is only replaced when the user presses "Update" — never automatically (it may contain hand edits).
+- **Bilingual sync** (`translate/sync.rs`, `translateSync.ts`, `TranslateSyncSection.tsx`): `TranslateModel.sync = { source_note_id, target_note_id, source_lang, target_lang, pairs: SyncPair{src,dst}[], synced_at }` keeps the input Note ⇄ output Note in step. Typst inputs are translated block by block (top-level blocks = split at top-level Parbreaks; raw/content blocks never split), so a single-Note translation returns `pairs` (saved as `output_pairs` + `output_source_id`) which become the snapshot on "Write to new Note"/"Update" (`startSync` instead pairs two existing notes by position). Each note is diffed against its side of the snapshot (exact block text, LCS; del+ins in one hunk = modified) → items: modified/added on one side → translate that block into the other language (glossary reversed for dst→src); deleted → delete counterpart; both edited / deleted-vs-edited → conflict (user picks). Every item can be ignored (mark synced; an ignored addition becomes a one-sided pair that never raises items). Nothing is applied automatically; `applyOne` re-plans before writing and aborts with STALE if the item changed during translation. Untouched blocks (hand edits, figure widths) are never rewritten. Canvas node shows "変更 N件（JA→EN a · EN→JA b · 競合 c）" / "同期済み". Editors (Core/Note) adopt external content changes when they have no unsaved edits.
+- **Models** (models.rs): `app_data_dir/models/{repo-name}/{file}.gguf` (+ `.manifest.json`), downloads via `.part` + `.part.json` (Range resume, SHA-256 = HF `lfs.oid`, rename on success), `imported/` for unknown imports, `catalog.json` cache for offline import verification. Active model = settings key `translation_active_model`. Progress event: `translation-model-progress`.
+- **License**: download/import require consent (`plamo_license_accepted_at` / `_sha256` / `_lang`); text from the model repo's `LICENSE/{ja,en}`, cached in `models/licenses/`. Attribution "Built with PLaMo" in Settings → Translation, macOS About credits, README.
 
 ### Content Pull
 
@@ -462,7 +499,7 @@ Inline reference insertion for Edit (user_doc) and Core nodes. Type `/` on an em
 
 **Keyboard shortcuts**: **Tab** -> right, **Ctrl/Cmd+Tab** -> left. (Only left/right are implemented; `TabDirection`/`TAB_HANDLE_MAP` have no up/down despite the conceptual 4-direction design.)
 
-**Popover** (TabCreatePopover.tsx): Light-themed, 10 options: 1. Edit, 2. Paper, 3. Image, 4. Agent, 5. Import File, 6. Export, 7. Compare, 8. Title, 9. Table, 0. Render. Number keys instant select. Labels are bilingual (EN/JP via i18n).
+**Popover** (TabCreatePopover.tsx): Light-themed, 10 options: 1. Edit, 2. Paper, 3. Image, 4. Agent, 5. Import File, 6. Export, 7. Compare, 8. Title, 9. Table, 0. Render. Number keys instant select (Translate has no number key). Labels are bilingual (EN/JP via i18n).
 
 **Three creation paths**: (1) Tab during edge drag -> connected to drag-from node. (2) Tab with node selected -> connected. (3) Tab with no selection -> standalone at cursor.
 
@@ -539,6 +576,7 @@ GitHub-Releases-based signed auto-update (tauri-plugin-updater + tauri-plugin-pr
 **Node sizes** (f64, default 280x210): `core_default_width/height`, `paper_default_width/height`, `user_doc_default_width/height`, `ghost_default_width/height`, `image_default_width/height`
 **Canvas**: `sidebar_default_width` (380), `canvas_background` (#f8fafc), `canvas_grid_enabled` (true), `canvas_grid_size` (20), `editor_font_size` (13)
 **UI language**: `ui_language` ("en" default | "ja") -- drives the i18n `useT()` hook
+**Translate**: `translation_active_model` (path), `plamo_license_accepted_at`, `plamo_license_accepted_sha256`, `plamo_license_accepted_lang`
 **Other**: `paper_summary_prompt` (template), `recent_files` (JSON array, max 10)
 
 ---
@@ -557,6 +595,7 @@ Node styles (border: unselected | selected, box-sizing: border-box):
   title:          bg #e7e5e4 (solid), 1px|3px solid #78716c, glow #78716c
   table:          bg #ccfbf1 (solid), 1px|3px solid #0f766e, glow #0f766e
   render:         bg #f3e8ff (solid), 1px|3px solid #9333ea, glow #9333ea
+  translate:      bg #ffedd5 (solid), 1px|3px solid #ea580c, glow #ea580c
   deleted:        bg rgba(229,231,235,0.3), 1px|3px dashed #d1d5db, circle
   junction:       bg #4b5563, circle
   image:          bg #f0fdfa, 1px|3px solid #0891b2, glow #06b6d4

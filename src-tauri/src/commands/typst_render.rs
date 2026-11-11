@@ -11,6 +11,7 @@ use std::path::Path;
 
 use regex::Regex;
 use rusqlite::Connection;
+use typst::syntax::{parse, LinkedNode, SyntaxKind};
 use serde::Serialize;
 use tauri::State;
 
@@ -39,7 +40,7 @@ pub struct RenderPreviewResult {
 
 /// Escape text coming from data (node titles, table cell values) so it is shown
 /// literally in Typst markup rather than interpreted as Typst syntax.
-fn escape_typst(s: &str) -> String {
+pub(crate) fn escape_typst(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 8);
     for ch in s.chars() {
         if matches!(
@@ -77,6 +78,63 @@ fn rewrite_bibtex_key(bibtex: &str, new_key: &str) -> String {
     bibtex.to_string()
 }
 
+/// Copy an Image node's file into the compile work dir; returns the file name
+/// (relative to the work dir), or None if the image file is missing.
+fn copy_image(conn: &Connection, node: &NodeData, did: &str, work_dir: &Path) -> Option<String> {
+    let fp: String = conn
+        .query_row(
+            "SELECT file_path FROM node_images WHERE node_id = ?1 LIMIT 1",
+            [&node.id],
+            |row| row.get(0),
+        )
+        .ok()?;
+    let src = Path::new(&fp);
+    if !src.exists() {
+        return None;
+    }
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("png");
+    let fname = format!("{}.{}", safe_filename(did), ext);
+    let dest = work_dir.join(&fname);
+    if !dest.exists() {
+        std::fs::copy(src, &dest).ok()?;
+    }
+    Some(fname)
+}
+
+/// Replace Typst string literals `"@display_id"` (e.g. in
+/// `#figure(image("@image_1", width: 60%), caption: [..])`) with the path that
+/// `resolve` returns for that id. Only real string literals in code are
+/// touched — never markup text, raw blocks or comments. Unresolved ids are
+/// left as is (Typst then reports a missing file).
+pub(crate) fn resolve_image_paths(src: &str, mut resolve: impl FnMut(&str) -> Option<String>) -> String {
+    fn walk(n: &LinkedNode, out: &mut Vec<(std::ops::Range<usize>, String)>) {
+        if n.kind() == SyntaxKind::Str {
+            let t = n.text();
+            if let Some(id) = t.strip_prefix("\"@").and_then(|r| r.strip_suffix('"')) {
+                if !id.is_empty() && !id.contains(['\\', '"']) {
+                    out.push((n.range(), id.to_string()));
+                }
+            }
+        }
+        for c in n.children() {
+            walk(&c, out);
+        }
+    }
+    if !src.contains("\"@") {
+        return src.to_string();
+    }
+    let root = parse(src);
+    let mut found = Vec::new();
+    walk(&LinkedNode::new(&root), &mut found);
+    let mut out = src.to_string();
+    for (range, id) in found.into_iter().rev() {
+        if let Some(path) = resolve(&id) {
+            out.replace_range(range, &format!("\"{}\"", path.replace('\\', "\\\\").replace('"', "\\\"")));
+        }
+    }
+    out
+}
+
 /// Assemble a full Typst document from ordered Note nodes.
 ///
 /// Side effects: copies referenced images and writes `refs.bib` into `work_dir`,
@@ -99,6 +157,13 @@ pub(crate) fn assemble_typst_source(
 
     for note in notes {
         let content = note.content.clone().unwrap_or_default();
+        // `image("@image_1", ...)` written by the author → the copied file.
+        let content = resolve_image_paths(&content, |did| {
+            all_nodes
+                .iter()
+                .find(|n| n.node_type == "image" && n.display_id.as_deref() == Some(did))
+                .and_then(|node| copy_image(conn, node, did, work_dir))
+        });
 
         let translated = ref_re.replace_all(&content, |caps: &regex::Captures| {
             let raw = &caps[1];
@@ -126,25 +191,7 @@ pub(crate) fn assemble_typst_source(
                         }
                     }
                     Some(node) if node.node_type == "image" => {
-                        let file_path: Option<String> = conn
-                            .query_row(
-                                "SELECT file_path FROM node_images WHERE node_id = ?1 LIMIT 1",
-                                [&node.id],
-                                |row| row.get(0),
-                            )
-                            .ok();
-                        let copied = file_path.as_deref().and_then(|fp| {
-                            if !Path::new(fp).exists() {
-                                return None;
-                            }
-                            let ext = Path::new(fp)
-                                .extension()
-                                .and_then(|e| e.to_str())
-                                .unwrap_or("png");
-                            let fname = format!("{}.{}", safe_filename(did), ext);
-                            std::fs::copy(fp, work_dir.join(&fname)).ok().map(|_| fname)
-                        });
-                        match copied {
+                        match copy_image(conn, node, did, work_dir) {
                             Some(fname) => parts.push(format!(
                                 "#figure(image(\"{}\", width: 80%), caption: [{}])",
                                 fname,
@@ -360,4 +407,33 @@ pub fn generate_typst_export_pdf(
 
     emit("done", 100, "PDF export complete!");
     Ok(output_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn image_strings_resolve_only_in_code() {
+        let src = "#figure(image(\"@image_1\", width: 60%), placement: top, caption: [図]) <fig:a>\n\n\"@image_1\" in text\n\n```\nimage(\"@image_1\")\n```\n#image(\"@image_9\")\n";
+        let out = resolve_image_paths(src, |id| (id == "image_1").then(|| "image_1.png".to_string()));
+        assert_eq!(
+            out,
+            "#figure(image(\"image_1.png\", width: 60%), placement: top, caption: [図]) <fig:a>\n\n\"@image_1\" in text\n\n```\nimage(\"@image_1\")\n```\n#image(\"@image_9\")\n"
+        );
+    }
+
+    #[test]
+    fn adjustable_figure_compiles() {
+        let dir = std::env::temp_dir().join(format!("filonex-fig-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        image::RgbImage::from_pixel(8, 6, image::Rgb([200, 30, 30]))
+            .save(dir.join("image_1.png"))
+            .unwrap();
+        let src = "Before @fig:image_1.\n\n#figure(image(\"@image_1\", width: 40%), placement: top, caption: [Setup]) <fig:image_1>\n";
+        let src = resolve_image_paths(src, |_| Some("image_1.png".to_string()));
+        let pdf = typst_engine::compile_to_pdf(format!("{PREAMBLE}{src}"), Some(&dir));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(pdf.unwrap().starts_with(b"%PDF"));
+    }
 }

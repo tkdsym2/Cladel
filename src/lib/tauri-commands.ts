@@ -1,5 +1,18 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, Channel } from "@tauri-apps/api/core";
 import type {
+  TranslationServerStatus,
+  RemoteRepo,
+  LocalModels,
+  LocalModel,
+  LicenseText,
+  LicenseStatus,
+  TranslateRequest,
+  TranslateEvent,
+  TranslateResult,
+  SyncPair,
+  SyncItem,
+  SyncAction,
+  SyncState,
   ProjectData,
   LayerData,
   NodeData,
@@ -475,6 +488,117 @@ export function renderTypstPreview(renderNodeId: string): Promise<RenderPreviewR
 /** Omit `outputPath` to generate a preview PDF in the app temp dir (path is returned). */
 export function generateTypstExportPdf(exportNodeId: string, outputPath?: string): Promise<string> {
   return invoke("generate_typst_export_pdf", { exportNodeId, outputPath: outputPath ?? null });
+}
+
+// ─── Translate (PLaMo 3 Translate via llama-server sidecar) ───
+
+/** Absolute path of `app_data_dir/models/` (created if missing). */
+export function translationModelsDir(): Promise<string> {
+  return invoke("translation_models_dir");
+}
+
+/** Start (or reuse) llama-server for a local .gguf; restarts it when the model changes.
+ *  Resolves once the server's /health is ready. */
+export function translationServerStart(modelPath: string): Promise<TranslationServerStatus> {
+  return invoke("translation_server_start", { modelPath });
+}
+
+export function translationServerStatus(): Promise<TranslationServerStatus | null> {
+  return invoke("translation_server_status");
+}
+
+export function translationServerStop(): Promise<void> {
+  return invoke("translation_server_stop");
+}
+
+/** Translate with streaming. `onEvent` receives loading/started/delta/chunk_done;
+ *  the resolved value holds the final text (use it to replace the streamed text). */
+export function translateText(
+  request: TranslateRequest,
+  onEvent: (event: TranslateEvent) => void,
+): Promise<TranslateResult> {
+  const channel = new Channel<TranslateEvent>();
+  channel.onmessage = onEvent;
+  return invoke("translate_text", { request, onEvent: channel });
+}
+
+/** Cancel a running translateText job. Resolves false if the job is not running. */
+export function translateCancel(jobId: string): Promise<boolean> {
+  return invoke("translate_cancel", { jobId });
+}
+
+/** File lists of the 0.8B / 2B / 8B GGUF repos (network; falls back to the cache). */
+export function translationRemoteCatalog(): Promise<RemoteRepo[]> {
+  return invoke("translation_remote_catalog");
+}
+
+export function translationListLocalModels(): Promise<LocalModels> {
+  return invoke("translation_list_local_models");
+}
+
+export function translationSetActiveModel(path: string): Promise<void> {
+  return invoke("translation_set_active_model", { path });
+}
+
+/** Download (or resume) an official model. Progress: `translation-model-progress` events.
+ *  Rejects with "CANCELLED: ..." when cancelled, "LICENSE_NOT_ACCEPTED: ..." without consent. */
+export function translationDownloadModel(repo: string, filename: string): Promise<LocalModel> {
+  return invoke("translation_download_model", { repo, filename });
+}
+
+export function translationCancelDownload(repo: string, filename: string): Promise<boolean> {
+  return invoke("translation_cancel_download", { repo, filename });
+}
+
+/** Delete an installed model or a partial download (path from translationListLocalModels). */
+export function translationDeleteModel(path: string): Promise<void> {
+  return invoke("translation_delete_model", { path });
+}
+
+/** Copy a local .gguf into the models directory (verified against the official SHA-256 when known). */
+export function translationImportModel(sourcePath: string): Promise<LocalModel> {
+  return invoke("translation_import_model", { sourcePath });
+}
+
+export function translationGetLicense(lang: "ja" | "en"): Promise<LicenseText> {
+  return invoke("translation_get_license", { lang });
+}
+
+export function translationLicenseStatus(): Promise<LicenseStatus> {
+  return invoke("translation_license_status");
+}
+
+/** `sha256` = hash of the text that was shown (rejects if the cached text changed). */
+export function translationAcceptLicense(lang: "ja" | "en", sha256: string | null): Promise<LicenseStatus> {
+  return invoke("translation_accept_license", { lang, sha256 });
+}
+
+export function translationRevokeLicense(): Promise<LicenseStatus> {
+  return invoke("translation_revoke_license");
+}
+
+// ─── Bilingual note pair sync ───
+
+/** Changes between two notes and their last-synced block pairs. */
+export function translationSyncPlan(sourceText: string, targetText: string, pairs: SyncPair[]): Promise<SyncItem[]> {
+  return invoke("translation_sync_plan", { sourceText, targetText, pairs });
+}
+
+/** Apply one action to one item; returns the updated texts, pairs and items. */
+export function translationSyncApply(
+  sourceText: string,
+  targetText: string,
+  pairs: SyncPair[],
+  key: string,
+  action: SyncAction,
+  translation: string | null,
+): Promise<SyncState> {
+  return invoke("translation_sync_apply", { sourceText, targetText, pairs, key, action, translation });
+}
+
+/** Pair two existing notes block by block (to start syncing them). */
+export function translationSyncAlign(sourceText: string, targetText: string): Promise<SyncPair[]> {
+  return invoke("translation_sync_align", { sourceText, targetText });
 }
 
 // ─── Export ───

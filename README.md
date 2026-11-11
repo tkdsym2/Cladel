@@ -17,6 +17,7 @@ Research thought-mapping desktop application built with Tauri v2. Combines liter
 
 **macOS**
 - Xcode Command Line Tools: `xcode-select --install`
+- CMake (to build the llama.cpp sidecar for the Translate node): `brew install cmake`
 
 **Windows**
 - [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
@@ -34,6 +35,10 @@ cd Filonex
 
 # Install frontend dependencies
 npm install
+
+# macOS: build the llama-server sidecar used by the Translate node
+# (required once before the first `tauri dev` / `tauri build`; see "Translate Node" below)
+scripts/build-llama.sh
 
 # Run in development mode (starts both Vite dev server and Tauri window)
 npm run tauri dev
@@ -159,6 +164,27 @@ Settings are stored at:
 ```
 
 (via `tauri-plugin-store`)
+
+## Translate Node (PLaMo 3 Translate)
+
+The Translate node translates text locally with **PLaMo 3 Translate** by Preferred Networks, run through a bundled [llama.cpp](https://github.com/ggml-org/llama.cpp) `llama-server` sidecar. Translation itself never uses the network.
+
+**Built with PLaMo.**
+
+### Models are not part of this repository
+
+- The PLaMo 3 Translate model files (`.gguf`) are **not included** in this repository or in the app bundle, and `*.gguf` is git-ignored.
+- The models are licensed separately under the **PLaMo Community License**, not under Filonex's license:
+  - Japanese: https://plamo.preferredai.jp/info/plamo-community-license-ja
+  - English: https://plamo.preferredai.jp/info/plamo-community-license-en
+- Users download a model from inside the app (**Settings → Translation**) after reading and accepting the license, or import a local `.gguf` file (for offline machines). Downloads come from the official repositories `pfnet/plamo-3-translate-{0.8b,2b,8b}-GGUF`, are resumable, and are checked against the SHA-256 published by Hugging Face.
+- Models are stored in the app data directory, not in the bundle: `~/Library/Application Support/com.filonex.desktop/models/`
+
+### llama-server sidecar
+
+`scripts/build-llama.sh` builds `llama-server` from a pinned llama.cpp tag as a statically linked binary (Metal enabled, HTTPS disabled) into `src-tauri/binaries/llama-server-<target-triple>` (git-ignored). Tauri requires that file to exist before building on macOS (`src-tauri/tauri.macos.conf.json` declares it as `externalBin`). The app starts the server on demand on a free `127.0.0.1` port and stops it when the app quits.
+
+Currently macOS (Apple Silicon) only.
 
 ## Building for Production
 

@@ -80,6 +80,10 @@ export function NoteHelpWindow() {
       en: "Insert with double braces — the image becomes a figure; its caption comes from the Image node's “Caption” field in the detail panel.",
       ja: "二重波括弧で挿入すると図として配置されます。キャプションにはImageノード詳細パネルの「Caption」欄が使われます。",
     },
+    imagesFigure: {
+      en: "To control the size, position, caption or label yourself, write a Typst figure and pass the Image node's ID as the path, prefixed with @. Refer to it in the text with @fig:… (gives “Figure 1”). A Translate node writes {{@image_N}} out in this form, with the caption translated.",
+      ja: "大きさ・位置・キャプション・ラベルを自分で調整したいときは、Typst の figure を書き、パスにImageノードのIDを @ 付きで指定します。本文からは @fig:… で参照できます（「図1」になります）。Translateノードで翻訳すると、{{@image_N}} はこの形に書き出され、キャプションも訳されます。",
+    },
     tables: { en: "Using table values", ja: "テーブルの値を使う" },
     tablesImport: {
       en: "Import: create a Table node via Tab menu → “9. Table”, then load a CSV / XLSX / ODS file in the detail panel (or edit the grid manually). “Reload latest” re-reads the file.",
@@ -133,6 +137,14 @@ $ E = m c^2 $`}</CodeBlock>
           <P>{t(T.imagesImport)}</P>
           <P>{t(T.imagesInsert)}</P>
           <CodeBlock>{`{{@image_1}}`}</CodeBlock>
+          <P>{t(T.imagesFigure)}</P>
+          <CodeBlock>{`#figure(
+  image("@image_1", width: 60%),
+  placement: top,
+  caption: [Experimental setup],
+) <fig:setup>
+
+As shown in @fig:setup, ...`}</CodeBlock>
         </Section>
 
         <Section title={t(T.tables)}>
