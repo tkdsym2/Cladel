@@ -608,7 +608,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 - **CSP**: Set to `null` (permissive, required for asset:// protocol)
 - **Dev**: `npm run tauri dev` (frontend at localhost:1420)
 - **Build**: `npm run tauri build`
-- **Window**: 1200x800 default, resizable. Auxiliary windows `agent-console` + `manual` are scoped by `capabilities/auxiliary-windows.json` (grants `core:window` set-title/focus/close/destroy + `store:default`).
+- **Window**: 1440x900 default, resizable. Auxiliary windows `agent-console` + `manual` are scoped by `capabilities/auxiliary-windows.json` (grants `core:window` set-title/focus/close/destroy + `store:default`).
 - **Auto-update**: `tauri-plugin-updater` (+ `tauri-plugin-process` for relaunch); `createUpdaterArtifacts: true` and signing required for `tauri build` to emit update artifacts.
 - **Icons**: sources are `src-tauri/icons/source/app-icon.svg` (app) and `file-icon.svg` (.flnx document). App icons come from `npx tauri icon` on the full-bleed 1024px render; `icon.icns` is then replaced by a macOS version with the artwork at 824px in a 1024px canvas (Apple's icon grid), so the Dock icon matches other apps' size. The document icon is `icons/flnx.icns` (+ `flnx.ico`/`flnx.png`): Tauri's `fileAssociations` has no icon field, so `src-tauri/Info.plist` (auto-merged; its top-level keys replace the generated ones) redeclares `CFBundleDocumentTypes` + `UTExportedTypeDeclarations` (UTI `com.filonex.document`) with `flnx.icns`, and `bundle.macOS.files` copies it to `Contents/Resources`. Keep Info.plist in sync with `bundle.fileAssociations`. Windows/Linux .flnx files show the app icon (no custom document icon there).
 
