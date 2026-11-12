@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import SystemUpdateAltIcon from "@mui/icons-material/SystemUpdateAlt";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { useTabStore } from "../../store/tabStore";
 
 type UpdateState =
   | { phase: "checking" }
@@ -19,6 +20,8 @@ interface Props {
 
 export function UpdateDialog({ open, onClose, silentErrors = false }: Props) {
   const [state, setState] = useState<UpdateState>({ phase: "checking" });
+  const [unsavedWarning, setUnsavedWarning] = useState(false);
+  const unsavedWarnedRef = useRef(false);
   const updateRef = useRef<Awaited<ReturnType<typeof import("@tauri-apps/plugin-updater").check>> | null>(null);
 
   // Check for updates on mount
@@ -86,6 +89,14 @@ export function UpdateDialog({ open, onClose, silentErrors = false }: Props) {
   }, []);
 
   const handleRestart = useCallback(async () => {
+    // Relaunching discards every tab's working copy: warn once if anything is
+    // unsaved, and only restart on a second, explicit click.
+    const hasDirty = useTabStore.getState().tabs.some((t) => t.is_dirty);
+    if (hasDirty && !unsavedWarnedRef.current) {
+      unsavedWarnedRef.current = true;
+      setUnsavedWarning(true);
+      return;
+    }
     try {
       const { relaunch } = await import("@tauri-apps/plugin-process");
       await relaunch();
@@ -172,6 +183,12 @@ export function UpdateDialog({ open, onClose, silentErrors = false }: Props) {
               <CheckCircleOutlineIcon sx={{ fontSize: 36, color: "#059669" }} />
               <div style={titleStyle}>Update Installed</div>
               <div style={subtextStyle}>v{state.version} is ready. Restart to apply.</div>
+              {unsavedWarning && (
+                <div style={{ ...subtextStyle, color: "#b91c1c" }}>
+                  You have unsaved changes. Choose "Later" and save them first —
+                  restarting now will discard them.
+                </div>
+              )}
             </div>
 
             <div style={buttonRowStyle}>
@@ -179,7 +196,7 @@ export function UpdateDialog({ open, onClose, silentErrors = false }: Props) {
                 Later
               </button>
               <button onClick={handleRestart} style={updateButtonStyle}>
-                Restart Now
+                {unsavedWarning ? "Restart Anyway" : "Restart Now"}
               </button>
             </div>
           </>

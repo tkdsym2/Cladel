@@ -159,6 +159,22 @@ pub fn restore_edge(db: State<Database>, input: RestoreEdgeInput) -> Result<Edge
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
 
+    // Same invariants as create_edge: the user may have re-drawn this
+    // connection while it was deleted, and Undo must not duplicate it.
+    if input.source_node_id == input.target_node_id {
+        return Err("Self-loop edges are not allowed".to_string());
+    }
+    let duplicate: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM edges WHERE layer_id = ?1 AND source_node_id = ?2 AND target_node_id = ?3",
+            rusqlite::params![input.layer_id, input.source_node_id, input.target_node_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to check duplicate edge: {e}"))?;
+    if duplicate {
+        return Err("Duplicate edges are not allowed".to_string());
+    }
+
     conn.execute(
         "INSERT INTO edges (id, layer_id, source_node_id, target_node_id, weight, comment, source_handle, target_handle, created_by, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
@@ -186,11 +202,16 @@ pub fn restore_edge(db: State<Database>, input: RestoreEdgeInput) -> Result<Edge
 }
 
 #[tauri::command]
-pub fn delete_edge(db: State<Database>, edge_id: String) -> Result<(), String> {
+pub fn delete_edge(
+    db: State<Database>,
+    edge_id: String,
+) -> Result<Vec<super::related_rows::TableRows>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    // Its comment thread cascades away — returned so Undo can restore it.
+    let related = super::related_rows::snapshot_for_edge(&conn, &edge_id)?;
     conn.execute("DELETE FROM edges WHERE id = ?1", [&edge_id])
         .map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(related)
 }
 
 #[tauri::command]

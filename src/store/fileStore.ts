@@ -3,6 +3,8 @@ import * as cmd from "../lib/tauri-commands";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useGraphStore } from "./graphStore";
 import { useTabStore } from "./tabStore";
+import { emitDocumentDirty } from "../lib/sync-events";
+import { flushPendingSaves } from "../lib/pendingSaves";
 
 interface FileStore {
   currentFilePath: string | null;
@@ -37,8 +39,17 @@ export const useFileStore = create<FileStore>((set, get) => ({
     set({ currentFilePath: path, fileName: extractFileName(path) }),
 
   markDirty: () => {
-    if (!get().isDirty) {
-      set({ isDirty: true });
+    // Decide from the ACTIVE TAB's own flag, not a global one: after switching
+    // from a dirty tab to a clean one, the clean tab must still become dirty.
+    const { tabs, activeTabId } = useTabStore.getState();
+    if (tabs.length === 0) {
+      // No tab list: this is a detached window (only the main window loads
+      // tabs). Tell the main window, which owns the unsaved state.
+      if (window.location.hash.includes("/node-detail/")) emitDocumentDirty();
+      return;
+    }
+    const active = tabs.find((t) => t.id === activeTabId);
+    if (active && !active.is_dirty) {
       useTabStore.getState().markActiveTabDirty();
     }
   },
@@ -52,7 +63,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     // Delegate to tabStore — creates a new tab
     try {
       await useTabStore.getState().newTab();
-      set({ currentFilePath: null, fileName: "Untitled", isDirty: false });
+      set({ currentFilePath: null, fileName: "Untitled" });
     } catch (err) {
       console.error("Failed to create new file:", err);
       throw err;
@@ -76,7 +87,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set({
         currentFilePath: path,
         fileName: extractFileName(path),
-        isDirty: false,
       });
     } catch (err) {
       console.error("Failed to open file:", err);
@@ -89,10 +99,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
     // document (no path), so the first save becomes "Save As" — the sample
     // itself is never overwritten.
     await useTabStore.getState().openSample();
-    set({ currentFilePath: null, fileName: "sample", isDirty: false });
+    set({ currentFilePath: null, fileName: "sample" });
   },
 
   saveFile: async () => {
+    // Editors save on a debounce: write what is still pending first, or the
+    // file on disk misses the last keystrokes.
+    await flushPendingSaves();
     const { currentFilePath } = get();
     if (currentFilePath) {
       try {
@@ -126,6 +139,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }
 
     try {
+      await flushPendingSaves();
       await cmd.fileSaveAs(path);
       const name = extractFileName(path);
       set({
@@ -152,6 +166,22 @@ export const useFileStore = create<FileStore>((set, get) => ({
     });
   },
 }));
+
+// ─── isDirty mirrors the active tab ───
+// `isDirty` (window title) is derived from the active tab's flag, so it can never
+// go stale across tab switches / new tabs / opening an already-open file.
+useTabStore.subscribe((state) => {
+  const active = state.tabs.find((t) => t.id === state.activeTabId);
+  const dirty = active?.is_dirty ?? false;
+  if (useFileStore.getState().isDirty !== dirty) {
+    useFileStore.setState({ isDirty: dirty });
+  }
+});
+
+// Every successful document write (see DOCUMENT_WRITE_COMMANDS) marks the file
+// dirty — including writes that do not go through graphStore (comments,
+// display_id / BibTeX edits, export settings, agent output, ...).
+cmd.setDocumentMutatedListener(() => useFileStore.getState().markDirty());
 
 // ─── Auto-dirty tracking ───
 // Subscribe to graphStore's mutationVersion. When it changes,

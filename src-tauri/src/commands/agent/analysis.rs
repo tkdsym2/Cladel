@@ -483,8 +483,9 @@ pub(crate) fn analyze_content_signals(
                 unanswered_questions.push(UnansweredQuestion {
                     node_id: id.clone(),
                     node_title: title.clone(),
+                    // Boundary-safe: a raw `[..197]` panics inside multi-byte text.
                     question_text: if question_text.len() > 200 {
-                        format!("{}...", &question_text[..197])
+                        super::truncate_str(&question_text, 197)
                     } else {
                         question_text
                     },

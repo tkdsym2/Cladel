@@ -24,6 +24,7 @@ import {
   writeTranslationToNote,
 } from "../../lib/translateRunner";
 import { TranslateSyncSection } from "./TranslateSyncSection";
+import { registerPendingSave } from "../../lib/pendingSaves";
 
 const ACCENT = "#ea580c";
 
@@ -73,10 +74,38 @@ export function TranslateNodeViewer({ node }: Props) {
     [node.id, model.output_node_id, dbNodes, dbEdges],
   );
 
-  const saveDebounced = (partial: Parameters<typeof patchTranslateModel>[1]) => {
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => void patchTranslateModel(node.id, partial), 500);
+  // Pending edits are MERGED: one timer is shared by glossary and input text, so
+  // replacing the partial would drop whichever field was edited first.
+  const pendingSave = useRef<Parameters<typeof patchTranslateModel>[1]>({});
+  const flushPendingSave = (nodeId: string) => {
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    const partial = pendingSave.current;
+    pendingSave.current = {};
+    if (Object.keys(partial).length === 0) return Promise.resolve();
+    return patchTranslateModel(nodeId, partial).then(
+      () => undefined,
+      (err) => console.error("Failed to save translate settings:", err),
+    );
   };
+  const saveDebounced = (partial: Parameters<typeof patchTranslateModel>[1]) => {
+    pendingSave.current = { ...pendingSave.current, ...partial };
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => void flushPendingSave(node.id), 500);
+  };
+  // Don't lose an edit made just before the panel closes / the layer changes,
+  // and let tab switches / file saves write it first.
+  useEffect(() => {
+    const id = node.id;
+    const unregister = registerPendingSave(() => flushPendingSave(id));
+    return () => {
+      unregister();
+      void flushPendingSave(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node.id]);
 
   const busy = run.status === "loading" || run.status === "translating";
   const output = busy || run.status === "cancelled" || (run.status === "done" && run.live) ? run.live : model.output;
@@ -102,11 +131,7 @@ export function TranslateNodeViewer({ node }: Props) {
   const runDisabled = modelStatus.checked && (!modelStatus.hasModel || !modelStatus.supported);
   const handleRun = async () => {
     // Flush pending edits before translating.
-    if (saveTimer.current) {
-      window.clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-      await patchTranslateModel(node.id, { glossary, input_text: inputText });
-    }
+    await flushPendingSave(node.id);
     void runTranslate(node.id);
   };
   const inputPreview = sources

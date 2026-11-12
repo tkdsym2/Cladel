@@ -993,7 +993,8 @@ pub fn generate_export_pdf(
     for (sec_i, section) in sections.iter().enumerate() {
         // Progress: 25% to 75% spread across sections
         let sec_percent = if total_sections > 0 {
-            25 + ((sec_i as u8) * 50 / (total_sections as u8).max(1))
+            // usize math: `(sec_i as u8) * 50` overflows from the 7th section.
+            (25 + sec_i * 50 / total_sections.max(1)).min(75) as u8
         } else {
             50
         };

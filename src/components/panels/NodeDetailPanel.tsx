@@ -32,6 +32,8 @@ import { RenderNodeViewer } from "./RenderNodeViewer";
 import { TranslateNodeViewer } from "./TranslateNodeViewer";
 import { AccordionSection } from "../graph/NodeAccordionSection";
 import type { NodeData, EdgeData, NodeComment, AgentNodeMessage, PaperGroupMetadata } from "../../types";
+import { isImeComposing } from "../../lib/keyboard";
+import { registerPendingSave } from "../../lib/pendingSaves";
 
 interface NodeDetailPanelProps {
   onDeleteNode?: (nodeId: string) => void;
@@ -194,8 +196,11 @@ function CoreEditor({
         setSaving(true);
         setSaveError(null);
         await onUpdate(nodeId, { content: newContent });
-        pendingContent.current = null;
-        setDirty(false);
+        // Only "clean" if nothing newer was typed while the save was in flight.
+        if (pendingContent.current === null || pendingContent.current === newContent) {
+          pendingContent.current = null;
+          setDirty(false);
+        }
       } catch (err) {
         console.error("Core save failed:", err);
         setSaveError(String(err));
@@ -232,6 +237,17 @@ function CoreEditor({
       }
     };
   }, [doSave, onUpdate]);
+
+  // Let tab switches / file saves / window close write the pending text first.
+  useEffect(
+    () =>
+      registerPendingSave(async () => {
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        const pending = pendingContent.current;
+        if (pending !== null) await doSave(nodeIdRef.current, pending);
+      }),
+    [doSave],
+  );
 
   const handleContentChange = (val: string) => {
     setContent(val);
@@ -1736,8 +1752,11 @@ function UserDocEditor({
         setSaving(true);
         setSaveError(null);
         await onUpdate(nodeId, { content: newContent });
-        pendingContent.current = null;
-        setDirty(false);
+        // Only "clean" if nothing newer was typed while the save was in flight.
+        if (pendingContent.current === null || pendingContent.current === newContent) {
+          pendingContent.current = null;
+          setDirty(false);
+        }
       } catch (err) {
         console.error("Note save failed:", err);
         setSaveError(String(err));
@@ -1774,6 +1793,17 @@ function UserDocEditor({
     };
   }, [doSave, onUpdate]);
 
+  // Let tab switches / file saves / window close write the pending text first.
+  useEffect(
+    () =>
+      registerPendingSave(async () => {
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        const pending = pendingContent.current;
+        if (pending !== null) await doSave(nodeIdRef.current, pending);
+      }),
+    [doSave],
+  );
+
   const handleContentChange = (val: string) => {
     setContent(val);
     setDirty(true);
@@ -1804,6 +1834,7 @@ function UserDocEditor({
                   setDisplayIdError(null);
                 }}
                 onKeyDown={(e) => {
+                  if (isImeComposing(e)) return;
                   if (e.key === "Enter") handleDisplayIdSave();
                   if (e.key === "Escape") handleDisplayIdCancel();
                 }}
@@ -1952,6 +1983,7 @@ function PaperGroupViewer({ node }: { node: NodeData }) {
 
   const handleNameKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === "Enter") {
         e.preventDefault();
         handleNameSave();
@@ -2007,6 +2039,7 @@ function PaperGroupViewer({ node }: { node: NodeData }) {
 
   const handleAddKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === "Escape") {
         setAddDropdownOpen(false);
         setFocusedIdx(-1);

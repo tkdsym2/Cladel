@@ -341,6 +341,18 @@ pub fn update_tab_after_save(
     Ok(())
 }
 
+/// Record a tab's unsaved-changes state. The backend's `TabInfo.is_dirty` is the
+/// source of truth: every tab operation re-reads the tab list from here, so a
+/// flag kept only in the frontend would be wiped on the next switch/new/open.
+#[tauri::command]
+pub fn set_tab_dirty(db: State<Database>, tab_id: String, is_dirty: bool) -> Result<(), String> {
+    let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
+    if let Some(tab) = tabs.iter_mut().find(|t| t.id == tab_id) {
+        tab.is_dirty = is_dirty;
+    }
+    Ok(())
+}
+
 // ─── Internal helpers ───
 
 /// Snapshot the current active tab's working DB.

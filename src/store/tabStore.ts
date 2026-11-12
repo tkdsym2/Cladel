@@ -6,6 +6,7 @@ import { useLayerStore } from "./layerStore";
 import { useGraphStore } from "./graphStore";
 import { useAgentStore } from "./agentStore";
 import { closeAllDetachedWindows } from "../lib/detached-window";
+import { flushPendingSaves } from "../lib/pendingSaves";
 
 export type { TabInfo };
 
@@ -82,6 +83,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
     set({ switching: true });
     try {
+      // Pending editor saves must hit THIS tab's DB before the connection swaps.
+      await flushPendingSaves();
       await closeAllDetachedWindows();
       await cmd.switchTab(tabId);
       await reinitialize();
@@ -101,6 +104,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
     set({ switching: true });
     try {
+      // Pending editor saves must hit THIS tab's DB before the connection swaps.
+      await flushPendingSaves();
       await closeAllDetachedWindows();
       const newTab = await cmd.createTab();
       await reinitialize();
@@ -124,6 +129,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
     set({ switching: true });
     try {
+      // Pending editor saves must hit THIS tab's DB before the connection swaps.
+      await flushPendingSaves();
       await closeAllDetachedWindows();
       const tab = await cmd.openFileInTab(path);
       await reinitialize();
@@ -155,6 +162,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
     set({ switching: true });
     try {
+      // Pending editor saves must hit THIS tab's DB before the connection swaps.
+      await flushPendingSaves();
       await closeAllDetachedWindows();
       const tab = await cmd.openSampleAsNew();
       await reinitialize();
@@ -178,6 +187,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
     set({ switching: true });
     try {
+      // Pending editor saves must hit THIS tab's DB before the connection swaps.
+      await flushPendingSaves();
       await closeAllDetachedWindows();
       await cmd.reloadActiveTabFromDisk();
       await reinitialize();
@@ -200,6 +211,8 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
     set({ switching: true });
     try {
+      // Pending editor saves must hit THIS tab's DB before the connection swaps.
+      await flushPendingSaves();
       await closeAllDetachedWindows();
       const newActiveId = await cmd.closeTab(tabId);
       const { activeTabId } = get();
@@ -225,6 +238,10 @@ export const useTabStore = create<TabStore>((set, get) => ({
       t.id === activeTabId ? { ...t, is_dirty: true } : t,
     );
     set({ tabs: updated });
+    // The backend owns the flag: every tab operation reloads the list from it.
+    cmd.setTabDirty(activeTabId, true).catch((err) => {
+      console.error("Failed to record unsaved state:", err);
+    });
   },
 
   markActiveTabClean: () => {
@@ -234,6 +251,9 @@ export const useTabStore = create<TabStore>((set, get) => ({
       t.id === activeTabId ? { ...t, is_dirty: false } : t,
     );
     set({ tabs: updated });
+    cmd.setTabDirty(activeTabId, false).catch((err) => {
+      console.error("Failed to record saved state:", err);
+    });
   },
 
   updateActiveTabAfterSave: (path: string, name: string) => {

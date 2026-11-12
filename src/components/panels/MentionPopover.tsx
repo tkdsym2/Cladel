@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { isImeComposing } from "../../lib/keyboard";
 
 // ─── Types ───
 
@@ -82,6 +83,7 @@ export function MentionPopover({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();

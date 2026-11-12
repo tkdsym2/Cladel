@@ -135,6 +135,18 @@ pub(crate) fn resolve_image_paths(src: &str, mut resolve: impl FnMut(&str) -> Op
     out
 }
 
+/// Typst markup citing the bibliography entry `key`.
+///
+/// NOT the `@key` shorthand: its lexer keeps consuming letters, digits, `_`,
+/// `-`, `.`, `:` — and kana/kanji count as letters — so `{@smith2020}によると`
+/// became the unknown label `smith2020によると` and failed the whole document.
+/// `#cite(label(".."));` is self-terminating (the `;` ends the expression and
+/// is not printed) and accepts keys with characters the shorthand cannot hold.
+fn cite_markup(key: &str) -> String {
+    let escaped = key.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("#cite(label(\"{escaped}\"));")
+}
+
 /// Assemble a full Typst document from ordered Note nodes.
 ///
 /// Side effects: copies referenced images and writes `refs.bib` into `work_dir`,
@@ -184,7 +196,7 @@ pub(crate) fn assemble_typst_source(
                             if cited_keys.insert(did.to_string()) {
                                 bib_entries.push(rewrite_bibtex_key(bib, did));
                             }
-                            parts.push(format!("@{did}"));
+                            parts.push(cite_markup(did));
                         } else {
                             // No BibTeX: fall back to the title in brackets.
                             parts.push(format!("[{}]", escape_typst(&node.title)));
@@ -433,6 +445,25 @@ mod tests {
         let src = "Before @fig:image_1.\n\n#figure(image(\"@image_1\", width: 40%), placement: top, caption: [Setup]) <fig:image_1>\n";
         let src = resolve_image_paths(src, |_| Some("image_1.png".to_string()));
         let pdf = typst_engine::compile_to_pdf(format!("{PREAMBLE}{src}"), Some(&dir));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(pdf.unwrap().starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn citation_followed_by_japanese_compiles() {
+        let dir = std::env::temp_dir().join(format!("filonex-cite-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("refs.bib"),
+            "@article{smith2020,\n  title={A Study},\n  author={Smith, John},\n  journal={J},\n  year={2020}\n}\n",
+        )
+        .unwrap();
+        // No space between the citation and the following text, as in Japanese prose.
+        let src = format!(
+            "{PREAMBLE}{c}によると、結果は{c}.final と{c}s である。\n\n#bibliography(\"refs.bib\", style: \"ieee\")\n",
+            c = cite_markup("smith2020")
+        );
+        let pdf = typst_engine::compile_to_pdf(src, Some(&dir));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(pdf.unwrap().starts_with(b"%PDF"));
     }

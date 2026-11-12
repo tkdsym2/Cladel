@@ -163,23 +163,6 @@ pub fn get_api_key_status(app: AppHandle) -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-pub fn get_api_key(app: AppHandle) -> Result<Option<String>, String> {
-    let store = app
-        .store(STORE_FILE)
-        .map_err(|e| format!("Failed to open store: {e}"))?;
-    match store.get(API_KEY_FIELD) {
-        Some(val) => {
-            let key = val
-                .as_str()
-                .ok_or("Stored API key is not a string")?
-                .to_string();
-            Ok(Some(key))
-        }
-        None => Ok(None),
-    }
-}
-
-#[tauri::command]
 pub fn delete_api_key(app: AppHandle) -> Result<(), String> {
     let store = app
         .store(STORE_FILE)
@@ -220,23 +203,6 @@ pub fn get_gemini_api_key_status(app: AppHandle) -> Result<Option<String>, Strin
                 "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}".to_string()
             };
             Ok(Some(masked))
-        }
-        None => Ok(None),
-    }
-}
-
-#[tauri::command]
-pub fn get_gemini_api_key(app: AppHandle) -> Result<Option<String>, String> {
-    let store = app
-        .store(STORE_FILE)
-        .map_err(|e| format!("Failed to open store: {e}"))?;
-    match store.get(GEMINI_API_KEY_FIELD) {
-        Some(val) => {
-            let key = val
-                .as_str()
-                .ok_or("Stored Gemini API key is not a string")?
-                .to_string();
-            Ok(Some(key))
         }
         None => Ok(None),
     }

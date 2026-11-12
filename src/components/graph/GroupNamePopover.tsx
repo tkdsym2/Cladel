@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useGraphStore } from "../../store/graphStore";
 import { useLayerStore } from "../../store/layerStore";
 import { useT } from "../../lib/i18n";
+import { isImeComposing } from "../../lib/keyboard";
 
 interface GroupNamePopoverProps {
   position: { x: number; y: number };
@@ -29,6 +30,7 @@ export function GroupNamePopover({ position, memberIds, onClose }: GroupNamePopo
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === "Enter") {
         e.preventDefault();
         handleConfirm();

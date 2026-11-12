@@ -1,4 +1,44 @@
-import { invoke, Channel } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke, Channel, type InvokeArgs } from "@tauri-apps/api/core";
+
+// ─── Document-mutation tracking ───
+// Commands that change the open document (.flnx). Every one of them goes through
+// the `invoke` wrapper below, which notifies the listener (fileStore → "unsaved
+// changes") after a successful call — so no caller can forget to mark the file
+// dirty. Deliberately absent: create_project / create_layer / delete_layer (run
+// while a fresh tab is initialised; App marks user-initiated layer changes
+// itself) and anything that only touches settings, models or usage logs.
+const DOCUMENT_WRITE_COMMANDS = new Set([
+  "create_node", "update_node", "delete_node", "soft_delete_node", "restore_node",
+  "restore_related_rows", "update_display_id", "update_paper_bibtex",
+  "create_edge", "update_edge", "delete_edge", "restore_edge",
+  "split_edge_at_junction", "dissolve_junction",
+  "save_core_version", "save_note_version",
+  "add_node_comment", "update_node_comment", "delete_node_comment",
+  "add_edge_comment", "update_edge_comment", "delete_edge_comment",
+  "create_image_node", "update_node_image_path", "set_paper_pdf_path",
+  "add_agent_node_message", "delete_agent_node_message",
+  "invoke_agent_node", "invoke_agent_comment", "invoke_paper_summarize", "invoke_paper_chat",
+  "update_export_section_order", "update_export_citation_style",
+  "update_export_language", "update_export_style_config",
+]);
+
+let documentMutatedListener: (() => void) | null = null;
+
+/** Called (once per successful document write) by the window's fileStore. */
+export function setDocumentMutatedListener(listener: () => void): void {
+  documentMutatedListener = listener;
+}
+
+function invoke<T>(command: string, args?: InvokeArgs): Promise<T> {
+  const result = tauriInvoke<T>(command, args);
+  if (DOCUMENT_WRITE_COMMANDS.has(command)) {
+    result.then(
+      () => documentMutatedListener?.(),
+      () => {},
+    );
+  }
+  return result;
+}
 import type {
   TranslationServerStatus,
   RemoteRepo,
@@ -101,6 +141,10 @@ export function updateTabAfterSave(
   return invoke("update_tab_after_save", { filePath, displayName, isDirty });
 }
 
+export function setTabDirty(tabId: string, isDirty: boolean): Promise<void> {
+  return invoke("set_tab_dirty", { tabId, isDirty });
+}
+
 // ─── File Operations ───
 
 export function fileNew(): Promise<void> {
@@ -166,6 +210,11 @@ export function getNodesByLayer(layerId: string): Promise<NodeData[]> {
   return invoke("get_nodes_by_layer", { layerId });
 }
 
+/** One node read straight from the DB (any layer); null when it does not exist. */
+export function getNode(nodeId: string): Promise<NodeData | null> {
+  return invoke("get_node", { nodeId });
+}
+
 export function createNode(input: CreateNodeInput): Promise<NodeData> {
   return invoke("create_node", { input });
 }
@@ -174,8 +223,20 @@ export function updateNode(input: UpdateNodeInput): Promise<NodeData> {
   return invoke("update_node", { input });
 }
 
-export function deleteNode(nodeId: string): Promise<void> {
+/** Rows that were deleted together with a node / edge (comments, image record,
+ *  agent chat, ...). Opaque to the frontend: keep it and pass it back to
+ *  `restoreRelatedRows` on Undo. */
+export interface RelatedTableRows {
+  table: string;
+  rows: Record<string, unknown>[];
+}
+
+export function deleteNode(nodeId: string): Promise<RelatedTableRows[]> {
   return invoke("delete_node", { nodeId });
+}
+
+export function restoreRelatedRows(rows: RelatedTableRows[]): Promise<number> {
+  return invoke("restore_related_rows", { rows });
 }
 
 export function softDeleteNode(nodeId: string): Promise<NodeData> {
@@ -210,7 +271,7 @@ export function updateEdge(input: UpdateEdgeInput): Promise<EdgeData> {
   return invoke("update_edge", { input });
 }
 
-export function deleteEdge(edgeId: string): Promise<void> {
+export function deleteEdge(edgeId: string): Promise<RelatedTableRows[]> {
   return invoke("delete_edge", { edgeId });
 }
 

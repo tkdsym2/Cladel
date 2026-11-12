@@ -177,4 +177,17 @@ export async function closeAllDetachedWindows(): Promise<void> {
       }
     }
   }
+
+  // `close()` only REQUESTS the close: each window first writes its pending
+  // editor save (DetachedNodeDetail's onCloseRequested) and is destroyed after.
+  // Callers swap the DB connection next, so wait until the windows are really
+  // gone — otherwise that last save could land in the other tab's database.
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    const remaining = (await getAllWebviewWindows()).filter((w) =>
+      w.label.startsWith("node-detail-"),
+    );
+    if (remaining.length === 0) break;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
 }

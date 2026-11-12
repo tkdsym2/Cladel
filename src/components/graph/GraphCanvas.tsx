@@ -1178,6 +1178,11 @@ export function GraphCanvas({
         : e.ctrlKey;
 
       if (modKey && e.key === "c") {
+        // Text selected somewhere (paper abstract, comment, agent reply in the
+        // detail panel — clicking static text leaves focus on <body>, so the
+        // canvas counts as "active"): let the browser copy that text.
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && selection.toString().trim() !== "") return;
         e.preventDefault();
         handleCopy();
       } else if (modKey && e.key === "v") {
