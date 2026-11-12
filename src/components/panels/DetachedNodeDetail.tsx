@@ -1,4 +1,7 @@
 import { useGraphStore } from "../../store/graphStore";
+import { flushPendingSaves } from "../../lib/pendingSaves";
+// Side effect: fileStore forwards this window's document writes to the main window.
+import "../../store/fileStore";
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -113,6 +116,18 @@ export function DetachedNodeDetail() {
       if (state.mutationVersion !== prev.mutationVersion) fetchNode();
     });
   }, [isTranslate, fetchNode]);
+
+  // Closing this window (by the user, or by the main window before a tab
+  // switch) must not drop a debounced edit. Tauri destroys the window only
+  // after this async handler resolves.
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onCloseRequested(async () => {
+      await flushPendingSaves();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
 
   // Listen for node-deleted events
   useEffect(() => {

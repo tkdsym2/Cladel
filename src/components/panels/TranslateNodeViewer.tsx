@@ -24,6 +24,7 @@ import {
   writeTranslationToNote,
 } from "../../lib/translateRunner";
 import { TranslateSyncSection } from "./TranslateSyncSection";
+import { registerPendingSave } from "../../lib/pendingSaves";
 
 const ACCENT = "#ea580c";
 
@@ -94,10 +95,15 @@ export function TranslateNodeViewer({ node }: Props) {
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => void flushPendingSave(node.id), 500);
   };
-  // Don't lose an edit made just before the panel closes / the layer changes.
+  // Don't lose an edit made just before the panel closes / the layer changes,
+  // and let tab switches / file saves write it first.
   useEffect(() => {
     const id = node.id;
-    return () => void flushPendingSave(id);
+    const unregister = registerPendingSave(() => flushPendingSave(id));
+    return () => {
+      unregister();
+      void flushPendingSave(id);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id]);
 

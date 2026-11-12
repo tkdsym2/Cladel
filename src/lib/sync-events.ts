@@ -17,6 +17,7 @@ export const GRAPH_CHANGED = "graph-changed";
 export const SETTINGS_CHANGED = "settings-changed";
 export const EXPORT_STARTED = "export-started";
 export const EXPORT_FINISHED = "export-finished";
+export const DOCUMENT_DIRTY = "document-dirty";
 
 // ─── Payload types ───
 
@@ -92,6 +93,18 @@ export function emitExportStarted(): void {
 
 export function emitExportFinished(error?: string | null): void {
   emit(EXPORT_FINISHED, { source: getWindowLabel(), error: error ?? null });
+}
+
+/** A window other than the main one changed the document. */
+export function emitDocumentDirty(): void {
+  emit(DOCUMENT_DIRTY, { source: getWindowLabel() });
+}
+
+export function onDocumentDirty(callback: () => void): Promise<UnlistenFn> {
+  const label = getWindowLabel();
+  return listen<{ source: string }>(DOCUMENT_DIRTY, (event) => {
+    if (event.payload.source !== label) callback();
+  });
 }
 
 // ─── Listen helpers (ignore self-emitted events) ───

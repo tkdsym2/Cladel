@@ -39,7 +39,7 @@ import { useAutonomousTrigger } from "./hooks/useAutonomousTrigger";
 import { useStructureTrigger } from "./hooks/useStructureTrigger";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
-import { onNodeUpdated, onCommentsChanged, onExportStarted, onExportFinished } from "./lib/sync-events";
+import { onNodeUpdated, onCommentsChanged, onDocumentDirty, onExportStarted, onExportFinished } from "./lib/sync-events";
 import * as cmd from "./lib/tauri-commands";
 import { useExportStore } from "./store/exportStore";
 import { ExportBlockingOverlay, PdfExportProgressDialog } from "./components/dialogs/PdfExportProgressDialog";
@@ -385,9 +385,14 @@ function App() {
     const unlistenComments = onCommentsChanged(() => {
       useGraphStore.getState().fetchCommentCounts();
     });
+    // A detached window wrote to the document → it has unsaved changes.
+    const unlistenDirty = onDocumentDirty(() => {
+      useFileStore.getState().markDirty();
+    });
     return () => {
       unlistenNode.then((fn) => fn());
       unlistenComments.then((fn) => fn());
+      unlistenDirty.then((fn) => fn());
     };
   }, []);
 
