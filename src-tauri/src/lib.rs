@@ -179,13 +179,16 @@ pub fn run() {
             commands::tab_commands::close_tab,
             commands::tab_commands::reload_active_tab_from_disk,
             commands::tab_commands::update_tab_after_save,
+            commands::tab_commands::set_tab_dirty,
             // Node commands
             commands::nodes::create_node,
             commands::nodes::update_node,
             commands::nodes::delete_node,
             commands::nodes::soft_delete_node,
             commands::nodes::restore_node,
+            commands::related_rows::restore_related_rows,
             commands::nodes::get_nodes_by_layer,
+            commands::nodes::get_node,
             commands::nodes::update_display_id,
             commands::nodes::update_paper_bibtex,
             // Edge commands
@@ -236,11 +239,9 @@ pub fn run() {
             // Settings commands
             commands::settings::save_api_key,
             commands::settings::get_api_key_status,
-            commands::settings::get_api_key,
             commands::settings::delete_api_key,
             commands::settings::save_gemini_api_key,
             commands::settings::get_gemini_api_key_status,
-            commands::settings::get_gemini_api_key,
             commands::settings::delete_gemini_api_key,
             commands::settings::save_agent_capabilities,
             commands::settings::get_agent_capabilities,

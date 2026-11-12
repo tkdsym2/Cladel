@@ -37,8 +37,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
     set({ currentFilePath: path, fileName: extractFileName(path) }),
 
   markDirty: () => {
-    if (!get().isDirty) {
-      set({ isDirty: true });
+    // Decide from the ACTIVE TAB's own flag, not a global one: after switching
+    // from a dirty tab to a clean one, the clean tab must still become dirty.
+    const { tabs, activeTabId } = useTabStore.getState();
+    const active = tabs.find((t) => t.id === activeTabId);
+    if (active && !active.is_dirty) {
       useTabStore.getState().markActiveTabDirty();
     }
   },
@@ -52,7 +55,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     // Delegate to tabStore — creates a new tab
     try {
       await useTabStore.getState().newTab();
-      set({ currentFilePath: null, fileName: "Untitled", isDirty: false });
+      set({ currentFilePath: null, fileName: "Untitled" });
     } catch (err) {
       console.error("Failed to create new file:", err);
       throw err;
@@ -76,7 +79,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set({
         currentFilePath: path,
         fileName: extractFileName(path),
-        isDirty: false,
       });
     } catch (err) {
       console.error("Failed to open file:", err);
@@ -89,7 +91,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     // document (no path), so the first save becomes "Save As" — the sample
     // itself is never overwritten.
     await useTabStore.getState().openSample();
-    set({ currentFilePath: null, fileName: "sample", isDirty: false });
+    set({ currentFilePath: null, fileName: "sample" });
   },
 
   saveFile: async () => {
@@ -152,6 +154,17 @@ export const useFileStore = create<FileStore>((set, get) => ({
     });
   },
 }));
+
+// ─── isDirty mirrors the active tab ───
+// `isDirty` (window title) is derived from the active tab's flag, so it can never
+// go stale across tab switches / new tabs / opening an already-open file.
+useTabStore.subscribe((state) => {
+  const active = state.tabs.find((t) => t.id === state.activeTabId);
+  const dirty = active?.is_dirty ?? false;
+  if (useFileStore.getState().isDirty !== dirty) {
+    useFileStore.setState({ isDirty: dirty });
+  }
+});
 
 // ─── Auto-dirty tracking ───
 // Subscribe to graphStore's mutationVersion. When it changes,

@@ -9,6 +9,16 @@ use super::bibtex::generate_bibtex_entry;
 const STORE_FILE: &str = "settings.json";
 const API_KEY_FIELD: &str = "anthropic_api_key";
 const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
+/// Largest byte index `<= max` that lies on a UTF-8 character boundary of `s`.
+/// Slicing at a raw byte offset panics inside multi-byte text (e.g. Japanese).
+fn floor_char_boundary(s: &str, max: usize) -> usize {
+    let mut end = max.min(s.len());
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    end
+}
+
 const CLAUDE_MODEL: &str = "claude-sonnet-4-20250514";
 const S2_BASE_URL: &str = "https://api.semanticscholar.org/graph/v1";
 const CROSSREF_BASE_URL: &str = "https://api.crossref.org/works";
@@ -55,9 +65,8 @@ pub(crate) fn extract_text_from_pdf(file_path: &str) -> Result<String, String> {
     // Academic pages average ~3000-4000 chars; cap at ~10000 chars.
     let truncated = if text.len() > 10_000 {
         // Find a word boundary near the limit
-        let end = text[..10_000]
-            .rfind(char::is_whitespace)
-            .unwrap_or(10_000);
+        let limit = floor_char_boundary(&text, 10_000);
+        let end = text[..limit].rfind(char::is_whitespace).unwrap_or(limit);
         text[..end].to_string()
     } else {
         text
@@ -355,9 +364,8 @@ async fn extract_metadata_with_claude(
 
     // Truncate text to ~3000 chars for token efficiency
     let text_for_claude = if text.len() > 3000 {
-        let end = text[..3000]
-            .rfind(char::is_whitespace)
-            .unwrap_or(3000);
+        let limit = floor_char_boundary(text, 3000);
+        let end = text[..limit].rfind(char::is_whitespace).unwrap_or(limit);
         &text[..end]
     } else {
         text
@@ -634,5 +642,20 @@ pub async fn import_pdf(app: AppHandle, file_path: String) -> Result<PdfMetadata
                 )
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn floor_char_boundary_never_splits_a_character() {
+        let s = "あ".repeat(4000); // 3 bytes each: byte 10_000 is mid-character
+        let end = floor_char_boundary(&s, 10_000);
+        assert_eq!(end, 9_999);
+        assert!(s.is_char_boundary(end));
+        let _ = &s[..end]; // must not panic
+        assert_eq!(floor_char_boundary("abc", 10), 3);
     }
 }

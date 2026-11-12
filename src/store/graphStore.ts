@@ -19,7 +19,7 @@ import type {
   PaperGroupMetadata,
 } from "../types";
 import * as cmd from "../lib/tauri-commands";
-import type { RestoreNodeInput, RestoreEdgeInput } from "../lib/tauri-commands";
+import type { RestoreNodeInput, RestoreEdgeInput, RelatedTableRows } from "../lib/tauri-commands";
 import { emitNodeUpdated, emitNodeDeleted, emitGraphChanged } from "../lib/sync-events";
 import { useSettingsStore } from "./settingsStore";
 import { useUserStore } from "./userStore";
@@ -31,16 +31,20 @@ interface UndoDeleteNode {
   node: NodeData;
   edges: EdgeData[];
   flowNodePosition: { x: number; y: number };
+  /** Rows the delete cascaded away (comments, image record, chat, ...). */
+  related: RelatedTableRows[];
 }
 
 interface UndoDeleteEdge {
   type: "delete_edge";
   edge: EdgeData;
+  related: RelatedTableRows[];
 }
 
 interface UndoBatchDelete {
   type: "batch_delete";
-  nodes: { node: NodeData; edges: EdgeData[]; flowNodePosition: { x: number; y: number } }[];
+  /** In deletion order; Undo restores them in reverse. */
+  nodes: Omit<UndoDeleteNode, "type">[];
 }
 
 type UndoEntry = UndoDeleteNode | UndoDeleteEdge | UndoBatchDelete;
@@ -198,6 +202,8 @@ interface GraphStore {
   addNode: (input: CreateNodeInput) => Promise<NodeData>;
   removeNode: (nodeId: string) => Promise<void>;
   hardDeleteNode: (nodeId: string) => Promise<void>;
+  /** Delete several nodes as ONE undo step (paper groups are ungrouped). */
+  hardDeleteNodes: (nodeIds: string[]) => Promise<void>;
   updateNodePosition: (nodeId: string, x: number, y: number) => Promise<void>;
   updateNodeSize: (nodeId: string, x: number, y: number, width: number, height: number) => Promise<void>;
   updateNodeContent: (
@@ -491,6 +497,42 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     emitNodeDeleted(nodeId);
   },
 
+  hardDeleteNodes: async (nodeIds: string[]) => {
+    const deleted: Omit<UndoDeleteNode, "type">[] = [];
+    // Groups first, while all their members still exist.
+    const isGroup = (id: string) =>
+      get().dbNodes.find((n) => n.id === id)?.node_type === "paper_group";
+    const ordered = [...nodeIds.filter(isGroup), ...nodeIds.filter((id) => !isGroup(id))];
+    for (const nodeId of ordered) {
+      const node = get().dbNodes.find((n) => n.id === nodeId);
+      if (!node) continue; // already gone (e.g. removed with its group)
+      try {
+        if (node.node_type === "paper_group") {
+          // Same as the single-delete path: a raw delete would leave the member
+          // papers with group-relative positions and a dangling parent.
+          await get().ungroupPapers(nodeId);
+          continue;
+        }
+        await get().hardDeleteNode(nodeId);
+        // Fold the entry hardDeleteNode just pushed into one batch entry.
+        const stack = get().undoStack;
+        const last = stack[stack.length - 1];
+        if (last && last.type === "delete_node" && last.node.id === nodeId) {
+          const { type: _type, ...item } = last;
+          deleted.push(item);
+          set({ undoStack: stack.slice(0, -1) });
+        }
+      } catch (err) {
+        console.error("Failed to delete node:", nodeId, err);
+      }
+    }
+    if (deleted.length > 0) {
+      set((s) => ({
+        undoStack: [...s.undoStack, { type: "batch_delete" as const, nodes: deleted }].slice(-MAX_UNDO_STACK),
+      }));
+    }
+  },
+
   hardDeleteNode: async (nodeId: string) => {
     // Capture undo data before deletion
     const { dbNodes, dbEdges, nodes } = get();
@@ -500,7 +542,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       (e) => e.source_node_id === nodeId || e.target_node_id === nodeId,
     );
 
-    await cmd.deleteNode(nodeId);
+    const related = await cmd.deleteNode(nodeId);
     set((s) => ({
       dbNodes: s.dbNodes.filter((n) => n.id !== nodeId),
       dbEdges: s.dbEdges.filter(
@@ -517,6 +559,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
             node: nodeData,
             edges: connectedEdges,
             flowNodePosition: flowNode?.position ?? { x: nodeData.position_x, y: nodeData.position_y },
+            related,
           }].slice(-MAX_UNDO_STACK)
         : s.undoStack,
     }));
@@ -597,13 +640,13 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     const { dbEdges, dbNodes } = get();
     const deletedEdge = dbEdges.find((e) => e.id === edgeId);
 
-    await cmd.deleteEdge(edgeId);
+    const related = await cmd.deleteEdge(edgeId);
     set((s) => ({
       dbEdges: s.dbEdges.filter((e) => e.id !== edgeId),
       edges: s.edges.filter((e) => e.id !== edgeId),
       selectedEdgeId: s.selectedEdgeId === edgeId ? null : s.selectedEdgeId,
       undoStack: deletedEdge
-        ? [...s.undoStack, { type: "delete_edge" as const, edge: deletedEdge }].slice(-MAX_UNDO_STACK)
+        ? [...s.undoStack, { type: "delete_edge" as const, edge: deletedEdge, related }].slice(-MAX_UNDO_STACK)
         : s.undoStack,
     }));
     bumpMutation(set);
@@ -1773,6 +1816,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       nodeData: NodeData,
       connectedEdges: EdgeData[],
       position: { x: number; y: number },
+      related: RelatedTableRows[],
     ) => {
       const input: RestoreNodeInput = {
         id: nodeData.id,
@@ -1820,17 +1864,26 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           target_handle: edgeData.target_handle,
           created_by: edgeData.created_by,
         };
-        const restoredEdge = await cmd.restoreEdge(edgeInput);
-        set((s) => ({
-          dbEdges: [...s.dbEdges, restoredEdge],
-          edges: [...s.edges, dbEdgeToFlow(restoredEdge)],
-        }));
+        // One edge that can no longer be restored (e.g. the same connection was
+        // re-drawn meanwhile) must not abort the rest of the undo.
+        try {
+          const restoredEdge = await cmd.restoreEdge(edgeInput);
+          set((s) => ({
+            dbEdges: [...s.dbEdges, restoredEdge],
+            edges: [...s.edges, dbEdgeToFlow(restoredEdge)],
+          }));
+        } catch (err) {
+          console.warn("Undo: edge not restored:", err);
+        }
       }
+
+      // Last: comments, image record, agent chat... (need the node + edges).
+      if (related.length > 0) await cmd.restoreRelatedRows(related);
     };
 
     try {
       if (entry.type === "delete_node") {
-        await restoreOneNode(entry.node, entry.edges, entry.flowNodePosition);
+        await restoreOneNode(entry.node, entry.edges, entry.flowNodePosition, entry.related);
       } else if (entry.type === "delete_edge") {
         const edgeInput: RestoreEdgeInput = {
           id: entry.edge.id,
@@ -1848,12 +1901,17 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           dbEdges: [...s.dbEdges, restoredEdge],
           edges: [...s.edges, dbEdgeToFlow(restoredEdge)],
         }));
+        if (entry.related.length > 0) await cmd.restoreRelatedRows(entry.related);
       } else if (entry.type === "batch_delete") {
-        for (const item of entry.nodes) {
-          await restoreOneNode(item.node, item.edges, item.flowNodePosition);
+        // Reverse order: an edge between two deleted nodes was recorded with
+        // the node deleted FIRST, so that node must come back LAST (when the
+        // other endpoint exists again).
+        for (const item of [...entry.nodes].reverse()) {
+          await restoreOneNode(item.node, item.edges, item.flowNodePosition, item.related);
         }
       }
       bumpMutation(set);
+      void get().fetchCommentCounts();
     } catch (err) {
       console.error("Undo failed:", err);
     }

@@ -171,15 +171,37 @@ function App() {
     const tabsBefore = useTabStore.getState().tabs;
     setPendingFileAction(null);
     setPendingCloseTabId(null);
+
+    // `saveFile` always writes the ACTIVE tab, so a tab must be brought to the
+    // front before it can be saved. Returns false if the user cancelled Save As.
+    const saveTab = async (tabId: string): Promise<boolean> => {
+      if (useTabStore.getState().activeTabId !== tabId) {
+        await useTabStore.getState().switchTab(tabId);
+        await useFileStore.getState().refreshFilePath();
+      }
+      if (useTabStore.getState().activeTabId !== tabId) return false; // switch refused
+      return await useFileStore.getState().saveFile();
+    };
+
     try {
-      const saved = await saveFile();
-      if (!saved) return; // User cancelled Save As dialog — abort
       if (action === "close-tab" && closeId) {
+        if (!(await saveTab(closeId))) return; // cancelled — keep the tab open
         await useTabStore.getState().closeTab(closeId);
         await useFileStore.getState().refreshFilePath();
         if (tabsBefore.length <= 1) setShowWelcome(true);
       } else if (action === "close-app") {
+        // Save EVERY dirty tab (active one first), not just the active tab.
+        const activeId = useTabStore.getState().activeTabId;
+        const dirtyIds = tabsBefore
+          .filter((t) => t.is_dirty)
+          .map((t) => t.id)
+          .sort((a, b) => Number(b === activeId) - Number(a === activeId));
+        for (const id of dirtyIds) {
+          if (!(await saveTab(id))) return; // cancelled — abort quitting
+        }
         getCurrentWindow().destroy();
+      } else {
+        await saveFile();
       }
     } catch (err) {
       console.error("Save failed:", err);
@@ -570,14 +592,13 @@ function App() {
   const handleConfirmBatchDelete = useCallback(async () => {
     if (!batchDeleteConfirm) return;
     try {
-      for (const nodeId of batchDeleteConfirm.nodeIds) {
-        await hardDeleteNode(nodeId);
-      }
+      // One undo step for the whole selection; paper groups are ungrouped.
+      await useGraphStore.getState().hardDeleteNodes(batchDeleteConfirm.nodeIds);
     } catch (err) {
       console.error("Failed to batch delete nodes:", err);
     }
     setBatchDeleteConfirm(null);
-  }, [batchDeleteConfirm, hardDeleteNode]);
+  }, [batchDeleteConfirm]);
 
   // Request edge deletion — shows confirmation dialog
   const handleRequestDeleteEdge = useCallback(

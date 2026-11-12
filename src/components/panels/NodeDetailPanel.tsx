@@ -32,6 +32,7 @@ import { RenderNodeViewer } from "./RenderNodeViewer";
 import { TranslateNodeViewer } from "./TranslateNodeViewer";
 import { AccordionSection } from "../graph/NodeAccordionSection";
 import type { NodeData, EdgeData, NodeComment, AgentNodeMessage, PaperGroupMetadata } from "../../types";
+import { isImeComposing } from "../../lib/keyboard";
 
 interface NodeDetailPanelProps {
   onDeleteNode?: (nodeId: string) => void;
@@ -1804,6 +1805,7 @@ function UserDocEditor({
                   setDisplayIdError(null);
                 }}
                 onKeyDown={(e) => {
+                  if (isImeComposing(e)) return;
                   if (e.key === "Enter") handleDisplayIdSave();
                   if (e.key === "Escape") handleDisplayIdCancel();
                 }}
@@ -1952,6 +1954,7 @@ function PaperGroupViewer({ node }: { node: NodeData }) {
 
   const handleNameKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === "Enter") {
         e.preventDefault();
         handleNameSave();
@@ -2007,6 +2010,7 @@ function PaperGroupViewer({ node }: { node: NodeData }) {
 
   const handleAddKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       if (e.key === "Escape") {
         setAddDropdownOpen(false);
         setFocusedIdx(-1);

@@ -1,6 +1,22 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+
+// Raw HTML is parsed (rehype-raw) only so our own reference badges render; the
+// tree is then sanitized. Document content can come from someone else's .flnx,
+// and with the app's permissive CSP an unsanitized `<iframe srcdoc>` could run
+// script with access to every Tauri command. Must run AFTER rehypeRaw.
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    span: [
+      ...(defaultSchema.attributes?.span ?? []),
+      ["className", "ref-cite", "ref-image"] as [string, ...string[]],
+    ],
+  },
+};
 
 interface MarkdownPreviewProps {
   content: string;
@@ -28,7 +44,7 @@ export function MarkdownPreview({ content, fontSize = 13 }: MarkdownPreviewProps
     <div className="markdown-preview" style={{ fontSize, lineHeight: 1.6 }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
         components={{
           h1: ({ children, ...props }) => (
             <h1 style={{ fontSize: "1.6em", fontWeight: 700, margin: "0.5em 0 0.3em", borderBottom: "1px solid #e5e7eb", paddingBottom: "0.2em" }} {...props}>{children}</h1>

@@ -48,8 +48,13 @@ export function parseTranslateModel(metadata: string | null | undefined): Transl
 
 /** Merge `partial` into the node's stored model (re-reads the latest first). */
 export async function patchTranslateModel(nodeId: string, partial: Partial<TranslateModel>): Promise<TranslateModel> {
-  const node = useGraphStore.getState().getDbNode(nodeId);
-  const next = { ...parseTranslateModel(node?.metadata), ...partial };
+  // The canvas store only holds the CURRENT layer of the MAIN window. In a
+  // detached window, or after the user switched layers mid-translation, the node
+  // is not there — fall back to the DB rather than merging into defaults, which
+  // would overwrite the glossary, output and sync snapshot.
+  const node = useGraphStore.getState().getDbNode(nodeId) ?? (await cmd.getNode(nodeId));
+  if (!node) throw new Error(`Translate node not found: ${nodeId}`);
+  const next = { ...parseTranslateModel(node.metadata), ...partial };
   await useGraphStore.getState().updateNodeContent(nodeId, { metadata: JSON.stringify(next) });
   return next;
 }

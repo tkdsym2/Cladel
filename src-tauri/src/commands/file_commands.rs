@@ -30,12 +30,13 @@ fn save_connection_to_path(conn: &Connection, target_path: &PathBuf) -> Result<(
     let tmp_path = target_path.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
     vacuum_into(conn, &tmp_path)?;
 
-    if target_path.exists() {
-        std::fs::remove_file(target_path)
-            .map_err(|e| format!("Cannot overwrite existing file: {e}"))?;
+    // `rename` atomically replaces an existing target (Unix and Windows), so the
+    // old file must NOT be removed first: a crash in between would leave no
+    // document at all. On failure the old file is intact; drop the sidecar.
+    if let Err(e) = std::fs::rename(&tmp_path, target_path) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(format!("Failed to move saved file into place: {e}"));
     }
-    std::fs::rename(&tmp_path, target_path)
-        .map_err(|e| format!("Failed to move saved file into place: {e}"))?;
     Ok(())
 }
 
@@ -114,8 +115,16 @@ pub fn file_save(db: State<Database>) -> Result<(), String> {
 
     match current_path {
         Some(path) => {
-            let conn = db.conn.lock().map_err(|e| e.to_string())?;
-            save_connection_to_path(&conn, &path)
+            {
+                let conn = db.conn.lock().map_err(|e| e.to_string())?;
+                save_connection_to_path(&conn, &path)?;
+            }
+            let active_id = db.active_tab_id.lock().map_err(|e| e.to_string())?.clone();
+            let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
+            if let Some(tab) = tabs.iter_mut().find(|t| t.id == active_id) {
+                tab.is_dirty = false;
+            }
+            Ok(())
         }
         None => Err("No file path set. Use Save As to choose a location.".to_string()),
     }
@@ -134,11 +143,20 @@ pub fn file_save_as(db: State<Database>, path: String) -> Result<(), String> {
     let snapshot_path = active_tab_snapshot_path(&db)?;
     let new_conn = open_working_copy_for_path(&target_path, &snapshot_path)?;
 
+    let display_name = target_path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "Untitled".to_string());
     db.swap_connection(new_conn, Some(target_path))?;
     let active_id = db.active_tab_id.lock().map_err(|e| e.to_string())?.clone();
     let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
     if let Some(tab) = tabs.iter_mut().find(|t| t.id == active_id) {
         tab.snapshot_path = Some(snapshot_path.to_string_lossy().to_string());
+        // The tab itself records the save, so it stays correct even if the
+        // frontend's follow-up `update_tab_after_save` never arrives.
+        tab.file_path = Some(path);
+        tab.display_name = display_name;
+        tab.is_dirty = false;
     }
     Ok(())
 }

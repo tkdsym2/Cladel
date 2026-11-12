@@ -5,7 +5,7 @@ Tauri v2 + React + TypeScript desktop app for researchers to organize thinking a
 ## Tech Stack
 
 - **Framework**: Tauri v2 (Rust backend + WebView frontend)
-- **Frontend**: React 19.2 / TypeScript 5.9, Vite 7.3, react-router-dom 7.13 (HashRouter), @xyflow/react 12.10 (React Flow), Zustand 5.0, @mui/icons-material 7.3, Tailwind CSS 4.2 + @mui/material 7.3 + @emotion, react-markdown 10, rehype-raw 7, remark-gfm 4
+- **Frontend**: React 19.2 / TypeScript 5.9, Vite 7.3, react-router-dom 7.13 (HashRouter), @xyflow/react 12.10 (React Flow), Zustand 5.0, @mui/icons-material 7.3, Tailwind CSS 4.2 + @mui/material 7.3 + @emotion, react-markdown 10, rehype-raw 7, rehype-sanitize 6, remark-gfm 4
 - **Backend**: rusqlite 0.31 (bundled), reqwest 0.12, pdf-extract 0.7, image 0.24, regex 1, serde/chrono/uuid, tauri-plugin-store 2, tauri-plugin-updater 2 + tauri-plugin-process 2 (auto-update), tauri-plugin-shell 2 + tauri-plugin-dialog 2, base64 0.22, genpdf 0.2 + pulldown-cmark 0.12 (Markdown->PDF), typst 0.14 + typst-as-lib 0.15 + typst-pdf 0.14 + typst-render 0.14 (Typst typesetting + preview)
 - **File Format**: `.flnx` (SQLite, DELETE journal mode, single-file)
 - **App ID**: `com.filonex.desktop`
@@ -188,7 +188,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/App.tsx` | 830 | Main app shell: initialization, tab/layer/delete orchestration, layout composition, dialog state, startup update check |
 | `src/main.tsx` | 26 | Entry: HashRouter with 5 routes: `/`, `/node-detail/:nodeId/:layerId`, `/agent-console`, `/manual`, `/note-help` |
 | `src/types/index.ts` | 760 | All shared interfaces, SYSTEM_DEFAULTS, TabNodeType, TableModel/TableSource, RenderModel, ExportStyleConfig, ExportTitlePage |
-| `src/lib/tauri-commands.ts` | 768 | Typed wrappers for 124 of 126 Tauri invoke commands (all except backend-only get_api_key/get_gemini_api_key) |
+| `src/lib/tauri-commands.ts` | 768 | Typed wrappers for all 127 Tauri invoke commands |
 | `src/lib/detached-window.ts` | 180 | Multi-window management (open/focus/closeAll); spawns node-detail, agent-console, manual, note-help windows |
 | `src/lib/sync-events.ts` | 183 | Cross-window event bus (node-updated, node-deleted, comments-changed, file-changed, graph-changed, settings-changed, export-started, export-finished) |
 | `src/lib/userColors.ts` | 21 | Deterministic 8-color palette for user-based node coloring |
@@ -265,7 +265,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/panels/ContentPullPopover.tsx` | 508 | Dark-themed two-step content selection popover |
 | `src/components/panels/MentionPopover.tsx` | 392 | @mention autocomplete for node references |
 | `src/components/panels/DetachedNodeDetail.tsx` | 228 | Standalone node detail window (cross-window sync) |
-| `src/components/panels/MarkdownPreview.tsx` | 132 | Markdown preview with remark-gfm and rehype-raw |
+| `src/components/panels/MarkdownPreview.tsx` | 132 | Markdown preview with remark-gfm, rehype-raw + rehype-sanitize (raw HTML is sanitized; only our `ref-cite`/`ref-image` span classes are allowed) |
 | `src/components/panels/AgentConsole.tsx` | 237 | `/agent-console` window: live `agent-console-log` event stream, level/source-tagged entries, auto-scroll |
 | `src/components/panels/ManualWindow.tsx` | 615 | `/manual` window: in-app help (shortcuts, features, getting-started) |
 | `src/components/panels/NoteHelpWindow.tsx` | 219 | `/note-help` window: bilingual Note/Typst writing help (/import, @mention, citations, images, table refs) |
@@ -295,8 +295,8 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | Path | Lines | Purpose |
 |------|------:|---------|
 | `src-tauri/src/main.rs` | 6 | Calls `filonex_app_lib::run()` |
-| `src-tauri/src/lib.rs` | ~330 | App entry: 126 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
-| `src-tauri/src/db.rs` | 1,116 | SQLite schema, SCHEMA_VERSION=21, 21 migrations, Database+TabInfo |
+| `src-tauri/src/lib.rs` | ~330 | App entry: 127 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
+| `src-tauri/src/db.rs` | 1,116 | SQLite schema, SCHEMA_VERSION=22, 22 migrations, Database+TabInfo |
 | `src-tauri/src/commands/mod.rs` | 24 | Module declarations (23 submodules) |
 | `src-tauri/src/commands/nodes.rs` | 600 | CRUD + soft_delete + restore + update_display_id + update_paper_bibtex |
 | `src-tauri/src/commands/edges.rs` | 225 | CRUD (rejects self-loops + duplicates) + restore with handle persistence, weight 1-5 |
@@ -364,15 +364,16 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ---
 
-## Registered Tauri Commands (126 total)
+## Registered Tauri Commands (127 total)
 
 Counted from `generate_handler![]` in `lib.rs`:
 
 | Category | Count | Commands |
 |----------|------:|---------|
 | File | 5 | `file_new`, `file_open`, `file_save`, `file_save_as`, `file_get_current_path` |
-| Tabs | 9 | `open_sample_as_new`, `get_tabs`, `get_active_tab_id`, `create_tab`, `open_file_in_tab`, `switch_tab`, `close_tab`, `reload_active_tab_from_disk`, `update_tab_after_save` |
-| Nodes | 8 | `create_node`, `update_node`, `delete_node`, `soft_delete_node`, `restore_node`, `get_nodes_by_layer`, `update_display_id`, `update_paper_bibtex` |
+| Tabs | 10 | `open_sample_as_new`, `get_tabs`, `get_active_tab_id`, `create_tab`, `open_file_in_tab`, `switch_tab`, `close_tab`, `reload_active_tab_from_disk`, `update_tab_after_save`, `set_tab_dirty` |
+| Nodes | 9 | `create_node`, `update_node`, `delete_node`, `soft_delete_node`, `restore_node`, `get_nodes_by_layer`, `get_node`, `update_display_id`, `update_paper_bibtex` |
+| Undo support | 1 | `restore_related_rows` |
 | Edges | 5 | `create_edge`, `update_edge`, `delete_edge`, `restore_edge`, `get_edges_by_layer` |
 | Layers/Projects | 5 | `create_project`, `create_layer`, `delete_layer`, `get_layers`, `get_projects` |
 | Core Versions | 3 | `save_core_version`, `get_core_versions`, `get_core_version_diff` |
@@ -383,7 +384,7 @@ Counted from `generate_handler![]` in `lib.rs`:
 | Edge Comments | 5 | `add_edge_comment`, `get_edge_comments`, `update_edge_comment`, `delete_edge_comment`, `get_edge_comment_counts` |
 | Junctions | 2 | `split_edge_at_junction`, `dissolve_junction` |
 | Agent | 5 | `invoke_agent`, `invoke_agent_node`, `invoke_agent_comment`, `invoke_paper_summarize`, `invoke_paper_chat` |
-| Settings (Keys) | 8 | `save_api_key`, `get_api_key_status`, `get_api_key`*, `delete_api_key`, `save_gemini_api_key`, `get_gemini_api_key_status`, `get_gemini_api_key`*, `delete_gemini_api_key` |
+| Settings (Keys) | 6 | `save_api_key`, `get_api_key_status`, `delete_api_key`, `save_gemini_api_key`, `get_gemini_api_key_status`, `delete_gemini_api_key` |
 | Settings (Other) | 10 | `save_agent_capabilities`, `get_agent_capabilities`, `get_ui_preferences`, `save_ui_preferences`, `get_recent_files`, `add_recent_file`, `remove_recent_file`, `get_paper_summary_prompt`, `save_paper_summary_prompt`, `reset_paper_summary_prompt` |
 | User Identity | 3 | `get_user_identity`, `register_user`, `update_user_name` |
 | PDF Import | 2 | `import_pdf`, `extract_pdf_with_claude` |
@@ -399,7 +400,7 @@ Counted from `generate_handler![]` in `lib.rs`:
 | Usage | 3 | `get_usage_summary`, `get_usage_history`, `clear_usage_log` |
 | Agent Messages | 3 | `add_agent_node_message`, `get_agent_node_messages`, `delete_agent_node_message` |
 
-*`get_api_key` and `get_gemini_api_key` are **backend-only** -- registered in generate_handler but intentionally have no frontend wrapper (raw keys used only server-side for API calls).
+Raw API keys are never exposed as commands: the webview can only read the masked status. Backend code reads keys via `get_stored_api_key` / `get_stored_gemini_api_key`. (The old `get_api_key`/`get_gemini_api_key` commands were removed -- any window could invoke them.)
 
 ---
 
@@ -411,6 +412,7 @@ Browser-style multi-file tabs (FileTabBar + tabStore + tab_commands.rs):
 - Each tab has its own SQLite connection backed by a working copy at `std::env::temp_dir()/filonex-tabs/{tab_id}.flnx` (see Key design decisions). Switching snapshots the current tab's working copy and restores the target tab's connection.
 - `tabStore.ts`: `newTab()`, `switchTab()`, `openFileInTab()`, `closeTab()`, `reloadActiveTabFromDisk()` -- each calls backend + reinitializes all frontend stores.
 - Closing last tab creates a fresh empty tab automatically.
+- **Unsaved state**: the backend `TabInfo.is_dirty` is the source of truth (`set_tab_dirty(tab_id, is_dirty)`; cleared by `file_save`/`file_save_as`). Every tab operation reloads the tab list from the backend, so a frontend-only flag would be wiped. `fileStore.isDirty` just mirrors the active tab (subscription in fileStore.ts). The unsaved dialog's "Save" brings each dirty tab to the front and saves it (close-app saves ALL dirty tabs).
 - **Native menu**: Close Tab (Cmd+W).
 
 ### Agent Node System
@@ -476,7 +478,7 @@ A second authoring pipeline (parallel to Markdown/genpdf) for writing in **Typst
 
 **Engine** (`typst_engine.rs`): in-process via `typst-as-lib` (typst 0.14). Bundled fonts (`NotoSerifJP`/`NotoSansJP` + Liberation) → JP + Latin. `compile_to_pdf` / `compile_to_pngs` (typst-render @ 2.0 ppt). A temp work dir per node holds copied images + `refs.bib` and is the file-resolver root.
 
-**Reference translation** (`typst_render.rs::assemble_typst_source`, reuses `split_citation_ids` / `parse_table_cell_ref` / `build_table_map` from pdf_export): `{@cite}` → Typst `@cite` (plus a `#bibliography("refs.bib", style:"ieee"|"apa")` generated from cited papers' BibTeX, entry key rewritten to the display_id); `{{@image_id}}` → `#figure(image(.., width: 80%), caption:[title])` (image copied into the work dir); `{@table_id[r,c]}` → the cell value. Data-derived text is Typst-escaped. **Adjustable figures**: any Typst string literal `"@image_id"` in code (e.g. `#figure(image("@image_1", width: 60%), placement: top, caption: [..]) <fig:x>`) is resolved to the copied image file (`resolve_image_paths`, syntax-tree based: markup text, raw and comments untouched) — so width/placement/caption/label are controlled in the note.
+**Reference translation** (`typst_render.rs::assemble_typst_source`, reuses `split_citation_ids` / `parse_table_cell_ref` / `build_table_map` from pdf_export): `{@cite}` → Typst `#cite(label("cite"));` (`cite_markup`; NOT the `@cite` shorthand, whose lexer swallows following kana/kanji/letters into the label and breaks the compile in Japanese prose) (plus a `#bibliography("refs.bib", style:"ieee"|"apa")` generated from cited papers' BibTeX, entry key rewritten to the display_id); `{{@image_id}}` → `#figure(image(.., width: 80%), caption:[title])` (image copied into the work dir); `{@table_id[r,c]}` → the cell value. Data-derived text is Typst-escaped. **Adjustable figures**: any Typst string literal `"@image_id"` in code (e.g. `#figure(image("@image_1", width: 60%), placement: top, caption: [..]) <fig:x>`) is resolved to the copied image file (`resolve_image_paths`, syntax-tree based: markup text, raw and comments untouched) — so width/placement/caption/label are controlled in the note.
 
 **Commands:** `render_typst_preview(render_node_id)` → `{ pages, page_count, note_count }`; `generate_typst_export_pdf(export_node_id, output_path?)` (emits `export-progress`, reuses the export overlay; `output_path` omitted → preview PDF in temp dir, see Export Node section). Frontend preview state lives in `renderStore` (transient — never dirties the file).
 
@@ -486,7 +488,7 @@ A second authoring pipeline (parallel to Markdown/genpdf) for writing in **Typst
 - **Prompt** (pfml.rs): `<|plamo:tag|>dataset<|plamo:msg|>translation[<|plamo:tag|>glossary(<|plamo:index|>src<|plamo:item|>dst)+]<|plamo:tag|>input[<|plamo:key|>lang<|plamo:val|>SRC]<|plamo:msg|>TEXT<|plamo:tag|>output<|plamo:key|>lang<|plamo:val|>TGT[<|plamo:key|>form<|plamo:val|>plain|polite]<|plamo:msg|>`; no BOS (llama.cpp adds it); stop `<|plamo:tag|>`, `<|plamo:bos|>`; temperature 0. `<|plamo:...|>` in user text is stripped.
 - **Typst-aware** (typst_seg.rs): Note inputs (`format: "typst"`) are parsed with Typst's parser; only prose units are sent (paragraphs, heading/list/enum/term bodies, content blocks inside code such as `caption: [..]` / `#let x = [..]`; not inside set/show/import). Kept verbatim: code, display math, raw, comments, labels, reference-only paragraphs. **Figures**: before planning, a line holding only `{{@image_N}}` (a real markup ref, Image node in the request's `figures` map = display_id → title, sent by the frontend) is rewritten to `#figure(image("@image_N", width: 80%), caption: [title]) <fig:image_N>` (`expand_figure_refs`), so the caption is translated and the figure is adjustable in the output note. Protected inline tokens (inline math, raw, `@ref`, `<label>`, links, comments, escapes, `#code` heads, `{@..}` / `{{@..}}`) must survive (`check_output`, also strong/emph count + no new syntax errors); else retry with `⟦n⟧` placeholders; else the unit stays untranslated (`kept_original`). Each prompt carries the last 3 (source, translation) pairs as PFML3 translation history for consistent terminology. Core/Paper/typed text use `format: "plain"`.
 - **Streaming**: `translate_text(request{inputs:[{text,format}], ..options}, onEvent: Channel)` -> events `loading` / `started{chunk_count}` / `segment{prefix}` (assembled document before the current unit) / `delta{text}` / `chunk_done`; result = final text + `masked_retries` + `kept_original`. `model_path` omitted -> active model (`NO_MODEL:` error when none).
-- **Node**: `TranslateModel { target_lang, source_lang|null, form, glossary[], input_text, output, translated_at, output_node_id, output_pairs, output_source_id, sync }`. Input = incoming edges from Edit/Core/Paper (content; paper = abstract), sorted top->bottom, else `input_text`. Streaming text lives in translateStore; only the finished output is saved (dirties the file). Finished output is credited "Translated by PLaMo" on the canvas node and in the panel. Panel layout (TranslateNodeViewer): header with the run/stop button → model → Input | Output columns (connected-source preview or own textarea / output + copy + write-to-Note) → languages, glossary, sync. "Write to new Note" creates a user_doc to the right + edge (linked while wired). The linked note is only replaced when the user presses "Update" — never automatically (it may contain hand edits).
+- **Node**: `TranslateModel { target_lang, source_lang|null, form, glossary[], input_text, output, translated_at, output_node_id, output_pairs, output_source_id, sync }`. Input = incoming edges from Edit/Core/Paper (content; paper = abstract), sorted top->bottom, else `input_text`. Streaming text lives in translateStore; only the finished output is saved (dirties the file). `patchTranslateModel` merges into the stored model read from the canvas store, falling back to `get_node` (DB) when the node is not in the store (detached window / other layer) — never into defaults. Finished output is credited "Translated by PLaMo" on the canvas node and in the panel. Panel layout (TranslateNodeViewer): header with the run/stop button → model → Input | Output columns (connected-source preview or own textarea / output + copy + write-to-Note) → languages, glossary, sync. "Write to new Note" creates a user_doc to the right + edge (linked while wired). The linked note is only replaced when the user presses "Update" — never automatically (it may contain hand edits).
 - **Bilingual sync** (`translate/sync.rs`, `translateSync.ts`, `TranslateSyncSection.tsx`): `TranslateModel.sync = { source_note_id, target_note_id, source_lang, target_lang, pairs: SyncPair{src,dst}[], synced_at }` keeps the input Note ⇄ output Note in step. Typst inputs are translated block by block (top-level blocks = split at top-level Parbreaks; raw/content blocks never split), so a single-Note translation returns `pairs` (saved as `output_pairs` + `output_source_id`) which become the snapshot on "Write to new Note"/"Update" (`startSync` instead pairs two existing notes by position). Each note is diffed against its side of the snapshot (exact block text, LCS; del+ins in one hunk = modified) → items: modified/added on one side → translate that block into the other language (glossary reversed for dst→src); deleted → delete counterpart; both edited / deleted-vs-edited → conflict (user picks). Every item can be ignored (mark synced; an ignored addition becomes a one-sided pair that never raises items). Nothing is applied automatically; `applyOne` re-plans before writing and aborts with STALE if the item changed during translation. Untouched blocks (hand edits, figure widths) are never rewritten. Canvas node shows "変更 N件（JA→EN a · EN→JA b · 競合 c）" / "同期済み". Editors (Core/Note) adopt external content changes when they have no unsaved edits.
 - **Models** (models.rs): `app_data_dir/models/{repo-name}/{file}.gguf` (+ `.manifest.json`), downloads via `.part` + `.part.json` (Range resume, SHA-256 = HF `lfs.oid`, rename on success), `imported/` for unknown imports, `catalog.json` cache for offline import verification. Active model = settings key `translation_active_model`. Progress event: `translation-model-progress`.
 - **License**: download/import require consent (`plamo_license_accepted_at` / `_sha256` / `_lang`); text from the model repo's `LICENSE/{ja,en}`, cached in `models/licenses/`. Attribution "Built with PLaMo" in Settings → Translation, macOS About credits, README.
@@ -663,6 +665,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 - **open_file_external**: Cross-platform via `#[cfg(target_os)]` -- `open` (macOS), `cmd /c start` (Windows), `xdg-open` (Linux).
 - **Orphaned/deprecated files** (zero importers, safe to delete): GraphToolbar.tsx, CoreHistoryPanel.tsx, EdgePopover.tsx, ContextMenu.tsx. NOTE: as a result there is currently no wired right-click canvas ContextMenu and no wired edge-comment thread UI (badges still show counts).
 - **Tab working copies**: every tab runs against a working copy at `std::env::temp_dir()/filonex-tabs/{tab_id}.flnx` (e.g. `$TMPDIR` on macOS); the real `.flnx` is read-only at runtime and only written on explicit Save (VACUUM INTO + atomic rename). Working copies are cleaned up on tab close, but NOT on save and not on crash.
+- **Delete + Undo**: `delete_node` / `delete_edge` return the rows that cascade away (`related_rows.rs`: node_comments, node_images, agent_node_messages, note_versions, core_versions, edge_comments). graphStore keeps them in the undo entry and calls `restore_related_rows` after re-inserting the node + edges. `restore_node` re-uniquifies a display_id that was reused meanwhile (`_2` suffix); `restore_edge` rejects self-loops/duplicates like `create_edge`. Multi-select delete goes through `graphStore.hardDeleteNodes` (one `batch_delete` undo entry, restored in reverse order; paper groups are ungrouped, not deleted).
 - **soft_delete_node deletes node_comments**: `soft_delete_node` runs `DELETE FROM node_comments WHERE node_id=?` and `restore_node` does NOT restore them -- comments are silently lost across a soft delete (only edges + edge_comments survive).
 - **AGENTS.md is a near-duplicate**: `AGENTS.md` largely duplicates this file (originally a Claude->Codex find-replace; provider/model names have since been corrected). It still carries the pre-sync structural drift (old file/command counts) -- treat CLAUDE.md as the maintained copy.
 - **Large files**: NodeDetailPanel.tsx (2,694), pdf_export.rs (2,322), SettingsDialog.tsx (2,071), graphStore.ts (1,862), GraphCanvas.tsx (1,612), AgentNodeViewer.tsx (1,140), db.rs (1,017) -- modify with care.

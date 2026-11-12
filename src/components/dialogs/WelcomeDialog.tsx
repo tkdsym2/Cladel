@@ -11,6 +11,7 @@ import { useFileStore } from "../../store/fileStore";
 import { useTabStore } from "../../store/tabStore";
 import { useUserStore } from "../../store/userStore";
 import type { RecentFile } from "../../types";
+import { isImeComposing } from "../../lib/keyboard";
 
 interface Props {
   open: boolean;
@@ -187,7 +188,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
               type="text"
               value={regName}
               onChange={(e) => setRegName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleRegister(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !isImeComposing(e)) handleRegister(); }}
               placeholder={t({ en: "Your name", ja: "あなたの名前" })}
               disabled={regLoading}
               style={regInputStyle}

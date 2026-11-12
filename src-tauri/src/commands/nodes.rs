@@ -364,6 +364,14 @@ pub fn restore_node(db: State<Database>, input: RestoreNodeInput) -> Result<Node
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
 
+    // The display_id may have been reused while the node was deleted (numbering
+    // is MAX+1, so deleting the highest note and creating a new one hands out
+    // the same id). Never bring back a duplicate: `{@id}` would be ambiguous.
+    let mut input = input;
+    if let Some(did) = input.display_id.clone() {
+        input.display_id = Some(unique_display_id(&conn, &did)?);
+    }
+
     conn.execute(
         "INSERT INTO nodes (id, layer_id, node_type, title, content, bibtex, metadata, pdf_path, display_id, position_x, position_y, status, created_by, created_at, updated_at, width, height, creator_user_id, creator_user_name)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14, ?15, ?16, ?17, ?18)",
@@ -414,8 +422,14 @@ pub fn restore_node(db: State<Database>, input: RestoreNodeInput) -> Result<Node
 }
 
 #[tauri::command]
-pub fn delete_node(db: State<Database>, node_id: String) -> Result<(), String> {
+pub fn delete_node(
+    db: State<Database>,
+    node_id: String,
+) -> Result<Vec<super::related_rows::TableRows>, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    // Rows that are about to cascade away — returned so Undo can restore them.
+    let related = super::related_rows::snapshot_for_node(&conn, &node_id)?;
 
     // Delete associated edges first
     conn.execute(
@@ -431,7 +445,7 @@ pub fn delete_node(db: State<Database>, node_id: String) -> Result<(), String> {
     conn.execute("DELETE FROM nodes WHERE id = ?1", [&node_id])
         .map_err(|e| e.to_string())?;
 
-    Ok(())
+    Ok(related)
 }
 
 #[tauri::command]
@@ -450,6 +464,20 @@ pub fn get_nodes_by_layer(db: State<Database>, layer_id: String) -> Result<Vec<N
         .map_err(|e| e.to_string())?;
 
     Ok(nodes)
+}
+
+/// Read one node straight from the DB, whatever layer it is on. Lets callers
+/// that cannot rely on the canvas store (detached windows, a node on a layer
+/// that is not currently shown) read-modify-write a node safely.
+#[tauri::command]
+pub fn get_node(db: State<Database>, node_id: String) -> Result<Option<NodeData>, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let query = format!("SELECT {} FROM nodes WHERE id = ?1", NODE_COLUMNS);
+    let mut stmt = conn.prepare(&query).map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query_map([&node_id], node_from_row)
+        .map_err(|e| e.to_string())?;
+    rows.next().transpose().map_err(|e| e.to_string())
 }
 
 #[tauri::command]

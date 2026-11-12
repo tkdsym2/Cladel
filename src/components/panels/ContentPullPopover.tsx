@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as cmd from "../../lib/tauri-commands";
+import { isImeComposing } from "../../lib/keyboard";
 
 // ─── Types (exported for NoteEditorWithPull) ───
 
@@ -143,6 +144,7 @@ export function ContentPullPopover({
     const handleKeyDown = (e: KeyboardEvent) => {
       const items = step === 1 ? connectedNodes : contentOptions;
 
+      if (isImeComposing(e)) return;
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();

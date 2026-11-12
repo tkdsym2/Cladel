@@ -225,6 +225,10 @@ export const useTabStore = create<TabStore>((set, get) => ({
       t.id === activeTabId ? { ...t, is_dirty: true } : t,
     );
     set({ tabs: updated });
+    // The backend owns the flag: every tab operation reloads the list from it.
+    cmd.setTabDirty(activeTabId, true).catch((err) => {
+      console.error("Failed to record unsaved state:", err);
+    });
   },
 
   markActiveTabClean: () => {
@@ -234,6 +238,9 @@ export const useTabStore = create<TabStore>((set, get) => ({
       t.id === activeTabId ? { ...t, is_dirty: false } : t,
     );
     set({ tabs: updated });
+    cmd.setTabDirty(activeTabId, false).catch((err) => {
+      console.error("Failed to record saved state:", err);
+    });
   },
 
   updateActiveTabAfterSave: (path: string, name: string) => {

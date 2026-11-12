@@ -1,3 +1,4 @@
+import { useGraphStore } from "../../store/graphStore";
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -100,6 +101,18 @@ export function DetachedNodeDetail() {
       unlisten.then((fn) => fn());
     };
   }, [nodeId, fetchNode]);
+
+  // A Translate node's panel writes through the store (patchTranslateModel) and
+  // this window ignores its own node-updated events, so re-read after local
+  // writes — otherwise the language / form controls keep showing stale values.
+  // (Limited to translate: the editors of other types manage their own state.)
+  const isTranslate = node?.node_type === "translate";
+  useEffect(() => {
+    if (!isTranslate) return;
+    return useGraphStore.subscribe((state, prev) => {
+      if (state.mutationVersion !== prev.mutationVersion) fetchNode();
+    });
+  }, [isTranslate, fetchNode]);
 
   // Listen for node-deleted events
   useEffect(() => {

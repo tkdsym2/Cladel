@@ -12,6 +12,7 @@ pub mod layers;
 pub mod literature;
 pub mod node_comments;
 pub mod nodes;
+pub mod related_rows;
 pub mod note_versions;
 pub mod pdf_export;
 pub mod pdf_import;

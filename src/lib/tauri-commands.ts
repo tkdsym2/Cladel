@@ -101,6 +101,10 @@ export function updateTabAfterSave(
   return invoke("update_tab_after_save", { filePath, displayName, isDirty });
 }
 
+export function setTabDirty(tabId: string, isDirty: boolean): Promise<void> {
+  return invoke("set_tab_dirty", { tabId, isDirty });
+}
+
 // ─── File Operations ───
 
 export function fileNew(): Promise<void> {
@@ -166,6 +170,11 @@ export function getNodesByLayer(layerId: string): Promise<NodeData[]> {
   return invoke("get_nodes_by_layer", { layerId });
 }
 
+/** One node read straight from the DB (any layer); null when it does not exist. */
+export function getNode(nodeId: string): Promise<NodeData | null> {
+  return invoke("get_node", { nodeId });
+}
+
 export function createNode(input: CreateNodeInput): Promise<NodeData> {
   return invoke("create_node", { input });
 }
@@ -174,8 +183,20 @@ export function updateNode(input: UpdateNodeInput): Promise<NodeData> {
   return invoke("update_node", { input });
 }
 
-export function deleteNode(nodeId: string): Promise<void> {
+/** Rows that were deleted together with a node / edge (comments, image record,
+ *  agent chat, ...). Opaque to the frontend: keep it and pass it back to
+ *  `restoreRelatedRows` on Undo. */
+export interface RelatedTableRows {
+  table: string;
+  rows: Record<string, unknown>[];
+}
+
+export function deleteNode(nodeId: string): Promise<RelatedTableRows[]> {
   return invoke("delete_node", { nodeId });
+}
+
+export function restoreRelatedRows(rows: RelatedTableRows[]): Promise<number> {
+  return invoke("restore_related_rows", { rows });
 }
 
 export function softDeleteNode(nodeId: string): Promise<NodeData> {
@@ -210,7 +231,7 @@ export function updateEdge(input: UpdateEdgeInput): Promise<EdgeData> {
   return invoke("update_edge", { input });
 }
 
-export function deleteEdge(edgeId: string): Promise<void> {
+export function deleteEdge(edgeId: string): Promise<RelatedTableRows[]> {
   return invoke("delete_edge", { edgeId });
 }
 

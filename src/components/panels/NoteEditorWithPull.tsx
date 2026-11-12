@@ -9,6 +9,7 @@ import {
 import { MentionPopover, type MentionItem } from "./MentionPopover";
 import { MarkdownPreview } from "./MarkdownPreview";
 import type { NodeData, EdgeData, PaperGroupMetadata } from "../../types";
+import { isImeComposing } from "../../lib/keyboard";
 
 type EditorMode = "write" | "preview";
 
@@ -420,6 +421,7 @@ export function NoteEditorWithPull({
     if (!slashOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isImeComposing(e)) return;
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
@@ -618,6 +620,7 @@ export function NoteEditorWithPull({
   }, []);
 
   const handleFindKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) return;
     if (e.key === "Escape") {
       setFindOpen(false);
       textareaRef.current?.focus();

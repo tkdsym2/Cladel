@@ -13,6 +13,7 @@ import { useSettingsStore } from "../../store/settingsStore";
 import { emitNodeUpdated } from "../../lib/sync-events";
 import * as cmd from "../../lib/tauri-commands";
 import type { AgentNodeMessage, AgentErrorInfo, NodeData, EdgeData } from "../../types";
+import { isImeComposing } from "../../lib/keyboard";
 
 interface AgentNodeViewerProps {
   nodeId: string;
@@ -296,6 +297,7 @@ export function AgentNodeViewer({ nodeId, layerId }: AgentNodeViewerProps) {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (isImeComposing(e)) return;
       if (mentionOpen && filteredMentions.length > 0) {
         if (e.key === "ArrowDown") {
           e.preventDefault();
