@@ -164,6 +164,9 @@ pub(crate) fn assemble_typst_source(
     let mut bib_entries: Vec<String> = Vec::new();
     let mut cited_keys: HashSet<String> = HashSet::new();
 
+    // Bundled templates (`#import "acm.typ": acm`) live next to the images.
+    super::templates::write_bundled_templates(work_dir)?;
+
     let mut body = String::new();
     body.push_str(PREAMBLE);
 
@@ -230,7 +233,11 @@ pub(crate) fn assemble_typst_source(
     if !bib_entries.is_empty() {
         std::fs::write(work_dir.join("refs.bib"), bib_entries.join("\n\n"))
             .map_err(|e| format!("Failed to write bibliography: {e}"))?;
-        let style = if citation_style == "apa" { "apa" } else { "ieee" };
+        let style = match citation_style {
+            "apa" => "apa",
+            "acm" => "association-for-computing-machinery",
+            _ => "ieee",
+        };
         body.push_str(&format!("\n#bibliography(\"refs.bib\", style: \"{style}\")\n"));
     }
 
@@ -240,7 +247,7 @@ pub(crate) fn assemble_typst_source(
 /// Fetch the active Note nodes connected to `node_id` (edges in either
 /// direction), ordered top-to-bottom then left-to-right for a stable reading
 /// order on the canvas.
-fn connected_notes(conn: &Connection, node_id: &str) -> Result<Vec<NodeData>, String> {
+pub(crate) fn connected_notes(conn: &Connection, node_id: &str) -> Result<Vec<NodeData>, String> {
     let query = format!(
         "SELECT {NODE_COLUMNS} FROM nodes WHERE id IN (
             SELECT source_node_id FROM edges WHERE target_node_id = ?1
@@ -258,7 +265,7 @@ fn connected_notes(conn: &Connection, node_id: &str) -> Result<Vec<NodeData>, St
     Ok(notes)
 }
 
-fn all_active_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<NodeData>, String> {
+pub(crate) fn all_active_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<NodeData>, String> {
     let query = format!("SELECT {NODE_COLUMNS} FROM nodes WHERE layer_id = ?1 AND status = 'active'");
     let mut stmt = conn.prepare(&query).map_err(|e| e.to_string())?;
     let nodes = stmt

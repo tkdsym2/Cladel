@@ -18,6 +18,7 @@ pub mod pdf_export;
 pub mod pdf_import;
 pub mod settings;
 pub mod tab_commands;
+pub mod templates;
 pub mod table_import;
 pub mod translate;
 pub mod typst_engine;

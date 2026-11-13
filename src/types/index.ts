@@ -608,7 +608,7 @@ export interface TableImportResult {
 
 // ─── Render Node ───
 
-export type CitationStyle = "ieee" | "apa";
+export type CitationStyle = "ieee" | "apa" | "acm";
 
 /** Render node model, stored as JSON in NodeData.metadata.
  *  A render node compiles the Typst source of its connected Note nodes and

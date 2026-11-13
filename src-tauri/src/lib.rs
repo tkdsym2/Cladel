@@ -31,7 +31,7 @@ pub fn run() {
             // ─── Native menu bar ───
 
             // Custom File menu items
-            let file_new = MenuItemBuilder::with_id("file-new", "New")
+            let file_new = MenuItemBuilder::with_id("file-new", "New...")
                 .accelerator("CmdOrCtrl+N")
                 .build(app)?;
             let file_open = MenuItemBuilder::with_id("file-open", "Open")
@@ -171,6 +171,7 @@ pub fn run() {
             commands::file_commands::file_get_current_path,
             // Tab commands
             commands::tab_commands::open_sample_as_new,
+            commands::templates::open_template_as_new,
             commands::tab_commands::get_tabs,
             commands::tab_commands::get_active_tab_id,
             commands::tab_commands::create_tab,
