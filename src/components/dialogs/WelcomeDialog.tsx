@@ -251,7 +251,7 @@ export function WelcomeDialog({ open, onNewFile, onFileOpened, onClose, onQuit }
                 {t({ en: "Create New File", ja: "新規ファイルを作成" })}
               </span>
               <span style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, textAlign: "center" }}>
-                {t({ en: "Start a fresh project", ja: "新しいプロジェクトを始める" })}
+                {t({ en: "Blank or from a template", ja: "白紙またはテンプレートから" })}
               </span>
             </button>
           </div>
@@ -488,7 +488,7 @@ const recentItemStyle: React.CSSProperties = {
   alignItems: "center",
   gap: 10,
   width: "100%",
-  padding: "10px 12px",
+  padding: "16px 12px",
   border: "none",
   borderBottom: "1px solid #f3f4f6",
   background: "transparent",
@@ -575,7 +575,7 @@ const browseButtonStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 8,
-  padding: "10px 12px",
+  padding: "16px 12px",
   marginTop: 8,
   border: "1px solid #e5e7eb",
   borderRadius: 8,

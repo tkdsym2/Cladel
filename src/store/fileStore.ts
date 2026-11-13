@@ -18,6 +18,7 @@ interface FileStore {
   openFile: () => Promise<void>;
   openFilePath: (path: string) => Promise<void>;
   openSample: () => Promise<void>;
+  openTemplate: (templateId: string) => Promise<void>;
   saveFile: () => Promise<boolean>;
   saveFileAs: () => Promise<boolean>;
   refreshFilePath: () => Promise<void>;
@@ -92,6 +93,12 @@ export const useFileStore = create<FileStore>((set, get) => ({
       console.error("Failed to open file:", err);
       throw err;
     }
+  },
+
+  openTemplate: async (templateId: string) => {
+    // Built-in template / sample: generated into an untitled document.
+    const name = await useTabStore.getState().openTemplate(templateId);
+    set({ currentFilePath: null, fileName: name });
   },
 
   openSample: async () => {

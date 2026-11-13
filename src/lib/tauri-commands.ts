@@ -172,6 +172,11 @@ export function openSampleAsNew(): Promise<TabInfo> {
   return invoke("open_sample_as_new");
 }
 
+/** Open a built-in template / sample ("chi-uist-sample" | "acm-double" | "acm-single") as a new untitled tab. */
+export function openTemplateAsNew(templateId: string): Promise<TabInfo> {
+  return invoke("open_template_as_new", { templateId });
+}
+
 // ─── Projects ───
 
 export function getProjects(): Promise<ProjectData[]> {

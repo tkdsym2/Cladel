@@ -22,6 +22,7 @@ import { StatusBar } from "./components/StatusBar";
 import { openAgentConsoleWindow, openManualWindow } from "./lib/detached-window";
 
 import { ExportBibtexDialog } from "./components/dialogs/ExportBibtexDialog";
+import { TemplateDialog } from "./components/dialogs/TemplateDialog";
 import { NewLayerDialog } from "./components/dialogs/NewLayerDialog";
 import { SettingsDialog } from "./components/dialogs/SettingsDialog";
 import { WelcomeDialog } from "./components/dialogs/WelcomeDialog";
@@ -52,6 +53,7 @@ function App() {
   const [newLayerDialogOpen, setNewLayerDialogOpen] = useState(false);
   const [layerSourceNodeId, setLayerSourceNodeId] = useState<string | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     nodeId: string;
     nodeTitle: string;
@@ -152,13 +154,9 @@ function App() {
 
   // Guarded file operations: check for unsaved changes before New/Open
   const guardedNewFile = useCallback(async () => {
-    // Cmd+N / File > New: create a new blank tab
-    try {
-      await newFile();
-    } catch (err) {
-      console.error("Failed to create new tab:", err);
-    }
-  }, [newFile]);
+    // Cmd+N / File > New: choose blank or a template (TemplateDialog)
+    setTemplateDialogOpen(true);
+  }, []);
 
   const guardedOpenFile = useCallback(() => {
     // With multi-tab, open always creates a new tab — no unsaved prompt needed
@@ -230,8 +228,9 @@ function App() {
 
   // ─── Welcome Dialog handlers ───
   const handleWelcomeNewFile = useCallback(() => {
-    // App already starts with an in-memory DB (Untitled), so just dismiss
-    setShowWelcome(false);
+    // Choose blank or a template; "blank" keeps the fresh untitled document
+    // the app already holds and dismisses the welcome dialog.
+    setTemplateDialogOpen(true);
   }, []);
 
   const handleWelcomeFileOpened = useCallback(() => {
@@ -250,13 +249,9 @@ function App() {
   }, [tabSwitching, activeTabId]);
 
   const handleNewTab = useCallback(async () => {
-    // + button: create a new blank tab
-    try {
-      await newFile();
-    } catch (err) {
-      console.error("Failed to create new tab:", err);
-    }
-  }, [newFile]);
+    // + button: choose blank or a template (TemplateDialog)
+    setTemplateDialogOpen(true);
+  }, []);
 
   const handleCloseTab = useCallback((tabId: string) => {
     // Check if the tab being closed is dirty
@@ -801,6 +796,18 @@ function App() {
         onNewFile={handleWelcomeNewFile}
         onFileOpened={handleWelcomeFileOpened}
         onQuit={() => { getCurrentWindow().close(); }}
+      />
+
+      {/* New File chooser: blank or template (Cmd+N, "+" tab button, Welcome "Create New File") */}
+      <TemplateDialog
+        open={templateDialogOpen && !loading}
+        onClose={() => setTemplateDialogOpen(false)}
+        onOpened={handleWelcomeFileOpened}
+        onBlank={async () => {
+          // At launch the app already holds a fresh untitled document: keep it.
+          if (showWelcome) setShowWelcome(false);
+          else await newFile();
+        }}
       />
 
       {/* Update Dialog (auto-check on startup, production only) */}

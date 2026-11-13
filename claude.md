@@ -188,7 +188,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/App.tsx` | 830 | Main app shell: initialization, tab/layer/delete orchestration, layout composition, dialog state, startup update check |
 | `src/main.tsx` | 26 | Entry: HashRouter with 5 routes: `/`, `/node-detail/:nodeId/:layerId`, `/agent-console`, `/manual`, `/note-help` |
 | `src/types/index.ts` | 760 | All shared interfaces, SYSTEM_DEFAULTS, TabNodeType, TableModel/TableSource, RenderModel, ExportStyleConfig, ExportTitlePage |
-| `src/lib/tauri-commands.ts` | 768 | Typed wrappers for all 127 Tauri invoke commands |
+| `src/lib/tauri-commands.ts` | 768 | Typed wrappers for all 128 Tauri invoke commands |
 | `src/lib/detached-window.ts` | 180 | Multi-window management (open/focus/closeAll); spawns node-detail, agent-console, manual, note-help windows |
 | `src/lib/sync-events.ts` | 183 | Cross-window event bus (node-updated, node-deleted, comments-changed, file-changed, graph-changed, settings-changed, export-started, export-finished) |
 | `src/lib/userColors.ts` | 21 | Deterministic 8-color palette for user-based node coloring |
@@ -280,6 +280,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src/components/dialogs/NewLayerDialog.tsx` | 389 | Layer creation with optional source node |
 | `src/components/dialogs/ImageImportDialog.tsx` | 386 | Image import + validation + positionOverride |
 | `src/components/dialogs/ExportStyleConfigDialog.tsx` | 681 | PDF export style config (fonts, sizes, margins, alignment, markers, line numbers) with preview |
+| `src/components/dialogs/TemplateDialog.tsx` | ~370 | New File chooser: Blank document or a built-in template/sample (list + page previews from `src/assets/templates/*.png`); opens the selection as a new untitled tab |
 | `src/components/dialogs/ConfirmDialogs.tsx` | 238 | Shared confirm dialogs (Delete, BatchDelete, EdgeDelete, UnsavedChanges) |
 | `src/components/dialogs/UpdateDialog.tsx` | 334 | Auto-update dialog: available version, download + install progress, relaunch |
 | `src/components/dialogs/PdfExportProgressDialog.tsx` | 176 | PDF export progress bar (self-initiated exports) |
@@ -295,7 +296,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | Path | Lines | Purpose |
 |------|------:|---------|
 | `src-tauri/src/main.rs` | 6 | Calls `filonex_app_lib::run()` |
-| `src-tauri/src/lib.rs` | ~330 | App entry: 127 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
+| `src-tauri/src/lib.rs` | ~330 | App entry: 128 command registrations, native menu, 5 plugins (store/shell/dialog/updater/process) |
 | `src-tauri/src/db.rs` | 1,116 | SQLite schema, SCHEMA_VERSION=22, 22 migrations, Database+TabInfo |
 | `src-tauri/src/commands/mod.rs` | 24 | Module declarations (23 submodules) |
 | `src-tauri/src/commands/nodes.rs` | 600 | CRUD + soft_delete + restore + update_display_id + update_paper_bibtex |
@@ -314,6 +315,7 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 | `src-tauri/src/commands/pdf_import.rs` | 638 | import_pdf (DOI->S2/CrossRef->Claude), extract_pdf_with_claude |
 | `src-tauri/src/commands/table_import.rs` | 142 | import_table_file (CSV/TSV/XLSX/XLS/ODS -> rows[][]) |
 | `src-tauri/src/commands/typst_engine.rs` | 150 | In-process Typst engine (typst-as-lib): compile source -> PDF / per-page PNG, bundled fonts |
+| `src-tauri/src/commands/templates.rs` | ~330 | Built-in templates/samples: writes `acm.typ` into Typst work dirs, `open_template_as_new` builds a document (notes/images/table/papers/render/export) in a new untitled tab; tests render the sample (must be 2 pages) |
 | `src-tauri/src/commands/typst_render.rs` | 363 | render_typst_preview + generate_typst_export_pdf: gather Notes, translate {@..} refs to Typst, compile |
 | **Translate subsystem** (`commands/translate/`) | | |
 | `translate/mod.rs` | ~340 | Commands: server lifecycle, `translate_text` (Channel streaming), `translate_cancel`; `run_translation` pipeline; ignored E2E tests (PLAMO_GGUF) |
@@ -364,13 +366,14 @@ CREATE TABLE schema_version (version INTEGER NOT NULL);
 
 ---
 
-## Registered Tauri Commands (127 total)
+## Registered Tauri Commands (128 total)
 
 Counted from `generate_handler![]` in `lib.rs`:
 
 | Category | Count | Commands |
 |----------|------:|---------|
 | File | 5 | `file_new`, `file_open`, `file_save`, `file_save_as`, `file_get_current_path` |
+| Templates | 1 | `open_template_as_new` |
 | Tabs | 10 | `open_sample_as_new`, `get_tabs`, `get_active_tab_id`, `create_tab`, `open_file_in_tab`, `switch_tab`, `close_tab`, `reload_active_tab_from_disk`, `update_tab_after_save`, `set_tab_dirty` |
 | Nodes | 9 | `create_node`, `update_node`, `delete_node`, `soft_delete_node`, `restore_node`, `get_nodes_by_layer`, `get_node`, `update_display_id`, `update_paper_bibtex` |
 | Undo support | 1 | `restore_related_rows` |
@@ -483,6 +486,14 @@ A second authoring pipeline (parallel to Markdown/genpdf) for writing in **Typst
 **Reference translation** (`typst_render.rs::assemble_typst_source`, reuses `split_citation_ids` / `parse_table_cell_ref` / `build_table_map` from pdf_export): `{@cite}` → Typst `#cite(label("cite"));` (`cite_markup`; NOT the `@cite` shorthand, whose lexer swallows following kana/kanji/letters into the label and breaks the compile in Japanese prose) (plus a `#bibliography("refs.bib", style:"ieee"|"apa")` generated from cited papers' BibTeX, entry key rewritten to the display_id); `{{@image_id}}` → `#figure(image(.., width: 80%), caption:[title])` (image copied into the work dir); `{@table_id[r,c]}` → the cell value. Data-derived text is Typst-escaped. **Adjustable figures**: any Typst string literal `"@image_id"` in code (e.g. `#figure(image("@image_1", width: 60%), placement: top, caption: [..]) <fig:x>`) is resolved to the copied image file (`resolve_image_paths`, syntax-tree based: markup text, raw and comments untouched) — so width/placement/caption/label are controlled in the note.
 
 **Commands:** `render_typst_preview(render_node_id)` → `{ pages, page_count, note_count }`; `generate_typst_export_pdf(export_node_id, output_path?)` (emits `export-progress`, reuses the export overlay; `output_path` omitted → preview PDF in temp dir, see Export Node section). Frontend preview state lives in `renderStore` (transient — never dirties the file).
+
+### Templates & Samples (CHI / UIST)
+
+- **Typst template** `src-tauri/templates/acm.typ` (unofficial approximation of ACM `acmart`): `#import "acm.typ": acm` then `#show: acm.with(format: "double"|"single", title:, authors:, abstract:, ccs:, keywords:, teaser:, conference:, copyright:, review:, anonymous:)`. `double` = two-column proceedings (sigconf: US letter, 9pt, title/authors/teaser span both columns via a parent-scope float), `single` = single-column manuscript for review (`review: true` adds line numbers). `assemble_typst_source` writes `acm.typ` into every compile work dir (`templates::write_bundled_templates`), so any Note can import it. Title/abstract/teaser are `#let` bindings in the skeleton so the Translate node can translate them (content inside `#show:` is kept verbatim).
+- **Citation style `"acm"`** (render/export node metadata `citation_style`) → Typst CSL `association-for-computing-machinery`; selectable in ExportNodeViewer (Markdown/genpdf export treats it like IEEE).
+- **New File chooser**: `TemplateDialog` is shown for every "new file" action (Cmd+N / File → New..., the "+" tab button, Welcome "Create New File"). First item (default) is **Blank document** → `onBlank` (App.tsx: dismiss the Welcome dialog when it is showing, since the app already holds a fresh untitled document; otherwise `newFile()`). The others call `open_template_as_new(template_id)`: `chi-uist-sample` (two-page two-column sample: 2 notes, 2 image nodes, table node with cell refs, 9 paper nodes, render + export), `acm-double` / `acm-single` (blank skeleton note → render → export), plus the legacy `sample.flnx` demo. Enter creates, ↑/↓ move the selection, Esc cancels. Template documents are generated in an in-memory DB from the text sources in `src-tauri/templates/` (not shipped as `.flnx`) and opened as an untitled tab; `tabStore.openTemplate` then dispatches the window event `filonex-fit-view` (handled in CanvasControls) so the whole graph is visible.
+- **Sample assets**: `templates/chi-uist-sample/{front.typ, body.typ, papers.bib, table.json, fig_*.png}`; figures are drawn in Typst (`figures-src/*.typ`, rebuild with `typst compile --ppi 300`). Images are embedded in the binary and written to `app_data_dir/templates/chi-uist-sample/` on open (image nodes reference files by path). Gallery thumbnails `src/assets/templates/*.png` come from the test output (`FILONEX_TEMPLATE_OUT=<dir> cargo test --lib templates`); the test asserts the sample renders exactly 2 pages, so re-check after editing the text.
+- **Fonts**: the engine also loads `typst_assets::fonts()` (Libertinus Serif, New Computer Modern + Math, DejaVu Sans Mono). Headings/running heads use Liberation Sans (`src-tauri/fonts/LiberationSans-*.ttf`, from the official liberation-fonts 2.1.5 release; the files previously checked in were saved HTML pages, not fonts). Typst family names: `Liberation Sans`, `Liberation Serif`, `Noto Sans CJK JP`, `Noto Serif JP`.
 
 ### Translate Node (PLaMo 3 Translate, local)
 
@@ -625,7 +636,7 @@ Multi-select: Shift+click toggles, Shift+drag draws selection box (SelectionMode
 ## Native Menu Bar
 
 - **Filonex**: About, Settings (Cmd+,), Hide, Hide Others, Show All, Quit
-- **File**: New (Cmd+N), Open (Cmd+O), Save (Cmd+S), Save As (Cmd+Shift+S), Close Tab (Cmd+W)
+- **File**: New... (Cmd+N, opens the New File chooser), Open (Cmd+O), Save (Cmd+S), Save As (Cmd+Shift+S), Close Tab (Cmd+W)
 - **Edit**: Undo, Redo, Cut, Copy, Paste, Select All
 - **Window**: Minimize, Close
 

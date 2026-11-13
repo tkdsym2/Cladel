@@ -20,6 +20,8 @@ interface TabStore {
   newTab: () => Promise<void>;
   openFileInTab: (path: string) => Promise<void>;
   openSample: () => Promise<void>;
+  /** Open a built-in template / sample as a new untitled tab; resolves to the tab's display name. */
+  openTemplate: (templateId: string) => Promise<string>;
   reloadActiveTabFromDisk: () => Promise<void>;
   closeTab: (tabId: string) => Promise<void>;
   markActiveTabDirty: () => void;
@@ -153,8 +155,13 @@ export const useTabStore = create<TabStore>((set, get) => ({
   },
 
   openSample: async () => {
+    await get().openTemplate("");
+  },
+
+  // templateId "" = the bundled demo project (sample.flnx).
+  openTemplate: async (templateId: string) => {
     const { switching, tabs, activeTabId } = get();
-    if (switching) return;
+    if (switching) throw new Error("Another tab operation is in progress");
 
     // Replace the current empty/untitled tab if it's blank (fresh launch).
     const currentTab = tabs.find((t) => t.id === activeTabId);
@@ -165,7 +172,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
       // Pending editor saves must hit THIS tab's DB before the connection swaps.
       await flushPendingSaves();
       await closeAllDetachedWindows();
-      const tab = await cmd.openSampleAsNew();
+      const tab = templateId ? await cmd.openTemplateAsNew(templateId) : await cmd.openSampleAsNew();
       await reinitialize();
 
       if (isEmptyUntitled && currentTab && currentTab.id !== tab.id) {
@@ -174,6 +181,9 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
       const updatedTabs = await cmd.getTabs();
       set({ tabs: updatedTabs, activeTabId: tab.id, switching: false });
+      // Fit the freshly built graph once React Flow has measured its nodes.
+      setTimeout(() => window.dispatchEvent(new Event("filonex-fit-view")), 300);
+      return tab.display_name;
     } catch (err) {
       console.error("Failed to open sample:", err);
       set({ switching: false });
