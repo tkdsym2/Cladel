@@ -46,3 +46,5 @@ typst = "0.14"
 typst-as-lib = "0.15"
 typst-pdf = "0.14"
 typst-render = "0.14"
+# Typst's default fonts (Libertinus Serif, New Computer Modern Math, DejaVu Sans Mono)
+typst-assets = { version = "0.14", features = ["fonts"] }
