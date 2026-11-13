@@ -305,6 +305,16 @@ export function ExportNodeViewer({ node }: ExportNodeViewerProps) {
             />
             <span>APA (Author, Year)</span>
           </label>
+          <label style={radioLabelStyle} title="ACM Reference Format (Typst mode; Markdown mode falls back to IEEE)">
+            <input
+              type="radio"
+              name="citationStyle"
+              value="acm"
+              checked={citationStyle === "acm"}
+              onChange={() => handleStyleChange("acm")}
+            />
+            <span>ACM [1]</span>
+          </label>
         </div>
       </div>
 

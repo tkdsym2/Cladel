@@ -1325,6 +1325,7 @@ dependencies = [
  "tokio",
  "typst",
  "typst-as-lib",
+ "typst-assets",
  "typst-pdf",
  "typst-render",
  "uuid",

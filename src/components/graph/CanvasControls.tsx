@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { useAgentStore } from "../../store/agentStore";
 import { useGraphStore } from "../../store/graphStore";
@@ -33,6 +33,14 @@ export function CanvasControls({
 }) {
   const t = useT();
   const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  // A template / sample was opened into this canvas: show the whole graph
+  // (the viewport otherwise stays where the previous document left it).
+  useEffect(() => {
+    const onFit = () => fitView({ padding: 0.15 });
+    window.addEventListener("filonex-fit-view", onFit);
+    return () => window.removeEventListener("filonex-fit-view", onFit);
+  }, [fitView]);
   const agentPanelOpen = useAgentStore((s) => s.panelOpen);
   const toggleAgentPanel = useAgentStore((s) => s.togglePanel);
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId);

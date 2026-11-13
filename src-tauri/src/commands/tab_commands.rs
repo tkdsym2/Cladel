@@ -64,26 +64,30 @@ pub fn get_active_tab_id(db: State<Database>) -> Result<String, String> {
 /// Create a new empty tab (in-memory DB) and switch to it.
 #[tauri::command]
 pub fn create_tab(db: State<Database>) -> Result<TabInfo, String> {
-    // 1. Snapshot current tab
-    snapshot_current_tab_inner(&db)?;
-
-    // 2. Create fresh in-memory DB
     let new_conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
     initialize_schema(&new_conn).map_err(|e| e.to_string())?;
+    register_new_tab(&db, new_conn, "Untitled")
+}
 
-    // 3. Create new tab info
+/// Snapshot the current tab, then make `new_conn` (an in-memory document) a
+/// new untitled tab and switch to it.
+pub(crate) fn register_new_tab(
+    db: &Database,
+    new_conn: Connection,
+    display_name: &str,
+) -> Result<TabInfo, String> {
+    snapshot_current_tab_inner(db)?;
+
     let new_tab = TabInfo {
         id: uuid::Uuid::new_v4().to_string(),
         file_path: None,
         snapshot_path: None,
-        display_name: "Untitled".to_string(),
+        display_name: display_name.to_string(),
         is_dirty: false,
     };
 
-    // 4. Swap connection
     db.swap_connection(new_conn, None)?;
 
-    // 5. Add tab and set active
     {
         let mut tabs = db.tabs.lock().map_err(|e| e.to_string())?;
         tabs.push(new_tab.clone());

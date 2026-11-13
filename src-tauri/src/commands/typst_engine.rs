@@ -15,7 +15,7 @@ use typst_as_lib::TypstEngine;
 
 /// Fonts shipped with the app. Japanese (Noto) + Latin (Liberation) coverage.
 fn bundled_fonts() -> Vec<&'static [u8]> {
-    vec![
+    [
         include_bytes!("../../fonts/NotoSerifJP.ttf") as &[u8],
         include_bytes!("../../fonts/NotoSansJP.otf") as &[u8],
         include_bytes!("../../fonts/LiberationSerif-Regular.ttf") as &[u8],
@@ -27,6 +27,11 @@ fn bundled_fonts() -> Vec<&'static [u8]> {
         include_bytes!("../../fonts/LiberationSans-Italic.ttf") as &[u8],
         include_bytes!("../../fonts/LiberationSans-BoldItalic.ttf") as &[u8],
     ]
+    .into_iter()
+    // Typst's own fonts: Libertinus Serif, New Computer Modern (+ Math, needed
+    // for equations) and DejaVu Sans Mono (raw text).
+    .chain(typst_assets::fonts())
+    .collect()
 }
 
 /// Format Typst diagnostics into a single human-readable error string.
